@@ -34,3 +34,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=excalimate
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
