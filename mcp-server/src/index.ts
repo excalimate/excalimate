@@ -23,7 +23,7 @@ async function startStdioServer(factory: () => McpServer): Promise<void> {
   await factory().connect(new StdioServerTransport());
 }
 
-async function startHTTPServer(factoryWithSSE: (sseClients: Set<Response>) => McpServer): Promise<void> {
+async function startHTTPServer(factoryWithSSE: (sseClients: Set<Response>, broadcastSSE: (data: string) => void) => McpServer): Promise<void> {
   const port = parseInt(process.env.PORT ?? '3001', 10);
   const app = express();
   app.use(helmet({ contentSecurityPolicy: false })); // Security headers
@@ -48,26 +48,53 @@ async function startHTTPServer(factoryWithSSE: (sseClients: Set<Response>) => Mc
     legacyHeaders: false,
   });
 
+  const jsonMiddleware = express.json();
+
   // Parse JSON only for non-share routes (share uses raw binary)
   app.use((req, res, next) => {
     if (req.path === '/share' && req.method === 'POST') {
       next();
     } else {
-      express.json()(req, res, next);
+      jsonMiddleware(req, res, next);
     }
   });
 
   // SSE clients for live state broadcasting
   const sseClients = new Set<Response>();
 
+  /** Safely broadcast to all SSE clients, removing dead ones on failure. */
+  function broadcastSSE(data: string): void {
+    for (const client of sseClients) {
+      try {
+        client.write(`data: ${data}\n\n`);
+      } catch {
+        sseClients.delete(client);
+      }
+    }
+  }
+
   // Factory that wires SSE broadcasting
-  const factory = () => factoryWithSSE(sseClients);
+  const factory = () => factoryWithSSE(sseClients, broadcastSSE);
 
   // Session map: keep server + transport alive across requests
   const sessions = new Map<
     string,
-    { server: McpServer; transport: StreamableHTTPServerTransport }
+    { server: McpServer; transport: StreamableHTTPServerTransport; lastActivity: number }
   >();
+
+  // Periodically clean up stale sessions (no activity for 30 minutes)
+  const SESSION_TTL_MS = 30 * 60 * 1000;
+  const sessionCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [sid, session] of sessions) {
+      if (now - session.lastActivity > SESSION_TTL_MS) {
+        sessions.delete(sid);
+        session.transport.close?.().catch(() => {});
+        session.server.close().catch(() => {});
+      }
+    }
+  }, 60 * 1000);
+  sessionCleanupTimer.unref();
 
   app.all('/mcp', async (req: Request, res: Response) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
@@ -75,6 +102,7 @@ async function startHTTPServer(factoryWithSSE: (sseClients: Set<Response>) => Mc
     // Route to existing session
     if (sessionId && sessions.has(sessionId)) {
       const session = sessions.get(sessionId)!;
+      session.lastActivity = Date.now();
       try {
         await session.transport.handleRequest(req, res, req.body);
       } catch (error) {
@@ -109,7 +137,7 @@ async function startHTTPServer(factoryWithSSE: (sseClients: Set<Response>) => Mc
       // Store session after first successful request (session ID is now set)
       const sid = transport.sessionId;
       if (sid) {
-        sessions.set(sid, { server, transport });
+        sessions.set(sid, { server, transport, lastActivity: Date.now() });
       }
     } catch (error) {
       console.error('MCP error:', error);
@@ -193,18 +221,27 @@ async function startHTTPServer(factoryWithSSE: (sseClients: Set<Response>) => Mc
 }
 
 async function main() {
+  // Prevent cascading unhandled rejections from crashing the process
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled rejection:', reason);
+  });
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught exception:', err);
+  });
+
   const store = new FileCheckpointStore();
 
   if (process.argv.includes('--stdio')) {
     const factory = () => createServer(store);
     await startStdioServer(factory);
   } else {
-    await startHTTPServer((sseClients) => {
+    await startHTTPServer((_sseClients, broadcastSSE) => {
       return createServer(store, (state) => {
-        // Broadcast state to all SSE clients
-        const data = JSON.stringify({ type: 'state', state });
-        for (const client of sseClients) {
-          client.write(`data: ${data}\n\n`);
+        try {
+          const data = JSON.stringify({ type: 'state', state });
+          broadcastSSE(data);
+        } catch (err) {
+          console.error('Failed to broadcast state:', err);
         }
       });
     });

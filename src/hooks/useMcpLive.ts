@@ -92,22 +92,28 @@ function applyState(state: any) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const elements = state.scene.elements.map((el: any) => ({ ...el, opacity: 100 }));
 
-    const scene = {
-      elements,
-      appState: state.scene.appState ?? {},
-      files: state.scene.files ?? {},
-    };
-
     const projectStore = useProjectStore.getState();
     const currentProject = projectStore.project;
 
     if (!currentProject) {
-      projectStore.createNewProject('MCP Live', scene);
+      projectStore.createNewProject('MCP Live', {
+        elements,
+        appState: state.scene.appState ?? {},
+        files: state.scene.files ?? {},
+      });
     } else {
+      // Preserve the current scene's appState (viewport scroll/zoom) so the
+      // user's view isn't reset on every MCP update.
+      const currentAppState = currentProject.scene?.appState ?? {};
+      const scene = {
+        elements,
+        appState: { ...currentAppState, ...(state.scene.appState ?? {}) },
+        files: { ...(currentProject.scene?.files ?? {}), ...(state.scene.files ?? {}) },
+      };
       projectStore.updateScene(scene);
     }
 
-    const targets = extractTargets(scene.elements);
+    const targets = extractTargets(elements);
     projectStore.setTargets(targets);
 
     // Switch to animate mode when receiving live updates

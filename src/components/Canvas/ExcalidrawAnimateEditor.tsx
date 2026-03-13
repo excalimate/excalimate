@@ -27,6 +27,7 @@ import type { CameraFrame } from '../../stores/projectStore';
 import { CAMERA_FRAME_TARGET_ID, getFrameHeight, useProjectStore } from '../../stores/projectStore';
 import { applyAnimationToElements } from '../../core/engine/renderUtils';
 import { useUIStore } from '../../stores/uiStore';
+import { usePlaybackStore } from '../../stores/playbackStore';
 import { useUndoRedoStore } from '../../stores/undoRedoStore';
 import { getNonDeletedElements } from '@excalidraw/excalidraw';
 import type { NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
@@ -91,6 +92,11 @@ export function ExcalidrawAnimateEditor({
   }, []);
 
   // ── Apply animation to Excalidraw scene ────────────────────────
+  // The dependency array triggers re-runs when any input changes.
+  // Inside the effect we read frameState and targets from the stores
+  // directly (not the closure) so that when MCP live pushes scene +
+  // timeline + targets in quick succession, each intermediate render
+  // already sees the fully-consistent latest values.
 
   useEffect(() => {
     if (!ready || !apiRef.current || !scene) return;
@@ -102,24 +108,13 @@ export function ExcalidrawAnimateEditor({
 
     if (elements.length === 0) return;
 
-    // Apply animation transforms to element clones
-    let animated = applyAnimationToElements(elements, frameState, targets);
+    // Read latest values directly from stores to avoid stale closures
+    // during intermediate renders when multiple stores update in sequence.
+    const latestFrameState = usePlaybackStore.getState().frameState;
+    const latestTargets = useProjectStore.getState().targets;
 
-    // Debug: log first element's opacity to trace the issue
-    if (import.meta.env.DEV && animated.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const first = animated.find((el: any) => el.type !== 'text') ?? animated[0];
-      const baseEl = elements.find(e => e.id === first.id);
-      console.debug('[AnimateEditor] opacity check', {
-        id: first.id.slice(0, 10),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        baseOpacity: (baseEl as any)?.opacity,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        animatedOpacity: (first as any).opacity,
-        frameStateHas: frameState.has(first.id),
-        frameStateOpacity: frameState.get(first.id)?.opacity,
-      });
-    }
+    // Apply animation transforms to element clones
+    let animated = applyAnimationToElements(elements, latestFrameState, latestTargets);
 
     // Ghost mode: ensure hidden elements stay visible at minimum opacity
     const ghostMode = useUIStore.getState().ghostMode;
@@ -141,10 +136,10 @@ export function ExcalidrawAnimateEditor({
     }
     lastAnimatedRef.current = posMap;
 
-    // Initialize element order tracking so first onChange doesn't trigger false z-order change
-    if (!lastElementOrderRef.current) {
-      lastElementOrderRef.current = elements.map(el => el.id).join(',');
-    }
+    // Keep element order tracking in sync with the current scene so that
+    // external scene changes (e.g. MCP live updates adding new elements)
+    // don't trigger false z-order change detection in handleChange.
+    lastElementOrderRef.current = elements.map(el => el.id).join(',');
 
     // Update Excalidraw's scene with animated elements
     updateCountRef.current++;

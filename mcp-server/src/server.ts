@@ -32,7 +32,11 @@ export function createServer(
 
   /** Notify listeners after state mutation */
   function emitChange() {
-    onStateChange?.(_sharedState);
+    try {
+      onStateChange?.(_sharedState);
+    } catch (err) {
+      console.error('emitChange failed:', err);
+    }
   }
 
    

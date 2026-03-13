@@ -6,6 +6,9 @@ Includes an **MCP server** for AI-driven animation — let Copilot, Claude or ot
 
 **Try it now:** Open [excalimate.com](https://excalimate.com), install the MCP server with `npx @excalimate/mcp-server`, and let your AI create animated diagrams while you watch live.
 
+> [!CAUTION]
+> A considerable part of this codebase was built with AI. The process of cleaning up the code and fixing bugs is still ongoing — use it cautiously. If you encounter any issues, please [report them](https://github.com/excalimate/excalimate/issues).
+
 ## Features
 
 - **Full Excalidraw editor** — draw, edit, resize, connect arrows, add text — everything Excalidraw does
