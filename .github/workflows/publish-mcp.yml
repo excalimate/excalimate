@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
 
       # Run web app tests first (MCP server depends on shared types)
@@ -77,7 +77,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: "MCP Server v${{ steps.version.outputs.version }}"
+          name: 'MCP Server v${{ steps.version.outputs.version }}'
           generate_release_notes: true
           files: |
             mcp-server/dist/**
