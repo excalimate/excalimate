@@ -4,6 +4,8 @@ Create keyframe animations from Excalidraw designs. Draw diagrams with the full 
 
 Includes an **MCP server** for AI-driven animation — let Copilot, Claude or other AI agents create and animate diagrams in real-time.
 
+**Try it now:** Open [excalimate.com](https://excalimate.com), install the MCP server with `npx @excalimate/mcp-server`, and let your AI create animated diagrams while you watch live.
+
 ## Features
 
 - **Full Excalidraw editor** — draw, edit, resize, connect arrows, add text — everything Excalidraw does
@@ -28,17 +30,14 @@ npm run dev
 
 Open `http://localhost:5173` in your browser.
 
-### With MCP Server (optional)
+### With AI (MCP Server)
 
 ```bash
-# Build and start the MCP server
-cd mcp-server
-npm install
-npm run build
-node dist/index.js
+# Run the MCP server directly from npm
+npx @excalimate/mcp-server
 ```
 
-The MCP server runs on `http://localhost:3001`. Click **📡 Live** in the toolbar to connect.
+Then open [excalimate.com](https://excalimate.com) and click **📡 Live** in the toolbar. See [AI Animation with MCP Server](#ai-animation-with-mcp-server) below for the full guide.
 
 ## Usage
 
@@ -52,42 +51,54 @@ Switch to Animate mode (Ctrl+E) to:
 3. Click **🎬 Sequence** to create staggered reveal animations
 4. Click **Export** to render as video
 
-### MCP Server
-The MCP server lets AI agents create and animate diagrams. You can use it with the **deployed web app** or a local dev instance.
+### AI Animation with MCP Server
 
-#### Option 1: Deployed web app + local MCP server
+The MCP server lets AI agents (Copilot, Claude, etc.) create and animate diagrams for you. The easiest way to get started is to pair the **deployed web app** at [excalimate.com](https://excalimate.com) with the MCP server from npm.
+
+#### Recommended: excalimate.com + npm package (3 steps)
+
+**1. Start the MCP server**
 
 ```bash
-# Install and start the MCP server locally
-cd mcp-server
-npm install
-npm run build
-node dist/index.js
+npx @excalimate/mcp-server
 # → MCP server running at http://localhost:3001
 ```
 
-Then open the deployed web app in your browser and click **📡 Live** in the toolbar. The web app connects to your local MCP server — the AI creates designs and animations that appear in real-time in your browser.
+Or install it globally:
 
-#### Option 2: Claude Desktop / Copilot CLI (stdio)
+```bash
+npm install -g @excalimate/mcp-server
+excalimate-mcp
+```
 
-Add to your Claude Desktop config (`claude_desktop_config.json`):
+**2. Open the web app**
+
+Go to [excalimate.com](https://excalimate.com) and click **📡 Live** in the toolbar. The app connects to your local MCP server automatically.
+
+**3. Point your AI at the MCP server**
+
+Tell your AI tool to connect to `http://localhost:3001/mcp`. Now ask it to create a diagram and animate it — you'll see changes appear in your browser in real-time.
+
+That's it. The AI creates, you watch live, and you can edit alongside it.
+
+#### Alternative: Claude Desktop / Copilot CLI (stdio mode)
+
+If your AI tool uses stdio transport, add to your config (e.g. `claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "excalimate": {
-      "command": "node",
-      "args": ["/path/to/mcp-server/dist/index.js", "--stdio"]
+      "command": "npx",
+      "args": ["@excalimate/mcp-server", "--stdio"]
     }
   }
 }
 ```
 
-The AI can create scenes and animations. Use `save_checkpoint` to save, then load in the web app via the **MCP** button in the toolbar.
+In stdio mode there's no live preview. The AI creates scenes and animations, then you use `save_checkpoint` to save state and load it in [excalimate.com](https://excalimate.com) via the **MCP** button in the toolbar.
 
-#### Option 3: Both at once
-
-Run the MCP server in HTTP mode (default, not `--stdio`) and configure your AI tool to connect to `http://localhost:3001/mcp`. Open the web app and click **📡 Live**. Now the AI creates, you watch in real-time, and you can edit alongside the AI.
+> **Tip:** For the best experience, use HTTP mode (the default) so you get real-time live preview in the browser while the AI works.
 
 See [mcp-server/README.md](mcp-server/README.md) for full documentation and [mcp-server/SKILL.md](mcp-server/SKILL.md) for the AI skill guide.
 
