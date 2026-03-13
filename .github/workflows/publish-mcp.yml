@@ -56,16 +56,12 @@ jobs:
       - name: Publish to npm (dry run)
         if: ${{ github.event.inputs.dry-run == 'true' }}
         working-directory: mcp-server
-        run: npm publish --dry-run --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --dry-run --access public
 
       - name: Publish to npm
         if: ${{ github.event.inputs.dry-run != 'true' || startsWith(github.ref, 'refs/tags/') }}
         working-directory: mcp-server
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       # Create GitHub Release
       - name: Extract version from tag
