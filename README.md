@@ -55,9 +55,7 @@ Switch to Animate mode (Ctrl+E) to:
 
 The MCP server lets AI agents (Copilot, Claude, etc.) create and animate diagrams for you. The easiest way to get started is to pair the **deployed web app** at [excalimate.com](https://excalimate.com) with the MCP server from npm.
 
-#### Recommended: excalimate.com + npm package (3 steps)
-
-**1. Start the MCP server**
+#### 1. Start the MCP server
 
 ```bash
 npx @excalimate/mcp-server
@@ -71,19 +69,54 @@ npm install -g @excalimate/mcp-server
 excalimate-mcp
 ```
 
-**2. Open the web app**
+#### 2. Open the web app
 
 Go to [excalimate.com](https://excalimate.com) and click **📡 Live** in the toolbar. The app connects to your local MCP server automatically.
 
-**3. Point your AI at the MCP server**
+#### 3. Connect your AI tool
 
-Tell your AI tool to connect to `http://localhost:3001/mcp`. Now ask it to create a diagram and animate it — you'll see changes appear in your browser in real-time.
+Pick your tool below. **HTTP mode** is recommended — it enables real-time live preview in [excalimate.com](https://excalimate.com) while the AI works.
 
-That's it. The AI creates, you watch live, and you can edit alongside it.
+<details>
+<summary><strong>VS Code (GitHub Copilot) — ✅ live preview</strong></summary>
 
-#### Alternative: Claude Desktop / Copilot CLI (stdio mode)
+Add to your VS Code MCP config (`.vscode/mcp.json` or user-level `mcp.json`):
 
-If your AI tool uses stdio transport, add to your config (e.g. `claude_desktop_config.json`):
+**HTTP mode (recommended — live preview works):**
+
+```jsonc
+{
+  "servers": {
+    "excalimate": {
+      "type": "http",
+      "url": "http://localhost:3001/mcp"
+    }
+  }
+}
+```
+
+Start the MCP server first (`npx @excalimate/mcp-server`), open [excalimate.com](https://excalimate.com), click **📡 Live**, then ask Copilot to create a diagram. You'll see it appear in real-time.
+
+**stdio mode (no live preview):**
+
+```jsonc
+{
+  "servers": {
+    "excalimate": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@excalimate/mcp-server", "--stdio"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Claude Desktop — stdio only (no live preview)</strong></summary>
+
+Add to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -96,9 +129,70 @@ If your AI tool uses stdio transport, add to your config (e.g. `claude_desktop_c
 }
 ```
 
-In stdio mode there's no live preview. The AI creates scenes and animations, then you use `save_checkpoint` to save state and load it in [excalimate.com](https://excalimate.com) via the **MCP** button in the toolbar.
+Claude Desktop uses stdio transport, so there's no live preview. The AI creates scenes and animations, then use `save_checkpoint` to save state and load it in [excalimate.com](https://excalimate.com) via the **MCP** button in the toolbar.
 
-> **Tip:** For the best experience, use HTTP mode (the default) so you get real-time live preview in the browser while the AI works.
+</details>
+
+<details>
+<summary><strong>Claude Code (CLI) — ✅ live preview</strong></summary>
+
+Claude Code supports HTTP MCP servers. Start the server first, then add it:
+
+```bash
+npx @excalimate/mcp-server &
+claude mcp add excalimate http://localhost:3001/mcp
+```
+
+Open [excalimate.com](https://excalimate.com) and click **📡 Live** — you'll see the AI's changes in real-time.
+
+</details>
+
+<details>
+<summary><strong>Cursor — ✅ live preview</strong></summary>
+
+In Cursor settings, go to **MCP Servers** and add:
+
+- **Name:** `excalimate`
+- **Type:** `http`
+- **URL:** `http://localhost:3001/mcp`
+
+Start the MCP server (`npx @excalimate/mcp-server`), open [excalimate.com](https://excalimate.com), click **📡 Live**, then use Cursor's agent to create diagrams with live preview.
+
+</details>
+
+<details>
+<summary><strong>Windsurf — ✅ live preview</strong></summary>
+
+Add to your Windsurf MCP config:
+
+```json
+{
+  "mcpServers": {
+    "excalimate": {
+      "serverUrl": "http://localhost:3001/mcp"
+    }
+  }
+}
+```
+
+Start the MCP server, open [excalimate.com](https://excalimate.com), click **📡 Live**, and use Cascade to create animated diagrams in real-time.
+
+</details>
+
+<details>
+<summary><strong>Any HTTP-compatible MCP client — ✅ live preview</strong></summary>
+
+Point your MCP client to:
+
+```
+http://localhost:3001/mcp
+```
+
+Start the server with `npx @excalimate/mcp-server`, open [excalimate.com](https://excalimate.com), and click **📡 Live**. Any tool that supports Streamable HTTP MCP transport will work with live preview.
+
+</details>
+
+> **Tip:** HTTP mode (the default) is always preferred — it enables live preview so you can watch the AI build your animation in real-time. stdio mode is only needed for tools that don't support HTTP transport (like Claude Desktop).
 
 See [mcp-server/README.md](mcp-server/README.md) for full documentation and [mcp-server/SKILL.md](mcp-server/SKILL.md) for the AI skill guide.
 
