@@ -32,7 +32,11 @@ export function createServer(
 
   /** Notify listeners after state mutation */
   function emitChange() {
-    onStateChange?.(_sharedState);
+    try {
+      onStateChange?.(_sharedState);
+    } catch (err) {
+      console.error('emitChange failed:', err);
+    }
   }
 
    
@@ -83,16 +87,29 @@ export function createServer(
 
   // ── Element Normalizer ────────────────────────────────────────────
 
+  /** Counter for generating fractional indices for elements */
+  let _elementIndexCounter = 0;
+
   /** Fill in default Excalidraw properties so elements render correctly */
   function normalizeElement(el: any): any {
+    // Generate a fractional index if missing. Excalidraw v0.18+ requires
+    // the `index` property for element ordering on the canvas. Without it,
+    // api.updateScene() accepts elements into React state but the canvas
+    // renderer silently skips them.
+    const index = el.index ?? `a${_elementIndexCounter++}`;
+
     return {
       // Required base properties with defaults
+      angle: 0,
       strokeColor: '#1e1e1e',
       backgroundColor: 'transparent',
       fillStyle: 'solid',
       strokeWidth: 2,
+      strokeStyle: 'solid',
       roughness: 1,
       groupIds: [],
+      frameId: null,
+      index,
       roundness: null,
       boundElements: null,
       updated: Date.now(),

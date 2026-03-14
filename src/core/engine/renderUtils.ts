@@ -44,12 +44,19 @@ export function buildElementAnimationStates(
  * Also handles arrow bindings: when a shape an arrow is bound to moves,
  * the arrow's connected endpoint follows.
  */
+// Monotonically increasing version counter ensures Excalidraw always invalidates
+// its canvas render cache when we pass updated elements via api.updateScene().
+let _renderVersion = 1000;
+
 export function applyAnimationToElements(
   elements: NonDeletedExcalidrawElement[],
   frameState: FrameState,
   targets: AnimatableTarget[],
 ): ExcalidrawElement[] {
   const elStates = buildElementAnimationStates(frameState, targets);
+
+  // Bump the render version once per call so every element gets a unique version.
+  _renderVersion++;
 
   // First pass: build element map for binding lookups
   const elementMap = new Map<string, NonDeletedExcalidrawElement>();
@@ -84,14 +91,17 @@ export function applyAnimationToElements(
 
   return elements.map((el) => {
     const a = elStates.get(el.id);
-    if (!a) return el; // No animation — return original unchanged (preserves version)
 
+    // Always clone and bump version so Excalidraw invalidates its render cache.
+    // Without this, Excalidraw may serve a stale cached canvas tile after
+    // api.updateScene() and elements stay visually invisible despite having
+    // correct properties in the state.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = { ...el } as any;
-
-    // Bump version so Excalidraw detects the change and re-renders
-    c.version = (c.version ?? 0) + 1;
+    c.version = _renderVersion;
     c.versionNonce = Math.random() * 2147483647 | 0;
+
+    if (!a) return c as ExcalidrawElement; // No animation — return clone with bumped version
 
     // Apply direct animation transforms
     c.x = el.x + a.tx;
