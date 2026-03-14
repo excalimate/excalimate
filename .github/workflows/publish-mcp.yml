@@ -62,7 +62,9 @@ jobs:
       - name: Publish to npm
         if: ${{ github.event.inputs.dry-run != 'true' || startsWith(github.ref, 'refs/tags/') }}
         working-directory: mcp-server
-        run: npm publish --access public
+        run: npm publish --access public --provenance
+        env:
+          NPM_CONFIG_PROVENANCE: true
 
       # Create GitHub Release
       - name: Extract version from tag
