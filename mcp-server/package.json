@@ -32,6 +32,10 @@
     "dev": "tsx watch src/index.ts",
     "prepublishOnly": "npm run build"
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.0",
     "cors": "^2.8.5",
