@@ -67,7 +67,6 @@ export function ExcalidrawAnimateEditor({
   const ignoreChangesUntilRef = useRef(0);
   const lastAnimatedRef = useRef<Map<string, { x: number; y: number; width: number; height: number }>>(new Map());
   const lastElementOrderRef = useRef<string>(''); // Track z-order changes
-  const [ready, setReady] = useState(false);
   const [viewport, setViewport] = useState({ scrollX: 0, scrollY: 0, zoom: 1, width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   // Track whether we've done the initial render (skip first updateScene since
@@ -87,17 +86,23 @@ export function ExcalidrawAnimateEditor({
         .join(',')
     : 'empty';
 
-  // Reset ready state when the Excalidraw component remounts (key changed)
+  // Track the sceneKey that the current Excalidraw instance was initialized with.
+  // When it changes, Excalidraw remounts (via key={sceneKey}) and we need to
+  // wait for handleApiReady before calling updateScene again.
+  const [readyForKey, setReadyForKey] = useState<string | null>(null);
+  const ready = readyForKey === sceneKey;
+
+  // Reset refs when Excalidraw remounts (sceneKey changed)
   const prevKeyRef = useRef(sceneKey);
-  if (sceneKey !== prevKeyRef.current) {
-    prevKeyRef.current = sceneKey;
-    apiRef.current = null;
-    lastElementOrderRef.current = '';
-    ignoreChangesUntilRef.current = 0;
-    initialRenderDoneRef.current = false;
-    // Ready will be set back to true by handleApiReady after remount
-    if (ready) setReady(false);
-  }
+  useEffect(() => {
+    if (sceneKey !== prevKeyRef.current) {
+      prevKeyRef.current = sceneKey;
+      apiRef.current = null;
+      lastElementOrderRef.current = '';
+      ignoreChangesUntilRef.current = 0;
+      initialRenderDoneRef.current = false;
+    }
+  }, [sceneKey]);
 
   // Stable callback refs
   const onSelectRef = useRef(onSelectElements);
@@ -138,8 +143,8 @@ export function ExcalidrawAnimateEditor({
       }
     }
 
-    setReady(true);
-  }, []);
+    setReadyForKey(sceneKey);
+  }, [sceneKey]);
 
   // ── Apply animation to Excalidraw scene ────────────────────────
   useEffect(() => {

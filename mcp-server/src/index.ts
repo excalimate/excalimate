@@ -89,8 +89,6 @@ async function startHTTPServer(factoryWithSSE: (sseClients: Set<Response>, broad
     for (const [sid, session] of sessions) {
       if (now - session.lastActivity > SESSION_TTL_MS) {
         sessions.delete(sid);
-        session.transport.close?.().catch(() => {});
-        session.server.close().catch(() => {});
       }
     }
   }, 60 * 1000);
@@ -127,7 +125,8 @@ async function startHTTPServer(factoryWithSSE: (sseClients: Set<Response>, broad
     transport.onclose = () => {
       const sid = transport.sessionId;
       if (sid) sessions.delete(sid);
-      server.close().catch(() => {});
+      // Don't call server.close() here — it would call transport.close()
+      // again, causing infinite recursion. The SDK handles cleanup internally.
     };
 
     try {
