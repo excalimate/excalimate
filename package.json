@@ -1,6 +1,6 @@
 {
   "name": "excalimate",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "description": "Excalimate — Create keyframe animations from Excalidraw designs, with an MCP server for AI-driven animation",
   "type": "module",
@@ -19,6 +19,15 @@
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
+    "@mantine/core": "^8.3.17",
+    "@mantine/dropzone": "^8.3.17",
+    "@mantine/form": "^8.3.17",
+    "@mantine/hooks": "^8.3.17",
+    "@mantine/modals": "^8.3.17",
+    "@mantine/notifications": "^8.3.17",
+    "@mantine/nprogress": "^8.3.17",
+    "@mantine/spotlight": "^8.3.17",
+    "@tabler/icons-react": "^3.40.0",
     "browser-fs-access": "^0.38.0",
     "gif.js": "^0.2.0",
     "mp4-muxer": "^5.2.2",

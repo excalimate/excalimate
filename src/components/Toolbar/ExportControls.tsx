@@ -1,15 +1,17 @@
-import { useState } from 'react';
-import { Button } from '../common';
-import { Modal } from '../common';
+import { useState, type ReactNode } from 'react';
+import { Button, Modal, Progress, Text, Group, Stack, Alert } from '@mantine/core';
+import { nprogress } from '@mantine/nprogress';
+import { notifications } from '@mantine/notifications';
+import { IconMovie, IconVideo, IconPhoto, IconSvg, IconDownload, IconCheck, IconX } from '@tabler/icons-react';
 import { exportAnimation } from '../../services/ExportService';
 import type { ExportFormat, ExportQuality } from '../../services/ExportService';
 import { useAnimationStore } from '../../stores/animationStore';
 
-const FORMAT_INFO: Record<ExportFormat, { label: string; desc: string; icon: string }> = {
-  mp4: { label: 'MP4', desc: 'H.264 — best quality, universal playback', icon: '🎬' },
-  webm: { label: 'WebM', desc: 'VP9 — smaller files, web-optimized', icon: '📹' },
-  gif: { label: 'GIF', desc: 'Animated image, works everywhere', icon: '🖼' },
-  svg: { label: 'SVG', desc: 'Animated vector, infinite resolution', icon: '✨' },
+const FORMAT_INFO: Record<ExportFormat, { label: string; desc: string; icon: ReactNode }> = {
+  mp4: { label: 'MP4', desc: 'H.264 — best quality, universal playback', icon: <IconMovie size={16} /> },
+  webm: { label: 'WebM', desc: 'VP9 — smaller files, web-optimized', icon: <IconVideo size={16} /> },
+  gif: { label: 'GIF', desc: 'Animated image, works everywhere', icon: <IconPhoto size={16} /> },
+  svg: { label: 'SVG', desc: 'Animated vector, infinite resolution', icon: <IconSvg size={16} /> },
 };
 
 const QUALITY_INFO: Record<ExportQuality, { label: string; desc: string }> = {
@@ -34,103 +36,130 @@ export function ExportControls() {
     try {
       setExporting(true);
       setProgress(0);
-      await exportAnimation({ format, quality, onProgress: setProgress });
+      nprogress.start();
+      await exportAnimation({
+        format,
+        quality,
+        onProgress: (p) => {
+          setProgress(p);
+          nprogress.set(p * 100);
+        },
+      });
+      nprogress.complete();
+      notifications.show({
+        title: 'Export complete',
+        message: `${FORMAT_INFO[format].label} file has been exported successfully.`,
+        icon: <IconCheck size={16} />,
+        color: 'green',
+      });
     } catch (error) {
+      nprogress.complete();
       const message = error instanceof Error ? error.message : 'Export failed';
-      window.alert(`Export failed: ${message}`);
+      notifications.show({
+        title: 'Export failed',
+        message,
+        icon: <IconX size={16} />,
+        color: 'red',
+      });
     } finally {
       setExporting(false);
       setProgress(0);
-      setShowDialog(false);
     }
   };
 
-  if (exporting) {
-    return (
-      <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-secondary)]">
-        <span className="text-indigo-400">{FORMAT_INFO[format].icon} Exporting</span>
-        <div className="w-20 h-1.5 bg-[var(--color-border)] rounded-full overflow-hidden">
-          <div className="h-full bg-indigo-500 transition-all" style={{ width: `${progress * 100}%` }} />
-        </div>
-        <span>{Math.round(progress * 100)}%</span>
-      </div>
-    );
-  }
-
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setShowDialog(true)}>
+      <Button variant="subtle" color="gray" size="compact-sm" leftSection={<IconDownload size={14} />} onClick={() => setShowDialog(true)}>
         Export
       </Button>
 
-      <Modal isOpen={showDialog} onClose={() => setShowDialog(false)} title="Export Animation">
-          <div className="space-y-4 w-[340px]">
-            {/* Clip info */}
-            <div className="text-xs text-[var(--color-text-secondary)]">
-              Clip: {(clipStart / 1000).toFixed(1)}s – {(clipEnd / 1000).toFixed(1)}s ({clipDuration}s)
-            </div>
+      <Modal
+        opened={showDialog}
+        onClose={() => setShowDialog(false)}
+        title="Export Animation"
+        size="md"
+      >
+        <Stack gap="md">
+          {/* Clip info */}
+          <Text size="xs" c="dimmed">
+            Clip: {(clipStart / 1000).toFixed(1)}s – {(clipEnd / 1000).toFixed(1)}s ({clipDuration}s)
+          </Text>
 
-            {/* Format selection */}
-            <div>
-              <div className="text-xs font-medium mb-2">Format</div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(Object.keys(FORMAT_INFO) as ExportFormat[]).map((f) => {
-                  const info = FORMAT_INFO[f];
-                  return (
-                    <button
-                      key={f}
-                      className={`px-3 py-2 rounded border text-left text-xs transition-colors ${
-                        format === f
-                          ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
-                          : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-indigo-500/50'
-                      }`}
-                      onClick={() => setFormat(f)}
-                    >
-                      <div className="font-medium">{info.icon} {info.label}</div>
-                      <div className="text-[10px] opacity-70 mt-0.5">{info.desc}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Quality selection (not for SVG) */}
-            {format !== 'svg' && (
+          {/* Export progress */}
+          {exporting ? (
+            <Stack gap="xs">
+              <Group gap="xs">
+                {FORMAT_INFO[format].icon}
+                <Text size="sm" fw={500}>Exporting {FORMAT_INFO[format].label}…</Text>
+              </Group>
+              <Progress value={progress * 100} animated size="lg" radius="sm" />
+              <Text size="xs" c="dimmed" ta="center">{Math.round(progress * 100)}%</Text>
+              <Alert variant="light" color="blue" radius="sm">
+                <Text size="xs">You can close this dialog — the export will continue in the background.</Text>
+              </Alert>
+            </Stack>
+          ) : (
+            <>
+              {/* Format selection */}
               <div>
-                <div className="text-xs font-medium mb-2">Quality</div>
-                <div className="grid grid-cols-4 gap-1">
-                  {(Object.keys(QUALITY_INFO) as ExportQuality[]).map((q) => {
-                    const info = QUALITY_INFO[q];
+                <Text size="xs" fw={500} mb={8}>Format</Text>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(Object.keys(FORMAT_INFO) as ExportFormat[]).map((f) => {
+                    const info = FORMAT_INFO[f];
                     return (
                       <button
-                        key={q}
-                        className={`px-2 py-1.5 rounded border text-center text-[10px] transition-colors ${
-                          quality === q
-                            ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
-                            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-indigo-500/50'
+                        key={f}
+                        className={`px-3 py-2 rounded border text-left text-xs transition-colors ${
+                          format === f
+                            ? 'border-accent bg-accent-muted text-accent'
+                            : 'border-border text-text-muted hover:border-accent/50'
                         }`}
-                        onClick={() => setQuality(q)}
+                        onClick={() => setFormat(f)}
                       >
-                        <div className="font-medium">{info.label}</div>
+                        <div className="font-medium flex items-center gap-1">{info.icon} {info.label}</div>
+                        <div className="text-[10px] opacity-70 mt-0.5">{info.desc}</div>
                       </button>
                     );
                   })}
                 </div>
-                <div className="text-[10px] text-[var(--color-text-secondary)] mt-1">
-                  {QUALITY_INFO[quality].desc}
-                </div>
               </div>
-            )}
 
-            {/* Export button */}
-            <button
-              onClick={handleExport}
-              className="w-full px-4 py-2 text-sm font-medium rounded bg-indigo-500 hover:bg-indigo-600 text-white transition-colors"
-            >
-              Export {FORMAT_INFO[format].label}
-            </button>
-          </div>
-        </Modal>
+              {/* Quality selection (not for SVG) */}
+              {format !== 'svg' && (
+                <div>
+                  <Text size="xs" fw={500} mb={8}>Quality</Text>
+                  <div className="grid grid-cols-4 gap-1">
+                    {(Object.keys(QUALITY_INFO) as ExportQuality[]).map((q) => {
+                      const info = QUALITY_INFO[q];
+                      return (
+                        <button
+                          key={q}
+                          className={`px-2 py-1.5 rounded border text-center text-[10px] transition-colors ${
+                            quality === q
+                              ? 'border-accent bg-accent-muted text-accent'
+                              : 'border-border text-text-muted hover:border-accent/50'
+                          }`}
+                          onClick={() => setQuality(q)}
+                        >
+                          <div className="font-medium">{info.label}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <Text size="xs" c="dimmed" mt={4}>
+                    {QUALITY_INFO[quality].desc}
+                  </Text>
+                </div>
+              )}
+
+              {/* Export button */}
+              <Button fullWidth leftSection={<IconDownload size={16} />} onClick={handleExport}>
+                Export {FORMAT_INFO[format].label}
+              </Button>
+            </>
+          )}
+        </Stack>
+      </Modal>
     </>
   );
 }

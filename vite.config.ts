@@ -12,6 +12,16 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'zustand'],
+          excalidraw: ['@excalidraw/excalidraw'],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'happy-dom',

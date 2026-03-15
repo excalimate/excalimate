@@ -1,14 +1,82 @@
+@import '@mantine/core/styles.css';
+@import '@mantine/notifications/styles.css';
+@import '@mantine/dropzone/styles.css';
+@import '@mantine/spotlight/styles.css';
+@import '@mantine/nprogress/styles.css';
 @import 'tailwindcss';
 
-:root {
-  --color-primary: #6366f1;
-  --color-primary-hover: #4f46e5;
+/* ── Theme-aware CSS variables (switch on data-theme) ── */
+
+[data-theme='light'] {
+  --color-surface: #ffffff;
+  --color-surface-alt: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --color-overlay: rgba(0, 0, 0, 0.15);
+  --color-overlay-heavy: rgba(0, 0, 0, 0.5);
+  --color-overlay-backdrop: rgba(0, 0, 0, 0.6);
+  --color-tooltip: #1e293b;
+  --color-playhead: #ef4444;
+  --color-clip-marker: #a855f7;
+  --color-camera-frame: #dc2626;
+  --color-camera-frame-selected: #ef4444;
+  --shadow-float: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='dark'] {
   --color-surface: #1e1e2e;
-  --color-surface-secondary: #2a2a3e;
+  --color-surface-alt: #2a2a3e;
   --color-border: #3a3a4e;
   --color-text: #e2e8f0;
-  --color-text-secondary: #94a3b8;
+  --color-text-muted: #94a3b8;
+  --color-overlay: rgba(0, 0, 0, 0.15);
+  --color-overlay-heavy: rgba(0, 0, 0, 0.5);
+  --color-overlay-backdrop: rgba(0, 0, 0, 0.6);
+  --color-tooltip: #1a1a2e;
+  --color-playhead: #ef4444;
+  --color-clip-marker: #a855f7;
+  --color-camera-frame: #dc2626;
+  --color-camera-frame-selected: #ef4444;
+  --shadow-float: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 4px 10px -6px rgba(0, 0, 0, 0.2);
 }
+
+/* ── Tailwind v4 theme extension ── */
+
+@theme {
+  /* Semantic colors */
+  --color-surface: var(--color-surface);
+  --color-surface-alt: var(--color-surface-alt);
+  --color-border: var(--color-border);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-overlay: var(--color-overlay);
+  --color-overlay-heavy: var(--color-overlay-heavy);
+  --color-overlay-backdrop: var(--color-overlay-backdrop);
+  --color-tooltip: var(--color-tooltip);
+  --color-playhead: var(--color-playhead);
+  --color-clip-marker: var(--color-clip-marker);
+  --color-camera-frame: var(--color-camera-frame);
+  --color-camera-frame-selected: var(--color-camera-frame-selected);
+
+  /* Brand colors */
+  --color-accent: #6366f1;
+  --color-accent-hover: #4f46e5;
+  --color-accent-muted: rgba(99, 102, 241, 0.1);
+  --color-accent-subtle: rgba(99, 102, 241, 0.2);
+
+  --color-danger: #ef4444;
+  --color-danger-muted: rgba(239, 68, 68, 0.1);
+  --color-danger-subtle: rgba(239, 68, 68, 0.2);
+
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+
+  /* Shadows */
+  --shadow-float: var(--shadow-float);
+}
+
+/* ── Base styles ── */
 
 html,
 body,
@@ -29,4 +97,19 @@ body {
     sans-serif;
   background-color: var(--color-surface);
   color: var(--color-text);
+  font-size: 14px;
+}
+
+/* Hide Excalidraw UI chrome in animate mode */
+.excalidraw-animate-mode .excalidraw .Island,
+.excalidraw-animate-mode .excalidraw .App-menu,
+.excalidraw-animate-mode .excalidraw .App-toolbar,
+.excalidraw-animate-mode .excalidraw .App-toolbar-container,
+.excalidraw-animate-mode .excalidraw .layer-ui__wrapper__top-right,
+.excalidraw-animate-mode .excalidraw .layer-ui__wrapper__footer,
+.excalidraw-animate-mode .excalidraw .HelpButton,
+.excalidraw-animate-mode .excalidraw .library-button,
+.excalidraw-animate-mode .excalidraw .undo-redo-buttons,
+.excalidraw-animate-mode .excalidraw .eraser-buttons {
+  display: none !important;
 }

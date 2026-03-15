@@ -103,7 +103,7 @@ export function ResizablePanel({
           onResize?.(newSize);
         }
       }}
-      className={`flex-shrink-0 bg-[var(--color-border)] transition-colors hover:bg-indigo-500 active:bg-indigo-500 focus:outline-none focus-visible:bg-indigo-500 ${
+      className={`flex-shrink-0 bg-border transition-colors hover:bg-accent active:bg-accent focus:outline-none focus-visible:bg-accent ${
         isHorizontal
           ? 'w-1 cursor-col-resize hover:w-1'
           : 'h-1 cursor-row-resize hover:h-1'

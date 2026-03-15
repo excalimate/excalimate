@@ -1,6 +1,14 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, type ReactNode, createElement } from 'react';
+import {
+  IconRectangle, IconOval, IconSquareRotated, IconLine, IconArrowRight,
+  IconTypography, IconBrush, IconPhoto, IconMovie, IconBoxMultiple, IconShape,
+  IconChevronDown, IconChevronRight, IconKeyframeFilled,
+  IconLayoutSidebarLeftCollapse,
+} from '@tabler/icons-react';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import type { AnimatableTarget } from '../../types/excalidraw';
 import type { AnimationTrack } from '../../types/animation';
+import { useUIStore } from '../../stores/uiStore';
 
 interface LayersPanelProps {
   targets: AnimatableTarget[];
@@ -9,21 +17,23 @@ interface LayersPanelProps {
   onSelectElement: (id: string) => void;
 }
 
-const TYPE_ICONS: Record<string, string> = {
-  rectangle: '▬',
-  ellipse: '⬭',
-  diamond: '◆',
-  line: '╱',
-  arrow: '→',
-  text: 'T',
-  freedraw: '✎',
-  image: '🖼',
-  frame: '🎬',
-  group: '⊞',
-  element: '◇',
+const ic = (Comp: typeof IconRectangle) => createElement(Comp, { size: 12 });
+
+const TYPE_ICONS: Record<string, ReactNode> = {
+  rectangle: ic(IconRectangle),
+  ellipse: ic(IconOval),
+  diamond: ic(IconSquareRotated),
+  line: ic(IconLine),
+  arrow: ic(IconArrowRight),
+  text: ic(IconTypography),
+  freedraw: ic(IconBrush),
+  image: ic(IconPhoto),
+  frame: ic(IconMovie),
+  group: ic(IconBoxMultiple),
+  element: ic(IconShape),
 };
 
-function getIcon(target: AnimatableTarget): string {
+function getIcon(target: AnimatableTarget): ReactNode {
   if (target.type === 'group') return TYPE_ICONS.group;
   // Use the actual Excalidraw element type for icon lookup
   if (target.elementType && TYPE_ICONS[target.elementType]) {
@@ -98,10 +108,10 @@ function LayerNode({
   return (
     <>
       <div
-        className={`flex items-center gap-1.5 py-1.5 cursor-pointer border-b border-[var(--color-border)]/50 transition-colors ${
+        className={`flex items-center gap-1.5 py-1.5 cursor-pointer border-b border-border/50 transition-colors ${
           isSelected(target.id)
-            ? 'bg-indigo-500/15 text-indigo-300'
-            : 'hover:bg-[var(--color-surface)] text-[var(--color-text-secondary)]'
+            ? 'bg-accent-muted text-accent'
+            : 'hover:bg-surface text-text-muted'
         }`}
         style={{ paddingLeft, paddingRight: 8 }}
         onClick={() => onSelect(target.id)}
@@ -111,25 +121,25 @@ function LayerNode({
             className="text-[10px] select-none opacity-60 hover:opacity-100 cursor-pointer"
             onClick={(e) => { e.stopPropagation(); toggleExpand(target.id); }}
           >
-            {expanded ? '▼' : '▶'}
+            {expanded ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />}
           </span>
         )}
-        <span className={isGroup ? 'text-indigo-400' : 'opacity-60'}>
+        <span className={isGroup ? 'text-accent' : 'opacity-60'}>
           {getIcon(target)}
         </span>
         <span className="flex-1 truncate font-medium text-xs">{target.label}</span>
         {!isGroup && target.elementType && (
-          <span className="text-[9px] text-[var(--color-text-secondary)] opacity-60">
+          <span className="text-[9px] text-text-muted opacity-60">
             {target.elementType}
           </span>
         )}
         {isGroup && (
-          <span className="text-[9px] text-[var(--color-text-secondary)]">
+          <span className="text-[9px] text-text-muted">
             {children.length}
           </span>
         )}
         {trackCount > 0 && (
-          <span className="text-[9px] text-indigo-400 ml-1">◆{trackCount}</span>
+          <span className="text-[9px] text-accent ml-1 flex items-center gap-0.5"><IconKeyframeFilled size={8} />{trackCount}</span>
         )}
       </div>
       {isGroup && expanded && children.map((child) => (
@@ -186,10 +196,15 @@ export function LayersPanel({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-3 py-2 border-b border-[var(--color-border)]">
-        <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+        <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">
           Layers
         </span>
+        <Tooltip label="Collapse layers" position="right">
+          <ActionIcon variant="subtle" color="gray" size="xs" onClick={() => useUIStore.getState().toggleLayersPanel()}>
+            <IconLayoutSidebarLeftCollapse size={14} />
+          </ActionIcon>
+        </Tooltip>
       </div>
 
       <div className="flex-1 overflow-y-auto text-xs">
@@ -207,7 +222,7 @@ export function LayersPanel({
         ))}
 
         {targets.length === 0 && (
-          <div className="p-4 text-center text-[var(--color-text-secondary)]">
+          <div className="p-4 text-center text-text-muted">
             <p className="text-xs">No elements yet.</p>
             <p className="text-[10px] mt-1 opacity-60">Draw in Edit mode or import a file.</p>
           </div>

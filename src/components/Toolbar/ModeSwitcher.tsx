@@ -1,29 +1,44 @@
+import { useState } from 'react';
+import { FloatingIndicator, UnstyledButton } from '@mantine/core';
+import { IconPencil, IconMovie } from '@tabler/icons-react';
 import { useUIStore } from '../../stores/uiStore';
+import './ModeSwitcher.css';
 
 export function ModeSwitcher() {
   const mode = useUIStore((s) => s.mode);
   const setMode = useUIStore((s) => s.setMode);
 
-  const baseClasses =
-    'px-3 py-1 text-xs font-medium rounded-md transition-colors focus:outline-none';
-  const activeClasses = 'bg-indigo-500/20 text-indigo-400';
-  const inactiveClasses =
-    'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]';
+  const [rootRef, setRootRef] = useState<HTMLDivElement | null>(null);
+  const [editRef, setEditRef] = useState<HTMLButtonElement | null>(null);
+  const [animateRef, setAnimateRef] = useState<HTMLButtonElement | null>(null);
+
+  const activeRef = mode === 'edit' ? editRef : animateRef;
 
   return (
-    <div className="flex items-center bg-[var(--color-surface)] rounded-md p-0.5">
-      <button
+    <div ref={setRootRef} className="mode-switcher__root">
+      <FloatingIndicator
+        target={activeRef}
+        parent={rootRef}
+        className="mode-switcher__indicator"
+      />
+      <UnstyledButton
+        ref={setEditRef}
+        className="mode-switcher__button"
+        data-active={mode === 'edit' || undefined}
         onClick={() => setMode('edit')}
-        className={`${baseClasses} ${mode === 'edit' ? activeClasses : inactiveClasses}`}
       >
-        ✏️ Edit
-      </button>
-      <button
+        <IconPencil size={12} />
+        Edit
+      </UnstyledButton>
+      <UnstyledButton
+        ref={setAnimateRef}
+        className="mode-switcher__button"
+        data-active={mode === 'animate' || undefined}
         onClick={() => setMode('animate')}
-        className={`${baseClasses} ${mode === 'animate' ? activeClasses : inactiveClasses}`}
       >
-        🎬 Animate
-      </button>
+        <IconMovie size={12} />
+        Animate
+      </UnstyledButton>
     </div>
   );
 }

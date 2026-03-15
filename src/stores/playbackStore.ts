@@ -30,8 +30,6 @@ export const usePlaybackStore = create<PlaybackStoreState>()((set) => ({
   frameState: new Map(),
 
   setCurrentTime: (time: number): void => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).__playbackCurrentTime = time;
     set({ currentTime: time });
   },
 

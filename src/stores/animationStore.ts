@@ -196,10 +196,9 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
   // Clipboard
   copySelectedKeyframes: (): void => {
     const { selectedKeyframeIds, timeline } = get();
+    const selectedSet = new Set(selectedKeyframeIds);
     const allKeyframes = timeline.tracks.flatMap((t) => t.keyframes);
-    const copied = allKeyframes.filter((kf) =>
-      selectedKeyframeIds.includes(kf.id),
-    );
+    const copied = allKeyframes.filter((kf) => selectedSet.has(kf.id));
     set({ clipboardKeyframes: copied });
   },
 

@@ -214,7 +214,7 @@ Call `set_camera_frame` to fit both panels with padding:
 
 ### Step 4: Finalize
 
-Call `set_clip_range` with `{ "startMs": 0, "endMs": 5000 }` and `save_checkpoint`.
+Call `set_clip_range` with `{ "startMs": 0, "endMs": 5000 }` and `save_checkpoint` (or `share_project` for an E2E encrypted share URL).
 
 ## Key Rules
 

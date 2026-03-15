@@ -35,7 +35,7 @@ export function Dropdown<T extends string | number = string>({
   return (
     <div className={`flex items-center gap-2 ${className ?? ''}`}>
       {label && (
-        <label htmlFor={id} className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap select-none">
+        <label htmlFor={id} className="text-xs text-text-muted whitespace-nowrap select-none">
           {label}
         </label>
       )}
@@ -45,7 +45,7 @@ export function Dropdown<T extends string | number = string>({
           value={String(value)}
           onChange={(e) => handleChange(e.target.value)}
           disabled={disabled}
-          className="w-full appearance-none bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 pr-7 text-sm text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="w-full appearance-none bg-surface border border-border rounded-md px-2 py-1 pr-7 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           {options.map((opt) => (
             <option key={String(opt.value)} value={String(opt.value)}>
@@ -55,7 +55,7 @@ export function Dropdown<T extends string | number = string>({
         </select>
         <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
           <svg
-            className="w-3.5 h-3.5 text-[var(--color-text-secondary)]"
+            className="w-3.5 h-3.5 text-text-muted"
             viewBox="0 0 20 20"
             fill="currentColor"
             aria-hidden="true"

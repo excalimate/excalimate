@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useProjectStore } from '../stores/projectStore';
-import { extractTargets } from '../components/Canvas/ExcalidrawEditor';
+import { extractTargets } from '../components/Canvas/extractTargets';
 import type { ExcalidrawSceneData } from '../types/excalidraw';
 
 export function useExcalidraw() {

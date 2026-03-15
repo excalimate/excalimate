@@ -14,7 +14,13 @@ The fastest way to use Excalimate with AI is to combine the deployed web app wit
 npx @excalimate/mcp-server
 # → Listening on http://localhost:3001/mcp
 # → Live preview SSE at http://localhost:3001/live
+
+# Custom port:
+npx @excalimate/mcp-server --port 4000
 ```
+
+Port priority: CLI arg (`--port` / `-p`) > `PORT` env var > default `3001`.
+Also supports `--port=4000` syntax.
 
 Or install globally:
 
@@ -27,6 +33,8 @@ excalimate-mcp
 
 Go to [excalimate.com](https://excalimate.com) in your browser and click **📡 Live** in the toolbar. The app connects to `localhost:3001` automatically.
 
+You can configure the MCP server URL in **File → Preferences**. The app persists this setting in localStorage, shows connection progress (progress bar + notifications), provides smart error dialogs, and warns about HTTPS→HTTP mixed-content connections.
+
 ### Step 3: Connect your AI
 
 Point your AI tool to `http://localhost:3001/mcp` as an MCP server. Then ask it to create a diagram and animate it — you'll see elements appear and animate in your browser in real-time.
@@ -35,12 +43,13 @@ Point your AI tool to `http://localhost:3001/mcp` as an MCP server. Then ask it 
 
 ## Features
 
-- **22 tools** for scene creation, animation, camera control, export, and checkpointing
+- **23 tools** for scene creation, animation, camera control, export, checkpointing, and sharing
 - **Dual transport**: stdio (Claude Desktop) + Streamable HTTP (cloud deployment)
 - **Live preview**: Real-time updates in [excalimate.com](https://excalimate.com) via SSE
 - **Sequence reveal**: Staggered element reveal animations in one tool call
 - **Camera animation**: Pan/zoom keyframes for cinematic effects
 - **Checkpoint persistence**: Save/load complete scene + animation state
+- **Runtime versioning**: Server version is read from `package.json`
 
 ## Installation & Usage
 
@@ -49,6 +58,9 @@ Point your AI tool to `http://localhost:3001/mcp` as an MCP server. Then ask it 
 ```bash
 npx @excalimate/mcp-server
 # → http://localhost:3001/mcp
+
+# Custom port:
+npx @excalimate/mcp-server -p 4000
 ```
 
 Open [excalimate.com](https://excalimate.com) and click **📡 Live**, then configure your AI tool below.
@@ -179,6 +191,7 @@ cd mcp-server
 npm install
 npm run build
 node dist/index.js          # HTTP mode
+node dist/index.js --port 4000
 node dist/index.js --stdio  # stdio mode
 ```
 
@@ -223,6 +236,13 @@ node dist/index.js --stdio  # stdio mode
 | `items_visible_in_camera` | Report visibility of items at a given time |
 | `animations_of_item` | Describe all animations of an element |
 
+### Sharing Tools
+| Tool | Description |
+|------|-------------|
+| `share_project` | Create E2E encrypted share URL for the current project |
+
+`share_project` accepts `{ baseUrl?: string }` and defaults to `https://excalimate.com`, returning URLs like `https://excalimate.com/#share=ID,KEY`.
+
 ### Checkpoint Tools
 | Tool | Description |
 |------|-------------|
@@ -244,4 +264,5 @@ node dist/index.js --stdio  # stdio mode
    }
 4. set_clip_range {0, 5000}    → Set 5-second export window
 5. save_checkpoint {id: "demo"} → Save for web app preview
+   or share_project {baseUrl: "https://excalimate.com"} → Generate E2E encrypted share URL
 ```

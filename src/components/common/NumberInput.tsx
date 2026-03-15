@@ -58,7 +58,7 @@ export function NumberInput({
   return (
     <div className={`flex items-center gap-2 ${className ?? ''}`}>
       {label && (
-        <label htmlFor={id} className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap select-none">
+        <label htmlFor={id} className="text-xs text-text-muted whitespace-nowrap select-none">
           {label}
         </label>
       )}
@@ -92,10 +92,10 @@ export function NumberInput({
               (e.target as HTMLInputElement).blur();
             }
           }}
-          className={`w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-sm text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${suffix ? 'pr-8' : ''}`}
+          className={`w-full bg-surface border border-border rounded-md px-2 py-1 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:opacity-50 disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${suffix ? 'pr-8' : ''}`}
         />
         {suffix && (
-          <span className="absolute right-2 text-xs text-[var(--color-text-secondary)] pointer-events-none select-none">
+          <span className="absolute right-2 text-xs text-text-muted pointer-events-none select-none">
             {suffix}
           </span>
         )}

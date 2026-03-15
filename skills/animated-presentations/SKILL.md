@@ -29,7 +29,7 @@ Instead of traditional slides, use **one large Excalidraw canvas** where each "s
 5. **Animate elements**: Add reveal animations per scene (opacity, scale, position)
 6. **Add camera keyframes**: Create smooth transitions between scenes
 7. **Set clip range**: Define total animation duration
-8. **Save checkpoint**: Preserve your presentation
+8. **Save or share**: Use `save_checkpoint` to persist state, or `share_project` for an E2E encrypted share URL
 
 ## Scene Layout Strategy
 
@@ -155,6 +155,7 @@ add_camera_keyframes_batch([
 // 5. Set total duration and save
 set_clip_range({ startTime: 0, endTime: 15000 })
 save_checkpoint("phoenix-presentation")
+// or: share_project()
 ```
 
 ## Best Practices

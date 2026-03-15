@@ -30,10 +30,10 @@ export function IconButton({
       ref={ref}
       title={tooltip}
       aria-label={tooltip}
-      className={`inline-flex items-center justify-center rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${
+      className={`inline-flex items-center justify-center rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:opacity-50 disabled:cursor-not-allowed ${
         active
-          ? 'bg-indigo-500/20 text-indigo-400'
-          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)] hover:text-[var(--color-text)]'
+          ? 'bg-accent-subtle text-accent'
+          : 'text-text-muted hover:bg-surface-alt hover:text-text'
       } ${sizeClasses[size]} ${className ?? ''}`}
       {...props}
     >

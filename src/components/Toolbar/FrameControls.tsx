@@ -1,3 +1,5 @@
+import { ActionIcon, Tooltip } from '@mantine/core';
+import { IconAspectRatio, IconMaximize } from '@tabler/icons-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { getExportResolution } from '../../stores/projectStore';
 import type { AspectRatio } from '../../stores/projectStore';
@@ -10,9 +12,9 @@ export function FrameControls() {
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[10px] text-[var(--color-text-secondary)]">🎬</span>
+      <IconAspectRatio size={14} className="text-text-muted" />
       <select
-        className="text-[10px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-1 py-0.5 text-[var(--color-text)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+        className="text-[10px] bg-surface border border-border rounded px-1 py-0.5 text-text cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent/50"
         value={aspectRatio}
         onChange={(e) => useProjectStore.getState().setCameraAspectRatio(e.target.value as AspectRatio)}
         title={`Camera frame: ${res.width}×${res.height} export`}
@@ -22,13 +24,11 @@ export function FrameControls() {
           return <option key={r} value={r}>{r} ({rr.width}×{rr.height})</option>;
         })}
       </select>
-      <button
-        className="text-[10px] text-[var(--color-text-secondary)] hover:text-indigo-400 px-1"
-        onClick={() => useProjectStore.getState().fitFrameToScene()}
-        title="Fit camera frame to scene"
-      >
-        ⊡
-      </button>
+      <Tooltip label="Fit camera frame to scene">
+        <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => useProjectStore.getState().fitFrameToScene()}>
+          <IconMaximize size={16} />
+        </ActionIcon>
+      </Tooltip>
     </div>
   );
 }

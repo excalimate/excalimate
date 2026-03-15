@@ -1,4 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
+import { Button } from '@mantine/core';
+import { IconAlertTriangle } from '@tabler/icons-react';
 
 interface Props {
   children: ReactNode;
@@ -27,17 +29,16 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return this.props.fallback ?? (
         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-          <div className="text-4xl mb-4">⚠️</div>
-          <h2 className="text-lg font-semibold mb-2 text-red-400">Something went wrong</h2>
-          <p className="text-sm text-[var(--color-text-secondary)] mb-4 max-w-md">
+          <IconAlertTriangle size={48} className="text-danger mb-4 opacity-60" />
+          <h2 className="text-lg font-semibold mb-2 text-danger">Something went wrong</h2>
+          <p className="text-sm text-text-muted mb-4 max-w-md">
             {this.state.error?.message || 'An unexpected error occurred.'}
           </p>
-          <button
-            className="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 text-sm"
+          <Button
             onClick={() => this.setState({ hasError: false, error: null })}
           >
             Try Again
-          </button>
+          </Button>
         </div>
       );
     }
