@@ -1,0 +1,37 @@
+.mode-switcher__root {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--mantine-radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-switcher__indicator {
+  background-color: var(--color-accent);
+  opacity: 0.15;
+  border-radius: var(--mantine-radius-sm);
+}
+
+.mode-switcher__button {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  border-radius: var(--mantine-radius-sm);
+  color: var(--color-text-muted);
+  transition: color 150ms ease;
+}
+
+.mode-switcher__button:hover {
+  color: var(--color-text);
+}
+
+.mode-switcher__button[data-active] {
+  color: var(--color-accent);
+}

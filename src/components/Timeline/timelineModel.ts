@@ -67,8 +67,53 @@ export function buildTargetGroups(
   }
 
   const groups: TargetGroup[] = [];
-  for (const [targetId, targetTracks] of byTarget) {
+  const seen = new Set<string>();
+
+  // Include every known target, even those without tracks
+  for (const [targetId] of targetLabels) {
+    seen.add(targetId);
+    const targetTracks = byTarget.get(targetId) ?? [];
     const tLabel = targetLabels.get(targetId) ?? targetId;
+    const consumed = new Set<string>();
+    const propertyTracks: VisualTrack[] = [];
+
+    for (const [propA, propB, pLabel, icon] of COMPOUND_PAIRS) {
+      const pair = targetTracks.filter((t) => t.property === propA || t.property === propB);
+      if (pair.length > 0) {
+        propertyTracks.push({
+          id: pair[0].id,
+          label: pLabel,
+          icon,
+          tracks: pair,
+          targetId,
+        });
+        pair.forEach((t) => consumed.add(t.id));
+      }
+    }
+
+    for (const t of targetTracks) {
+      if (consumed.has(t.id)) continue;
+      propertyTracks.push({
+        id: t.id,
+        label: PROPERTY_LABELS[t.property],
+        icon: PROPERTY_ICONS[t.property],
+        tracks: [t],
+        targetId,
+      });
+    }
+
+    groups.push({
+      targetId,
+      label: tLabel,
+      propertyTracks,
+      allTracks: targetTracks,
+    });
+  }
+
+  // Also include any tracks for targets not in targetLabels (edge case)
+  for (const [targetId, targetTracks] of byTarget) {
+    if (seen.has(targetId)) continue;
+    const tLabel = targetId;
     const consumed = new Set<string>();
     const propertyTracks: VisualTrack[] = [];
 

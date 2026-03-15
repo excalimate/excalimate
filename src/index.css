@@ -99,3 +99,17 @@ body {
   color: var(--color-text);
   font-size: 14px;
 }
+
+/* Hide Excalidraw UI chrome in animate mode */
+.excalidraw-animate-mode .excalidraw .Island,
+.excalidraw-animate-mode .excalidraw .App-menu,
+.excalidraw-animate-mode .excalidraw .App-toolbar,
+.excalidraw-animate-mode .excalidraw .App-toolbar-container,
+.excalidraw-animate-mode .excalidraw .layer-ui__wrapper__top-right,
+.excalidraw-animate-mode .excalidraw .layer-ui__wrapper__footer,
+.excalidraw-animate-mode .excalidraw .HelpButton,
+.excalidraw-animate-mode .excalidraw .library-button,
+.excalidraw-animate-mode .excalidraw .undo-redo-buttons,
+.excalidraw-animate-mode .excalidraw .eraser-buttons {
+  display: none !important;
+}

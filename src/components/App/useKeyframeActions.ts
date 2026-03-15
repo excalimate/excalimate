@@ -72,7 +72,6 @@ export function useKeyframeActions(): {
 
   const handleSelectElements = useCallback((ids: string[]) => {
     useUIStore.getState().setSelectedElements(ids);
-    useAnimationStore.getState().clearKeyframeSelection();
   }, []);
 
   const handleAddOrUpdateKeyframe = useCallback((trackId: string, time: number, value: number) => {

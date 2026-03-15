@@ -22,6 +22,7 @@ interface UIState {
   timelineViewport: TimelineViewport;
   ghostMode: boolean;
   sequenceRevealOpen: boolean;
+  layersPanelOpen: boolean;
 
   // Actions
   setMode: (mode: AppMode) => void;
@@ -37,6 +38,7 @@ interface UIState {
   setSnapInterval: (interval: number) => void;
   toggleGhostMode: () => void;
   toggleSequenceReveal: () => void;
+  toggleLayersPanel: () => void;
 }
 
 export const useUIStore = create<UIState>()((set) => ({
@@ -45,6 +47,7 @@ export const useUIStore = create<UIState>()((set) => ({
   selectedElementIds: [],
   ghostMode: false,
   sequenceRevealOpen: false,
+  layersPanelOpen: true,
   panelSizes: {
     leftPanel: 48,
     rightPanel: 280,
@@ -127,5 +130,8 @@ export const useUIStore = create<UIState>()((set) => ({
   },
   toggleSequenceReveal: (): void => {
     set((state) => ({ sequenceRevealOpen: !state.sequenceRevealOpen }));
+  },
+  toggleLayersPanel: (): void => {
+    set((state) => ({ layersPanelOpen: !state.layersPanelOpen }));
   },
 }));

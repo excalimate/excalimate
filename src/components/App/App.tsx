@@ -45,6 +45,7 @@ export function App() {
   const mode = useUIStore((s) => s.mode);
   const selectedElementIds = useUIStore((s) => s.selectedElementIds);
   const sequenceRevealOpen = useUIStore((s) => s.sequenceRevealOpen);
+  const layersPanelOpen = useUIStore((s) => s.layersPanelOpen);
   const targets = useProjectStore((s) => s.targets);
   const project = useProjectStore((s) => s.project);
   const cameraFrame = useProjectStore((s) => s.cameraFrame);
@@ -94,10 +95,10 @@ export function App() {
           <Toolbar />
 
       {/* Main content area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden px-2 pb-2 gap-2">
         {/* Left: Layers panel (animate mode only) */}
-        {mode === 'animate' && (
-          <aside className="w-[200px] border-r border-border bg-surface-alt overflow-y-auto">
+        {mode === 'animate' && layersPanelOpen && (
+          <aside className="w-[200px] border border-border bg-surface rounded-lg shadow-float overflow-y-auto shrink-0">
             <LayersPanel
               targets={targets}
               tracks={timeline.tracks}
@@ -108,7 +109,7 @@ export function App() {
         )}
 
         {/* Center: Canvas area */}
-        <main className="flex-1 relative overflow-hidden bg-surface">
+        <main className="flex-1 relative overflow-hidden bg-surface rounded-lg border border-border shadow-float">
           <ErrorBoundary fallback={<div className="flex items-center justify-center h-full text-sm text-danger">Canvas error</div>}>
             <Suspense fallback={<div className="flex items-center justify-center h-full text-sm text-text-muted">Loading editor…</div>}>
             {mode === 'edit' ? (
@@ -140,8 +141,9 @@ export function App() {
           )}
         </main>
 
-        {/* Right: Property panel */}
-        <aside className="w-[280px] border-l border-border bg-surface-alt overflow-y-auto">
+        {/* Right: Property panel (visible when elements or keyframes selected) */}
+        {(selectedTargets.length > 0 || selectedKeyframeIds.length > 0) && (
+        <aside className="w-[280px] border border-border bg-surface rounded-lg shadow-float overflow-y-auto shrink-0">
           <ErrorBoundary fallback={<div className="flex items-center justify-center h-full text-sm text-danger">Property panel error</div>}>
             <PropertyPanelWrapper
               selectedTargets={selectedTargets}
@@ -156,6 +158,7 @@ export function App() {
             />
           </ErrorBoundary>
         </aside>
+        )}
       </div>
 
       {/* Bottom: Timeline panel */}

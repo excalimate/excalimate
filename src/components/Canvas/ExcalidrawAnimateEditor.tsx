@@ -25,9 +25,10 @@ import type { ExcalidrawSceneData } from '../../types/excalidraw';
 import type { FrameState } from '../../types/animation';
 import type { AnimatableTarget } from '../../types/excalidraw';
 import type { CameraFrame } from '../../stores/projectStore';
-import { CAMERA_FRAME_TARGET_ID, useProjectStore } from '../../stores/projectStore';
+import { CAMERA_FRAME_TARGET_ID, useProjectStore, getFrameHeight } from '../../stores/projectStore';
 import { useUndoRedoStore } from '../../stores/undoRedoStore';
 import { useUIStore } from '../../stores/uiStore';
+import { getCanvasViewport } from './canvasViewport';
 import { CameraFrameOverlay } from './CameraFrameOverlay';
 import { computeCameraOverlayPosition } from './cameraOverlayMath';
 import { useExcalidrawAnimationSync } from './useExcalidrawAnimationSync';
@@ -87,7 +88,14 @@ export function ExcalidrawAnimateEditor({
   const lastProcessedVersionRef = useRef(0);
   const lastAnimatedRef = useRef<Map<string, { x: number; y: number; width: number; height: number }>>(new Map());
   const lastElementOrderRef = useRef<string>('');
-  const [viewport, setViewport] = useState({ scrollX: 0, scrollY: 0, zoom: 1, width: 0, height: 0 });
+  const viewportRef = useRef(
+    (() => {
+      const saved = getCanvasViewport('animate');
+      return saved
+        ? { scrollX: saved.scrollX, scrollY: saved.scrollY, zoom: saved.zoom, width: 0, height: 0 }
+        : { scrollX: 0, scrollY: 0, zoom: 1, width: 0, height: 0 };
+    })(),
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   // Track whether we've done the initial render (skip first updateScene since
   // initialData already rendered elements correctly on the canvas).
@@ -191,9 +199,13 @@ export function ExcalidrawAnimateEditor({
     refs,
   });
 
+  const setViewportRef = useCallback((vp: { scrollX: number; scrollY: number; zoom: number; width: number; height: number }) => {
+    viewportRef.current = vp;
+  }, []);
+
   const handleChange = useExcalidrawChangeBridge({
     refs,
-    setViewport,
+    setViewport: setViewportRef,
   });
 
   // ── Camera frame drag/resize ──────────────────────────────────
@@ -226,8 +238,8 @@ export function ExcalidrawAnimateEditor({
         setCamDragOffset({ dx: 0, dy: 0, dScale: (primaryDelta + secondaryDelta) / 2 / 150 });
       } else {
         setCamDragOffset({
-          dx: (e.clientX - camDrag.startX) / (viewport.zoom || 1),
-          dy: (e.clientY - camDrag.startY) / (viewport.zoom || 1),
+          dx: (e.clientX - camDrag.startX) / (viewportRef.current.zoom || 1),
+          dy: (e.clientY - camDrag.startY) / (viewportRef.current.zoom || 1),
           dScale: 0,
         });
       }
@@ -249,8 +261,8 @@ export function ExcalidrawAnimateEditor({
           onResizeRef.current(CAMERA_FRAME_TARGET_ID, dScale, dScale);
         }
       } else {
-        const dx = (e.clientX - camDrag.startX) / (viewport.zoom || 1);
-        const dy = (e.clientY - camDrag.startY) / (viewport.zoom || 1);
+        const dx = (e.clientX - camDrag.startX) / (viewportRef.current.zoom || 1);
+        const dy = (e.clientY - camDrag.startY) / (viewportRef.current.zoom || 1);
         if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
           onDragRef.current(CAMERA_FRAME_TARGET_ID, dx, dy);
         }
@@ -266,7 +278,7 @@ export function ExcalidrawAnimateEditor({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [viewport]);
+  }, []);
 
   // ── Compute initial data ───────────────────────────────────────
   // IMPORTANT: Pass raw scene elements (not animation-transformed) as initialData.
@@ -275,17 +287,74 @@ export function ExcalidrawAnimateEditor({
   // may re-apply initialData on internal re-renders, overriding the
   // api.updateScene() call that set opacity to the correct animated value.
 
+  // Read saved viewport ONCE on mount — after that Excalidraw manages its own
+  // viewport internally and the change bridge writes back for future remounts.
+  const mountViewportRef = useRef(getCanvasViewport('animate'));
+
+  // On first animate visit (no saved viewport), compute a fit-all viewport
+  // that encompasses all elements and the camera frame with padding.
+  const fitAllViewport = useMemo(() => {
+    if (mountViewportRef.current || !scene) return null;
+
+    const elements = getNonDeletedElements(scene.elements as ExcalidrawElement[]);
+    if (elements.length === 0) return null;
+
+    // Bounding box of all elements
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of elements) {
+      minX = Math.min(minX, el.x);
+      minY = Math.min(minY, el.y);
+      maxX = Math.max(maxX, el.x + el.width);
+      maxY = Math.max(maxY, el.y + el.height);
+    }
+
+    // Include camera frame bounds
+    const frameH = getFrameHeight(cameraFrame);
+    const camLeft = cameraFrame.x - cameraFrame.width / 2;
+    const camTop = cameraFrame.y - frameH / 2;
+    const camRight = cameraFrame.x + cameraFrame.width / 2;
+    const camBottom = cameraFrame.y + frameH / 2;
+    minX = Math.min(minX, camLeft);
+    minY = Math.min(minY, camTop);
+    maxX = Math.max(maxX, camRight);
+    maxY = Math.max(maxY, camBottom);
+
+    const sceneW = maxX - minX;
+    const sceneH = maxY - minY;
+    const sceneCX = minX + sceneW / 2;
+    const sceneCY = minY + sceneH / 2;
+
+    // Estimate container size (fallback to reasonable defaults)
+    const containerW = containerRef.current?.clientWidth ?? 800;
+    const containerH = containerRef.current?.clientHeight ?? 600;
+
+    const padding = 80;
+    const availW = containerW - padding * 2;
+    const availH = containerH - padding * 2;
+    const zoom = Math.min(availW / sceneW, availH / sceneH, 1);
+
+    return {
+      scrollX: containerW / 2 - sceneCX * zoom,
+      scrollY: containerH / 2 - sceneCY * zoom,
+      zoom,
+    };
+    // Only compute on mount — scene/cameraFrame won't change the initial viewport
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const initialViewport = mountViewportRef.current ?? fitAllViewport;
+
   const initialData = scene
     ? {
         elements: getNonDeletedElements(scene.elements as ExcalidrawElement[]),
         appState: {
           ...scene.appState,
           // Preserve the user's viewport across Excalidraw remounts
-          ...(viewport.width > 0 ? {
-            scrollX: viewport.scrollX,
-            scrollY: viewport.scrollY,
+          ...(initialViewport ? {
+            scrollX: initialViewport.scrollX,
+            scrollY: initialViewport.scrollY,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            zoom: { value: viewport.zoom } as any,
+            zoom: { value: initialViewport.zoom } as any,
           } : {}),
           selectedElementIds: Object.fromEntries(selectedElementIds.map(id => [id, true as const])),
         },
@@ -322,11 +391,11 @@ export function ExcalidrawAnimateEditor({
     );
   }
 
-  const overlayPosition = computeCameraOverlayPosition(cameraFrame, frameState, camDragOffset, viewport);
+  const overlayPosition = computeCameraOverlayPosition(cameraFrame, frameState, camDragOffset, viewportRef.current);
   const isFrameSelected = selectedElementIds.includes(CAMERA_FRAME_TARGET_ID);
 
   return (
-    <div ref={containerRef} className="excalidraw-wrapper" style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div ref={containerRef} className="excalidraw-wrapper excalidraw-animate-mode" style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Excalidraw
         key={sceneKey}
         excalidrawAPI={handleApiReady}

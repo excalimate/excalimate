@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Button } from '@mantine/core';
-import { IconMovie, IconVideo, IconPhoto, IconSvg } from '@tabler/icons-react';
+import { IconMovie, IconVideo, IconPhoto, IconSvg, IconDownload } from '@tabler/icons-react';
 import { Modal } from '../common';
 import { exportAnimation } from '../../services/ExportService';
 import type { ExportFormat, ExportQuality } from '../../services/ExportService';
@@ -60,7 +60,7 @@ export function ExportControls() {
 
   return (
     <>
-      <Button variant="subtle" color="gray" size="compact-xs" onClick={() => setShowDialog(true)}>
+      <Button variant="subtle" color="gray" size="compact-sm" leftSection={<IconDownload size={14} />} onClick={() => setShowDialog(true)}>
         Export
       </Button>
 

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import { setCanvasViewport } from './canvasViewport';
 import { useProjectStore } from '../../stores/projectStore';
 import { extractTargets } from './extractTargets';
 import type { AnimateEditorRefs } from './ExcalidrawAnimateEditor';
@@ -27,13 +28,15 @@ export function useExcalidrawChangeBridge(params: {
     (elements: readonly ExcalidrawElement[], appState: any) => {
       // Always track viewport state (even during our own updates)
       if (appState) {
-        setViewport({
+        const vp = {
           scrollX: appState.scrollX ?? 0,
           scrollY: appState.scrollY ?? 0,
           zoom: appState.zoom?.value ?? 1,
           width: appState.width ?? 0,
           height: appState.height ?? 0,
-        });
+        };
+        setViewport(vp);
+        setCanvasViewport('animate', { scrollX: vp.scrollX, scrollY: vp.scrollY, zoom: vp.zoom });
       }
 
       // Ignore changes triggered by our own updateScene calls.

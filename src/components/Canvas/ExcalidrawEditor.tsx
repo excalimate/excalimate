@@ -4,6 +4,7 @@ import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { ExcalidrawSceneData } from '../../types/excalidraw';
 import { useUIStore } from '../../stores/uiStore';
+import { getCanvasViewport, setCanvasViewport } from './canvasViewport';
 import '@excalidraw/excalidraw/index.css';
 
 interface ExcalidrawEditorProps {
@@ -38,6 +39,15 @@ export function ExcalidrawEditor({
     (elements: readonly ExcalidrawElement[], appState: any, _files: any) => {
       if (!apiRef.current) return;
 
+      // Persist viewport for edit mode restoration
+      if (appState?.scrollX != null) {
+        setCanvasViewport('edit', {
+          scrollX: appState.scrollX,
+          scrollY: appState.scrollY,
+          zoom: typeof appState.zoom === 'object' ? appState.zoom.value : (appState.zoom ?? 1),
+        });
+      }
+
       if (onSceneChangeRef.current) {
         const files = apiRef.current.getFiles();
         onSceneChangeRef.current({
@@ -59,17 +69,22 @@ export function ExcalidrawEditor({
     [],
   );
 
-  const stableInitialData = useMemo(
-    () =>
-      initialData
-        ? {
-            elements: initialData.elements as ExcalidrawElement[],
-            appState: initialData.appState,
-            files: initialData.files,
-          }
-        : undefined,
-    [initialData],
-  );
+  const stableInitialData = useMemo(() => {
+    if (!initialData) return undefined;
+    const saved = getCanvasViewport('edit');
+    return {
+      elements: initialData.elements as ExcalidrawElement[],
+      appState: {
+        ...initialData.appState,
+        ...(saved ? {
+          scrollX: saved.scrollX,
+          scrollY: saved.scrollY,
+          zoom: { value: saved.zoom },
+        } : {}),
+      },
+      files: initialData.files,
+    };
+  }, [initialData]);
 
   return (
     <div
