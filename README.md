@@ -1,5 +1,9 @@
 <div align="center">
-  <img src="public/excalimate_logo.svg" width="280" alt="Excalimate">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/excalimate_logo_dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="public/excalimate_logo.svg">
+    <img src="public/excalimate_logo.svg" width="280" alt="Excalimate">
+  </picture>
 
   *Turn hand-drawn Excalidraw diagrams into keyframe animations*
 
