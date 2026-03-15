@@ -34,3 +34,6 @@ dist-ssr
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+.agents/*
+skills-lock.json

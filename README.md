@@ -1,97 +1,72 @@
-# Excalimate
+<div align="center">
+  <img src="public/excalimate_logo.svg" width="280" alt="Excalimate">
 
-[![npm version](https://img.shields.io/npm/v/@excalimate/mcp-server)](https://www.npmjs.com/package/@excalimate/mcp-server)
-[![npm downloads](https://img.shields.io/npm/dm/@excalimate/mcp-server)](https://www.npmjs.com/package/@excalimate/mcp-server)
-[![license](https://img.shields.io/github/license/davidszakacs/excalimate)](https://github.com/davidszakacs/excalimate/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/davidszakacs/excalimate)](https://github.com/davidszakacs/excalimate)
-[![last commit](https://img.shields.io/github/last-commit/davidszakacs/excalimate)](https://github.com/davidszakacs/excalimate/commits)
+  *Turn hand-drawn Excalidraw diagrams into keyframe animations*
 
-Create keyframe animations from Excalidraw designs. Draw diagrams with the full Excalidraw editor, then animate elements with opacity fades, position slides, scale effects, rotation, and arrow draw-on animations. Export as MP4, WebM, GIF, or animated SVG.
+  [![npm version](https://img.shields.io/npm/v/@excalimate/mcp-server?style=flat-square)](https://www.npmjs.com/package/@excalimate/mcp-server)
+  [![npm downloads](https://img.shields.io/npm/dm/@excalimate/mcp-server?style=flat-square)](https://www.npmjs.com/package/@excalimate/mcp-server)
+  [![license](https://img.shields.io/github/license/davidszakacs/excalimate?style=flat-square)](LICENSE)
+  [![GitHub stars](https://img.shields.io/github/stars/davidszakacs/excalimate?style=flat-square)](https://github.com/davidszakacs/excalimate)
 
-Includes an **MCP server** for AI-driven animation — let Copilot, Claude or other AI agents create and animate diagrams in real-time.
+  [Website](https://excalimate.com) · [MCP Server Docs](mcp-server/README.md) · [Report Bug](https://github.com/excalimate/excalimate/issues)
 
-**Try it now:** Open [excalimate.com](https://excalimate.com), install the MCP server with `npx @excalimate/mcp-server`, and let your AI create animated diagrams while you watch live.
+</div>
+
+Draw diagrams with the full Excalidraw editor, then animate elements with opacity fades, position slides, scale effects, rotation, and arrow draw-on animations. Export as MP4, WebM, GIF, or animated SVG. Includes an **MCP server** so AI agents can create and animate diagrams in real-time.
+
+<!--
+## Demo
+
+TODO: Embed demo video/GIF here
+<video src="..." />
+-->
 
 > [!CAUTION]
 > A considerable part of this codebase was built with AI. The process of cleaning up the code and fixing bugs is still ongoing — use it cautiously. If you encounter any issues, please [report them](https://github.com/excalimate/excalimate/issues).
 
 ## Features
 
-- **Full Excalidraw editor** — draw, edit, resize, connect arrows, add text — everything Excalidraw does
-- **Keyframe animation** — opacity, position, scale, rotation, draw progress (for arrows/lines)
-- **Timeline** — collapsible per-element tracks, clip start/end markers, scrubbing
+- **Full Excalidraw editor** — draw, edit, resize, connect arrows, add text
+- **Keyframe animation** — opacity, position, scale, rotation, draw progress
+- **Timeline** — collapsible per-element tracks with interpolation lines, clip markers, scrubbing
 - **Sequence reveal** — stagger-reveal multiple elements with one click
-- **Camera frame** — pan/zoom animation, aspect ratio control
+- **Camera animation** — pan/zoom keyframes with aspect ratio control
 - **Export** — MP4 (H.264), WebM (VP9), GIF, animated SVG
-- **E2E encrypted sharing** — share via URL, encryption key stays in the hash fragment
-- **MCP server** — AI agents can create scenes, animate them, and preview in real-time
-- **Live mode** — see AI changes in the editor as they happen via SSE
+- **E2E encrypted sharing** — AES-256-GCM, key stays in the URL hash fragment
+- **MCP server** — 23 tools for AI-driven scene creation, animation, and sharing
+- **Live mode** — watch AI changes appear in the editor in real-time via SSE
 
 ## Quick Start
 
+**Try it now** — no cloning required:
+
 ```bash
-# Install dependencies
+npx @excalimate/mcp-server
+```
+
+Open [excalimate.com](https://excalimate.com), click the **Live** button, and point your AI tool to `http://localhost:3001/mcp`.
+
+### Local development
+
+```bash
 npm install
-
-# Start development server
 npm run dev
+# → http://localhost:5173
 ```
 
-Open `http://localhost:5173` in your browser.
+## AI Integration (MCP Server)
 
-### With AI (MCP Server)
+The MCP server lets AI agents (Copilot, Claude, Cursor, Windsurf) create and animate diagrams for you. Start the server, connect your AI tool, and watch diagrams appear live in [excalimate.com](https://excalimate.com).
 
 ```bash
-# Run the MCP server directly from npm
-npx @excalimate/mcp-server
+npx @excalimate/mcp-server              # default port 3001
+npx @excalimate/mcp-server --port 4000  # custom port
 ```
-
-Then open [excalimate.com](https://excalimate.com) and click **📡 Live** in the toolbar. See [AI Animation with MCP Server](#ai-animation-with-mcp-server) below for the full guide.
-
-## Usage
-
-### Edit Mode
-Draw your diagram using the Excalidraw editor. All standard tools work — rectangles, ellipses, arrows, text, groups, etc.
-
-### Animate Mode
-Switch to Animate mode (Ctrl+E) to:
-1. Select elements and modify properties in the right panel — keyframes are created automatically
-2. Use the timeline to scrub, move keyframes, and set clip range
-3. Click **🎬 Sequence** to create staggered reveal animations
-4. Click **Export** to render as video
-
-### AI Animation with MCP Server
-
-The MCP server lets AI agents (Copilot, Claude, etc.) create and animate diagrams for you. The easiest way to get started is to pair the **deployed web app** at [excalimate.com](https://excalimate.com) with the MCP server from npm.
-
-#### 1. Start the MCP server
-
-```bash
-npx @excalimate/mcp-server
-# → MCP server running at http://localhost:3001
-```
-
-Or install it globally:
-
-```bash
-npm install -g @excalimate/mcp-server
-excalimate-mcp
-```
-
-#### 2. Open the web app
-
-Go to [excalimate.com](https://excalimate.com) and click **📡 Live** in the toolbar. The app connects to your local MCP server automatically.
-
-#### 3. Connect your AI tool
-
-Pick your tool below. **HTTP mode** is recommended — it enables real-time live preview in [excalimate.com](https://excalimate.com) while the AI works.
 
 <details>
-<summary><strong>VS Code (GitHub Copilot) — ✅ live preview</strong></summary>
+<summary><strong>VS Code (GitHub Copilot)</strong></summary>
 
-Add to your VS Code MCP config (`.vscode/mcp.json` or user-level `mcp.json`):
-
-**HTTP mode (recommended — live preview works):**
+Add to `.vscode/mcp.json`:
 
 ```jsonc
 {
@@ -104,28 +79,12 @@ Add to your VS Code MCP config (`.vscode/mcp.json` or user-level `mcp.json`):
 }
 ```
 
-Start the MCP server first (`npx @excalimate/mcp-server`), open [excalimate.com](https://excalimate.com), click **📡 Live**, then ask Copilot to create a diagram. You'll see it appear in real-time.
-
-**stdio mode (no live preview):**
-
-```jsonc
-{
-  "servers": {
-    "excalimate": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["@excalimate/mcp-server", "--stdio"]
-    }
-  }
-}
-```
-
 </details>
 
 <details>
-<summary><strong>Claude Desktop — stdio only (no live preview)</strong></summary>
+<summary><strong>Claude Desktop</strong></summary>
 
-Add to your `claude_desktop_config.json`:
+Add to `claude_desktop_config.json`:
 
 ```json
 {
@@ -138,115 +97,117 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
-Claude Desktop uses stdio transport, so there's no live preview. The AI creates scenes and animations, then use `save_checkpoint` to save state and load it in [excalimate.com](https://excalimate.com) via the **MCP** button in the toolbar.
+> [!NOTE]
+> Claude Desktop uses stdio transport — no live preview. Use `save_checkpoint` or `share_project` to view results in [excalimate.com](https://excalimate.com).
 
 </details>
 
 <details>
-<summary><strong>Claude Code (CLI) — ✅ live preview</strong></summary>
-
-Claude Code supports HTTP MCP servers. Start the server first, then add it:
+<summary><strong>Claude Code (CLI)</strong></summary>
 
 ```bash
 npx @excalimate/mcp-server &
 claude mcp add excalimate http://localhost:3001/mcp
 ```
 
-Open [excalimate.com](https://excalimate.com) and click **📡 Live** — you'll see the AI's changes in real-time.
-
 </details>
 
 <details>
-<summary><strong>Cursor — ✅ live preview</strong></summary>
+<summary><strong>Cursor / Windsurf / Other HTTP clients</strong></summary>
 
-In Cursor settings, go to **MCP Servers** and add:
-
-- **Name:** `excalimate`
-- **Type:** `http`
-- **URL:** `http://localhost:3001/mcp`
-
-Start the MCP server (`npx @excalimate/mcp-server`), open [excalimate.com](https://excalimate.com), click **📡 Live**, then use Cursor's agent to create diagrams with live preview.
+Point your MCP client to `http://localhost:3001/mcp` and start the server with `npx @excalimate/mcp-server`.
 
 </details>
 
-<details>
-<summary><strong>Windsurf — ✅ live preview</strong></summary>
+> [!TIP]
+> HTTP mode (default) enables **live preview** — you see the AI's changes in real-time. stdio mode is only needed for tools that don't support HTTP transport.
 
-Add to your Windsurf MCP config:
+See [mcp-server/README.md](mcp-server/README.md) for the full tool reference and configuration guide.
 
-```json
-{
-  "mcpServers": {
-    "excalimate": {
-      "serverUrl": "http://localhost:3001/mcp"
-    }
-  }
-}
+### AI Skills (Optional)
+
+Excalimate ships with **16 specialized skills** that teach AI agents how to create specific diagram types (architecture diagrams, flowcharts, sequence diagrams, etc.) with proper animation patterns. Skills dramatically improve output quality.
+
+**GitHub Copilot (recommended):**
+
+```bash
+npx skills add https://github.com/davidszakacs/excalimate
 ```
 
-Start the MCP server, open [excalimate.com](https://excalimate.com), click **📡 Live**, and use Cascade to create animated diagrams in real-time.
+**Manual installation (any agent):**
 
-</details>
+Copy the `skills/` directory into your project, or point your agent's skill/context configuration to the skill files. Each skill is a standalone `SKILL.md` file that can be loaded as context.
 
-<details>
-<summary><strong>Any HTTP-compatible MCP client — ✅ live preview</strong></summary>
+**Available skills:** `excalimate-core` · `animated-presentations` · `animation-patterns` · `architecture-diagrams` · `comparison-diagrams` · `data-pipelines` · `diagram-theming` · `er-diagrams` · `explainer-animations` · `export-optimization` · `flowcharts` · `mind-maps` · `network-topologies` · `org-charts` · `sequence-diagrams` · `timeline-roadmaps`
 
-Point your MCP client to:
+## Usage
 
-```
-http://localhost:3001/mcp
-```
+### Edit Mode
 
-Start the server with `npx @excalimate/mcp-server`, open [excalimate.com](https://excalimate.com), and click **📡 Live**. Any tool that supports Streamable HTTP MCP transport will work with live preview.
+Draw your diagram using the Excalidraw editor. All standard tools work — rectangles, ellipses, arrows, text, groups, etc.
 
-</details>
+### Animate Mode
 
-> **Tip:** HTTP mode (the default) is always preferred — it enables live preview so you can watch the AI build your animation in real-time. stdio mode is only needed for tools that don't support HTTP transport (like Claude Desktop).
+Switch to Animate mode (`Ctrl+E`) to:
+1. Select elements and modify properties — keyframes are created automatically
+2. Scrub the timeline, move keyframes, and set the clip range
+3. Use **Sequence Reveal** for staggered element animations
+4. Export to MP4, WebM, GIF, or animated SVG
 
-See [mcp-server/README.md](mcp-server/README.md) for full documentation and [mcp-server/SKILL.md](mcp-server/SKILL.md) for the AI skill guide.
+### Sharing
+
+Share your animation via **File → Share**. The project is encrypted client-side with AES-256-GCM and uploaded as an opaque blob — the server never sees the encryption key.
 
 ## Architecture
 
 ```
 excalimate/
-├── src/                    # React web app (Vite + TypeScript)
-│   ├── components/         # UI components (Toolbar, Timeline, PropertyPanel, etc.)
-│   ├── core/               # Animation engine, interpolation, playback
-│   ├── stores/             # Zustand state (project, animation, UI, undo/redo)
-│   ├── services/           # Export pipeline, file I/O, encryption
-│   └── hooks/              # Custom hooks (hotkeys, MCP live)
-├── mcp-server/             # MCP server (Node.js + TypeScript)
-│   ├── src/                # Server, tools, state, checkpoints
-│   ├── SKILL.md            # AI skill guide
-│   └── references/         # Detailed reference docs
-└── public/                 # Static assets
+├── src/                        # React web app (Vite + TypeScript)
+│   ├── components/             # UI (Mantine + Tailwind CSS)
+│   ├── core/                   # Animation engine, interpolation, playback
+│   ├── stores/                 # Zustand state management
+│   ├── services/               # Export pipeline, encryption, file I/O
+│   └── hooks/                  # MCP live, hotkeys, auto-save
+├── mcp-server/                 # MCP server (Node.js + Express)
+│   └── src/server/             # Modular tool registrations
+├── skills/                     # AI skill definitions (16 skills)
+└── docs/                       # Design guidelines, plans
 ```
 
-**Key design**: The web app is a **static SPA** — all rendering, animation, and editing happens in the browser. No server needed for core functionality. The MCP server is optional (for AI integration and live preview).
+The web app is a **static SPA** — all rendering, animation, and editing happens in the browser. The MCP server is optional, used only for AI integration and live preview.
 
-## Security
+## Tech Stack
 
-- **Client-side only** — core app stores nothing server-side
-- **E2E encrypted sharing** — AES-128-GCM encryption, key in URL hash (never sent to server)
-- **Export** — all rendering happens in-browser via WebCodecs/Canvas
-- **MCP server** — designed for local use; needs authentication if exposed to internet
+| Layer | Technology |
+|-------|-----------|
+| UI | React 19, Mantine 8, Tailwind CSS 4, Tabler Icons |
+| Canvas | Excalidraw 0.18 |
+| State | Zustand |
+| Animation | Custom keyframe engine with interpolation + easing |
+| Export | WebCodecs (MP4/WebM), gif.js, SVG |
+| Encryption | Web Crypto API (AES-256-GCM) |
+| MCP Server | Node.js, Express, MCP SDK |
+| Build | Vite 7, TypeScript 5.9 |
+| Deployment | Cloudflare Pages |
 
 ## Development
 
 ```bash
 npm run dev          # Start dev server
 npm run build        # Production build
-npm run test         # Run tests (280 tests)
+npm run test         # Run tests
 npm run lint         # ESLint
 ```
 
-## Contributing
+MCP server:
 
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Make your changes with tests
-4. Open a pull request
+```bash
+cd mcp-server
+npm install && npm run build
+node dist/index.js              # HTTP mode
+node dist/index.js --stdio      # stdio mode
+node dist/index.js --port 4000  # custom port
+```
 
 ## Acknowledgements
 

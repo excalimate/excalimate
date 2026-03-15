@@ -22,6 +22,7 @@ description: >
    - `items_visible_in_camera` — ensure nothing is off-screen
 5. **Call `set_clip_range`** to define the export region.
 6. **Call `save_checkpoint`** to persist the scene state.
+7. **Call `share_project`** to get an E2E encrypted URL you can share with others.
 
 ---
 
@@ -177,6 +178,7 @@ Place text inside a shape by binding them together.
 ## Key Rules
 
 - Use **`add_keyframes_batch`** for animations — one call, many keyframes.
+- Use **`add_scale_animation`** when you need anchored scaling from an edge/corner/center.
 - **NEVER** set `opacity` on elements — always use keyframes for visibility.
 - Use **`delete_items`** to remove elements **and** their animations.
 - Call **`set_clip_range`** before saving.
