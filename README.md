@@ -191,7 +191,7 @@ The web app is a **static SPA** — all rendering, animation, and editing happen
 | Encryption | Web Crypto API (AES-256-GCM) |
 | MCP Server | Node.js, Express, MCP SDK |
 | Build | Vite 7, TypeScript 5.9 |
-| Deployment | Cloudflare Pages |
+| Deployment | Cloudflare Pages, Cloudflare Workers, Cloudflare R2 |
 
 ## Development
 
