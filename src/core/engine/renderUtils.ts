@@ -18,11 +18,15 @@ export function buildElementAnimationStates(
 ): Map<string, { tx: number; ty: number; sx: number; sy: number; rot: number; opacity: number }> {
   const elStates = new Map<string, { tx: number; ty: number; sx: number; sy: number; rot: number; opacity: number }>();
 
+  // Pre-build target lookup map for O(1) access instead of O(n) find() per entry
+  const targetById = new Map<string, AnimatableTarget>();
+  for (const t of targets) targetById.set(t.id, t);
+
   for (const [tid, state] of frameState) {
     if (tid === CAMERA_FRAME_TARGET_ID) continue;
     const { translateX: tx, translateY: ty, scaleX: sx, scaleY: sy, rotation: rot, opacity } = state;
     if (tx === 0 && ty === 0 && sx === 1 && sy === 1 && rot === 0 && opacity === 1) continue;
-    const tgt = targets.find(t => t.id === tid);
+    const tgt = targetById.get(tid);
     for (const eid of (tgt ? tgt.elementIds : [tid])) {
       const p = elStates.get(eid) ?? { tx: 0, ty: 0, sx: 1, sy: 1, rot: 0, opacity: 1 };
       elStates.set(eid, {
@@ -92,16 +96,19 @@ export function applyAnimationToElements(
   return elements.map((el) => {
     const a = elStates.get(el.id);
 
-    // Always clone and bump version so Excalidraw invalidates its render cache.
-    // Without this, Excalidraw may serve a stale cached canvas tile after
-    // api.updateScene() and elements stay visually invisible despite having
-    // correct properties in the state.
+    if (!a) {
+      // No animation — only need version bump for Excalidraw cache invalidation.
+      // Use spread (required: can't mutate source) but skip Math.random().
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const c = { ...el, version: _renderVersion, versionNonce: _renderVersion } as any;
+      return c as ExcalidrawElement;
+    }
+
+    // Animated element — full clone with transforms applied
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = { ...el } as any;
     c.version = _renderVersion;
-    c.versionNonce = Math.random() * 2147483647 | 0;
-
-    if (!a) return c as ExcalidrawElement; // No animation — return clone with bumped version
+    c.versionNonce = _renderVersion;
 
     // Apply direct animation transforms
     c.x = el.x + a.tx;

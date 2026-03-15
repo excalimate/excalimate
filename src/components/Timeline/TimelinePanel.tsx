@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { AnimationTrack, Keyframe } from '../../types/animation';
 import { KeyframeDiamond } from './KeyframeDiamond';
 import { TimeRuler } from './TimeRuler';
@@ -74,7 +74,10 @@ export function TimelinePanel({
 
   const playheadX = timeToPixel(currentTime, zoom) - scrollX;
   const totalWidth = timeToPixel(duration, zoom);
-  const targetGroups = buildTargetGroups(tracks, targetLabels, targetOrder);
+  const targetGroups = useMemo(
+    () => buildTargetGroups(tracks, targetLabels, targetOrder),
+    [tracks, targetLabels, targetOrder],
+  );
 
   const toggleCollapse = (targetId: string) => {
     setExpandedTargets((prev) => {
@@ -85,16 +88,19 @@ export function TimelinePanel({
     });
   };
 
-  const rows: RowData[] = [];
-  for (const group of targetGroups) {
-    const collapsed = !expandedTargets.has(group.targetId);
-    rows.push({ type: 'target-header', group, collapsed });
-    if (!collapsed) {
-      for (const vt of group.propertyTracks) {
-        rows.push({ type: 'property', vt, group });
+  const rows: RowData[] = useMemo(() => {
+    const result: RowData[] = [];
+    for (const group of targetGroups) {
+      const collapsed = !expandedTargets.has(group.targetId);
+      result.push({ type: 'target-header', group, collapsed });
+      if (!collapsed) {
+        for (const vt of group.propertyTracks) {
+          result.push({ type: 'property', vt, group });
+        }
       }
     }
-  }
+    return result;
+  }, [targetGroups, expandedTargets]);
 
   const interactionRows: TimelineRowData[] = rows.map((row) =>
     row.type === 'target-header'
