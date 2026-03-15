@@ -1,50 +1,14 @@
-import { useMemo } from 'react';
 import type {
   AnimationTrack,
   Keyframe,
   AnimatableProperty,
-  EasingType,
 } from '../../types/animation';
-import { EASING_TYPES, PROPERTY_DEFAULTS } from '../../types/animation';
 import type { AnimatableTarget } from '../../types/excalidraw';
-import { NumberInput } from '../common/NumberInput';
-import { Dropdown } from '../common/Dropdown';
-import { interpolate } from '../../core/engine/InterpolationEngine';
-
-const PROPERTY_CONFIG: Record<
-  AnimatableProperty,
-  {
-    label: string; icon: string; suffix: string;
-    min?: number; max?: number; step: number;
-    displayScale?: number;
-  }
-> = {
-  opacity: { label: 'Opacity', icon: '👁', suffix: '%', min: 0, max: 100, step: 1, displayScale: 100 },
-  translateX: { label: 'Position X', icon: '↔', suffix: 'px', step: 1 },
-  translateY: { label: 'Position Y', icon: '↕', suffix: 'px', step: 1 },
-  scaleX: { label: 'Scale X', icon: '⇔', suffix: '%', min: 10, max: 500, step: 1, displayScale: 100 },
-  scaleY: { label: 'Scale Y', icon: '⇕', suffix: '%', min: 10, max: 500, step: 1, displayScale: 100 },
-  rotation: { label: 'Rotation', icon: '↻', suffix: '°', step: 1 },
-  drawProgress: { label: 'Draw Progress', icon: '✏', suffix: '%', min: 0, max: 100, step: 1, displayScale: 100 },
-};
-
 import { CAMERA_FRAME_TARGET_ID } from '../../stores/projectStore';
-
-/** Convert internal value to display value */
-function toDisplay(property: AnimatableProperty, internal: number): number {
-  const config = PROPERTY_CONFIG[property];
-  if (!config) return internal;
-  return internal * (config.displayScale ?? 1);
-}
-
-/** Convert display value to internal value */
-function toInternal(property: AnimatableProperty, display: number): number {
-  const config = PROPERTY_CONFIG[property];
-  if (!config) return display;
-  return display / (config.displayScale ?? 1);
-}
-
-const EASING_OPTIONS = EASING_TYPES.map((t) => ({ value: t, label: t }));
+import { PROPERTY_CONFIG } from './propertyConfig';
+import { toDisplay, toInternal } from './propertyValueAdapters';
+import { usePropertyKeyframes } from './usePropertyKeyframes';
+import { SelectedKeyframeEditor } from './SelectedKeyframeEditor';
 
 export interface PropertyPanelProps {
   selectedTargets: AnimatableTarget[];
@@ -73,44 +37,6 @@ function TargetInfo({ target }: { target: AnimatableTarget }) {
   );
 }
 
-function SelectedKeyframeEditor({
-  track,
-  keyframe,
-  onUpdate,
-  onDelete,
-}: {
-  track: AnimationTrack;
-  keyframe: Keyframe;
-  onUpdate: (updates: Partial<Pick<Keyframe, 'time' | 'value' | 'easing'>>) => void;
-  onDelete: () => void;
-}) {
-  const config = PROPERTY_CONFIG[track.property] ?? { label: track.property, icon: '?', suffix: '', step: 1 };
-  const displayVal = toDisplay(track.property, keyframe.value);
-  return (
-    <div className="px-3 py-2 border-b border-[var(--color-border)] space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium flex items-center gap-1">
-          <span className="text-indigo-400">◆</span> {config.icon} {config.label}
-        </span>
-        <button className="text-[10px] text-red-400 hover:text-red-300" onClick={onDelete} title="Delete keyframe">
-          ✕ Delete
-        </button>
-      </div>
-      <NumberInput label="Time" value={keyframe.time} onChange={(v) => onUpdate({ time: Math.max(0, v) })} min={0} step={10} suffix="ms" />
-      <NumberInput
-        label="Value"
-        value={displayVal}
-        onChange={(v) => onUpdate({ value: toInternal(track.property, v) })}
-        min={config.min}
-        max={config.max}
-        step={config.step}
-        suffix={config.suffix}
-      />
-      <Dropdown label="Easing" value={keyframe.easing} onChange={(v) => onUpdate({ easing: v as EasingType })} options={EASING_OPTIONS} />
-    </div>
-  );
-}
-
 export function PropertyPanel({
   selectedTargets,
   allTargets,
@@ -126,24 +52,63 @@ export function PropertyPanel({
   const isMulti = selectedTargets.length > 1;
   const isCamera = selectedTargets.some(t => t.id === CAMERA_FRAME_TARGET_ID);
 
-  // Auto-find keyframes at current time for selected targets (in addition to explicitly selected ones)
-  const keyframesAtCurrentTime = useMemo(() => {
-    const result: { track: AnimationTrack; keyframe: Keyframe }[] = [];
-    const explicitIds = new Set(selectedKeyframes.map(sk => sk.keyframe.id));
-    const selectedIds = new Set(selectedTargets.map(t => t.id));
+  const {
+    allVisibleKeyframes,
+    ensureAndSet,
+    getValue,
+    hasKeyframeAt,
+    toggleKeyframeFor,
+    toggleCompoundKeyframe,
+  } = usePropertyKeyframes({
+    tracks,
+    currentTime,
+    selectedTargets,
+    selectedKeyframes,
+    onAddOrUpdateKeyframe,
+    onAddTrack,
+    onDeleteKeyframe,
+  });
 
-    for (const track of tracks) {
-      if (!selectedIds.has(track.targetId)) continue;
-      for (const kf of track.keyframes) {
-        if (Math.abs(kf.time - currentTime) < 1 && !explicitIds.has(kf.id)) {
-          result.push({ track, keyframe: kf });
-        }
-      }
-    }
-    return result;
-  }, [tracks, currentTime, selectedTargets, selectedKeyframes]);
+  const KfButton = ({ prop }: { prop: AnimatableProperty }) => {
+    const has = hasKeyframeAt(prop);
+    return (
+      <button
+        className={`w-4 h-4 flex items-center justify-center text-[10px] rounded transition-colors shrink-0 ${
+          has ? 'text-indigo-400 hover:text-red-400' : 'text-[var(--color-text-secondary)] hover:text-indigo-400'
+        }`}
+        onClick={() => toggleKeyframeFor(prop)}
+        title={has ? `Remove keyframe at ${Math.round(currentTime)}ms` : `Add keyframe at ${Math.round(currentTime)}ms`}
+      >
+        {has ? '◆' : '◇'}
+      </button>
+    );
+  };
 
-  const allVisibleKeyframes = [...selectedKeyframes, ...keyframesAtCurrentTime];
+  type PropGroup = { label: string; icon: string; properties: { prop: AnimatableProperty; label: string; suffix: string }[] };
+  const groups: PropGroup[] = [
+    {
+      label: isCamera ? 'Pan' : 'Position',
+      icon: '⊹',
+      properties: [
+        { prop: 'translateX', label: 'X', suffix: 'px' },
+        { prop: 'translateY', label: 'Y', suffix: 'px' },
+      ],
+    },
+    {
+      label: isCamera ? 'Zoom' : 'Scale',
+      icon: '⇔',
+      properties: [
+        { prop: 'scaleX', label: 'X', suffix: '%' },
+        { prop: 'scaleY', label: 'Y', suffix: '%' },
+      ],
+    },
+  ];
+
+  const standaloneProps: { prop: AnimatableProperty; label: string }[] = [
+    { prop: 'opacity', label: 'Opacity' },
+    { prop: 'rotation', label: 'Rotation' },
+    { prop: 'drawProgress', label: 'Draw Progress' },
+  ];
 
   if (selectedTargets.length === 0) {
     return (
@@ -179,117 +144,8 @@ export function PropertyPanel({
     );
   }
 
-  // Helper: ensure track exists and set value (auto-create if needed)
-  const ensureAndSet = (property: AnimatableProperty, value: number) => {
-    for (const target of selectedTargets) {
-      const track = tracks.find(t => t.targetId === target.id && t.property === property);
-      if (track) {
-        onAddOrUpdateKeyframe(track.id, currentTime, value);
-      } else {
-        // Auto-create track then set value
-        onAddTrack(target.id, target.type, property);
-      }
-    }
-  };
-
-  // Helper: get current interpolated value for first selected target
-  const getValue = (property: AnimatableProperty): number => {
-    const track = tracks.find(t => t.property === property);
-    if (track) return interpolate(track.keyframes, currentTime, track.property);
-    return PROPERTY_DEFAULTS[property];
-  };
-
-  // Helper: check if keyframe exists at current time for a property
-  const hasKeyframeAt = (prop: AnimatableProperty): boolean => {
-    return tracks.some(t => t.property === prop && t.keyframes.some(kf => Math.abs(kf.time - currentTime) < 1));
-  };
-
-  // Helper: toggle keyframe at current time — add if missing, remove if exists
-  const toggleKeyframeFor = (prop: AnimatableProperty) => {
-    const has = hasKeyframeAt(prop);
-    if (has) {
-      // Remove the keyframe at current time
-      for (const target of selectedTargets) {
-        const track = tracks.find(t => t.targetId === target.id && t.property === prop);
-        if (track) {
-          const kf = track.keyframes.find(k => Math.abs(k.time - currentTime) < 1);
-          if (kf) onDeleteKeyframe(track.id, kf.id);
-        }
-      }
-    } else {
-      // Add keyframe at current time with current value
-      ensureAndSet(prop, getValue(prop));
-    }
-  };
-
-  // Toggle keyframe for a compound group (Position = X+Y, Scale = X+Y)
-  const toggleCompoundKeyframe = (properties: AnimatableProperty[]) => {
-    const allHave = properties.every(p => hasKeyframeAt(p));
-    for (const prop of properties) {
-      if (allHave) {
-        // Remove all keyframes in the group
-        for (const target of selectedTargets) {
-          const track = tracks.find(t => t.targetId === target.id && t.property === prop);
-          if (track) {
-            const kf = track.keyframes.find(k => Math.abs(k.time - currentTime) < 1);
-            if (kf) onDeleteKeyframe(track.id, kf.id);
-          }
-        }
-      } else {
-        // Add keyframes for any missing
-        if (!hasKeyframeAt(prop)) {
-          ensureAndSet(prop, getValue(prop));
-        }
-      }
-    }
-  };
-
-  // Keyframe button component
-  const KfButton = ({ prop }: { prop: AnimatableProperty }) => {
-    const has = hasKeyframeAt(prop);
-    return (
-      <button
-        className={`w-4 h-4 flex items-center justify-center text-[10px] rounded transition-colors shrink-0 ${
-          has ? 'text-indigo-400 hover:text-red-400' : 'text-[var(--color-text-secondary)] hover:text-indigo-400'
-        }`}
-        onClick={() => toggleKeyframeFor(prop)}
-        title={has ? `Remove keyframe at ${Math.round(currentTime)}ms` : `Add keyframe at ${Math.round(currentTime)}ms`}
-      >
-        {has ? '◆' : '◇'}
-      </button>
-    );
-  };
-
-  // Define the property groups to show
-  type PropGroup = { label: string; icon: string; properties: { prop: AnimatableProperty; label: string; suffix: string }[] };
-  const groups: PropGroup[] = [
-    {
-      label: isCamera ? 'Pan' : 'Position',
-      icon: '⊹',
-      properties: [
-        { prop: 'translateX', label: 'X', suffix: 'px' },
-        { prop: 'translateY', label: 'Y', suffix: 'px' },
-      ],
-    },
-    {
-      label: isCamera ? 'Zoom' : 'Scale',
-      icon: '⇔',
-      properties: [
-        { prop: 'scaleX', label: 'X', suffix: '%' },
-        { prop: 'scaleY', label: 'Y', suffix: '%' },
-      ],
-    },
-  ];
-
-  const standaloneProps: { prop: AnimatableProperty; label: string }[] = [
-    { prop: 'opacity', label: 'Opacity' },
-    { prop: 'rotation', label: 'Rotation' },
-    { prop: 'drawProgress', label: 'Draw Progress' },
-  ];
-
   return (
     <div className="flex flex-col h-full overflow-y-auto" aria-label="Properties">
-      {/* Target info header */}
       <div className="border-b border-[var(--color-border)]">
         <div className="px-3 py-1 text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold">
           {isMulti ? `${selectedTargets.length} Selected` : 'Selected'}
@@ -303,7 +159,6 @@ export function PropertyPanel({
         Properties at {Math.round(currentTime)}ms
       </div>
 
-      {/* Compound property groups (Position, Scale) — one keyframe button per group */}
       {groups.map((group) => {
         const groupProps = group.properties.map(p => p.prop);
         const allHaveKf = groupProps.every(p => hasKeyframeAt(p));
@@ -334,7 +189,10 @@ export function PropertyPanel({
                   <div key={prop} className="flex items-center gap-1.5">
                     <span className="text-[10px] text-[var(--color-text-secondary)] w-3">{label}</span>
                     <input
-                      type="range" min={sliderMin} max={sliderMax} step={config.step}
+                      type="range"
+                      min={sliderMin}
+                      max={sliderMax}
+                      step={config.step}
                       value={displayVal}
                       onChange={(e) => ensureAndSet(prop, toInternal(prop, Number(e.target.value)))}
                       className="flex-1 h-1.5 accent-indigo-500 cursor-pointer"
@@ -342,8 +200,13 @@ export function PropertyPanel({
                     <input
                       type="number"
                       value={Number(displayVal.toFixed(config.displayScale ? 0 : 1))}
-                      onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) ensureAndSet(prop, toInternal(prop, v)); }}
-                      step={config.step} min={config.min} max={config.max}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (Number.isFinite(v)) ensureAndSet(prop, toInternal(prop, v));
+                      }}
+                      step={config.step}
+                      min={config.min}
+                      max={config.max}
                       className="w-14 px-1 py-0.5 text-[10px] text-right rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
                     />
                     <span className="text-[9px] text-[var(--color-text-secondary)] w-3">{suffix}</span>
@@ -355,7 +218,6 @@ export function PropertyPanel({
         );
       })}
 
-      {/* Standalone properties (Opacity, Rotation, Draw Progress) */}
       {standaloneProps.map(({ prop, label }) => {
         const config = PROPERTY_CONFIG[prop];
         const internalVal = getValue(prop);
@@ -370,7 +232,10 @@ export function PropertyPanel({
             </div>
             <div className="flex items-center gap-1.5">
               <input
-                type="range" min={sliderMin} max={sliderMax} step={config.step}
+                type="range"
+                min={sliderMin}
+                max={sliderMax}
+                step={config.step}
                 value={displayVal}
                 onChange={(e) => ensureAndSet(prop, toInternal(prop, Number(e.target.value)))}
                 className="flex-1 h-1.5 accent-indigo-500 cursor-pointer"
@@ -378,8 +243,13 @@ export function PropertyPanel({
               <input
                 type="number"
                 value={Number(displayVal.toFixed(config.displayScale ? 0 : 1))}
-                onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) ensureAndSet(prop, toInternal(prop, v)); }}
-                step={config.step} min={config.min} max={config.max}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (Number.isFinite(v)) ensureAndSet(prop, toInternal(prop, v));
+                }}
+                step={config.step}
+                min={config.min}
+                max={config.max}
                 className="w-14 px-1 py-0.5 text-[10px] text-right rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
               />
               <span className="text-[9px] text-[var(--color-text-secondary)] w-3">{config.suffix}</span>
@@ -389,7 +259,6 @@ export function PropertyPanel({
         );
       })}
 
-      {/* Keyframes at current time / selected keyframes */}
       {allVisibleKeyframes.length > 0 && (
         <>
           <div className="px-3 py-1 text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider bg-[#1a1a2a]">
