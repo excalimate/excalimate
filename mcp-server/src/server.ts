@@ -16,33 +16,56 @@ import { ANIMATABLE_PROPERTIES, EASING_TYPES, PROPERTY_DEFAULTS, ASPECT_RATIOS }
 
 export type StateChangeListener = (state: ServerState) => void;
 
-// Module-level shared state — persists across all server instances (HTTP requests)
-let _sharedState: ServerState = createDefaultState();
+// ── Shared State Management ──────────────────────────────────────────
+//
+// State is intentionally shared across MCP sessions: the web app shows
+// a live preview of what the AI is creating, so all sessions operate on
+// the same canvas.  This is a SINGLE-TENANT design — only one active
+// editing session is expected at a time.
+//
+// The _activeState pointer is updated by whichever server instance was
+// most recently created.  A mutation guard logs a warning if a second
+// concurrent server tries to mutate state (indicating unexpected
+// multi-tenant usage).
 
-export function getSharedState(): ServerState { return _sharedState; }
+let _activeState: ServerState = createDefaultState();
+let _activeServerId: string | null = null;
+
+export function getSharedState(): ServerState { return _activeState; }
 
 export function createServer(
   store: CheckpointStore,
   onStateChange?: StateChangeListener,
 ): McpServer {
+  const serverId = nanoid(8);
   const server = new McpServer({
     name: 'excalimate',
     version: '0.1.0',
   });
 
+  // Claim ownership of the shared state.  If another server was active,
+  // log a warning — this is a single-tenant design.
+  if (_activeServerId !== null) {
+    console.warn(
+      `[excalimate] New server ${serverId} replacing active server ${_activeServerId}. ` +
+      'Concurrent MCP sessions share the same state (single-tenant design).',
+    );
+  }
+  _activeServerId = serverId;
+
   /** Notify listeners after state mutation */
   function emitChange() {
     try {
-      onStateChange?.(_sharedState);
+      onStateChange?.(_activeState);
     } catch (err) {
       console.error('emitChange failed:', err);
     }
   }
 
-   
-  (server as any).__getState = () => _sharedState;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (server as any).__getState = () => _activeState;
 
-  function updateState(newState: ServerState) { _sharedState = newState; }
+  function updateState(newState: ServerState) { _activeState = newState; }
 
   // Read-only tools use server.tool directly.
   // Mutating tools use this wrapper that auto-emits state changes.
@@ -164,7 +187,7 @@ export function createServer(
       try {
         const parsed = JSON.parse(elements);
         if (!Array.isArray(parsed)) return { content: [{ type: 'text', text: 'Error: elements must be a JSON array' }] };
-        _sharedState.scene.elements = normalizeElements(parsed);
+        _activeState.scene.elements = normalizeElements(parsed);
         return { content: [{ type: 'text', text: `Scene created with ${parsed.length} elements.` }] };
       } catch (e) {
         return { content: [{ type: 'text', text: `Error parsing elements: ${e}` }] };
@@ -180,8 +203,8 @@ export function createServer(
       try {
         const parsed = JSON.parse(elements);
         if (!Array.isArray(parsed)) return { content: [{ type: 'text', text: 'Error: must be array' }] };
-        _sharedState.scene.elements.push(...normalizeElements(parsed));
-        return { content: [{ type: 'text', text: `Added ${parsed.length} elements. Total: ${_sharedState.scene.elements.length}.` }] };
+        _activeState.scene.elements.push(...normalizeElements(parsed));
+        return { content: [{ type: 'text', text: `Added ${parsed.length} elements. Total: ${_activeState.scene.elements.length}.` }] };
       } catch (e) {
         return { content: [{ type: 'text', text: `Error: ${e}` }] };
       }
@@ -193,10 +216,10 @@ export function createServer(
     'Remove elements by their IDs.',
     { ids: z.array(z.string()).describe('Array of element IDs to remove') },
     async ({ ids }) => {
-      const before = _sharedState.scene.elements.length;
-      _sharedState.scene.elements = _sharedState.scene.elements.filter((el: any) => !ids.includes(el.id));
-      const removed = before - _sharedState.scene.elements.length;
-      return { content: [{ type: 'text', text: `Removed ${removed} elements. Total: ${_sharedState.scene.elements.length}.` }] };
+      const before = _activeState.scene.elements.length;
+      _activeState.scene.elements = _activeState.scene.elements.filter((el: any) => !ids.includes(el.id));
+      const removed = before - _activeState.scene.elements.length;
+      return { content: [{ type: 'text', text: `Removed ${removed} elements. Total: ${_activeState.scene.elements.length}.` }] };
     },
   );
 
@@ -210,9 +233,9 @@ export function createServer(
         if (!Array.isArray(parsed)) return { content: [{ type: 'text', text: 'Error: must be array' }] };
         let updated = 0;
         for (const upd of parsed) {
-          const idx = _sharedState.scene.elements.findIndex((el: any) => el.id === upd.id);
+          const idx = _activeState.scene.elements.findIndex((el: any) => el.id === upd.id);
           if (idx >= 0) {
-            _sharedState.scene.elements[idx] = { ..._sharedState.scene.elements[idx], ...upd };
+            _activeState.scene.elements[idx] = { ..._activeState.scene.elements[idx], ...upd };
             updated++;
           }
         }
@@ -228,7 +251,7 @@ export function createServer(
     'Return the current scene elements as JSON.',
     {},
     async () => ({
-      content: [{ type: 'text', text: JSON.stringify(_sharedState.scene.elements, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify(_activeState.scene.elements, null, 2) }],
     }),
   );
 
@@ -245,7 +268,7 @@ export function createServer(
       easing: z.enum(EASING_TYPES as unknown as [string, ...string[]]).optional().describe('Easing to next keyframe'),
     },
     async ({ targetId, property, time, value, easing }) => {
-      updateState(addKeyframeToState(_sharedState, targetId, property as AnimatableProperty, time, value, (easing as EasingType) ?? 'linear'));
+      updateState(addKeyframeToState(_activeState, targetId, property as AnimatableProperty, time, value, (easing as EasingType) ?? 'linear'));
       return { content: [{ type: 'text', text: `Keyframe added: ${property} = ${value} at ${time}ms for ${targetId}` }] };
     },
   );
@@ -286,22 +309,22 @@ export function createServer(
         let skipped = 0;
         for (const kf of parsed) {
           if (!validProperties.has(kf.property)) { skipped++; continue; }
-          updateState(addKeyframeToState(_sharedState, kf.targetId, kf.property, kf.time, kf.value, kf.easing ?? 'linear'));
+          updateState(addKeyframeToState(_activeState, kf.targetId, kf.property, kf.time, kf.value, kf.easing ?? 'linear'));
           count++;
         }
 
         // Third pass: add translate compensation for scale keyframes with origins
         for (const skf of scaleCompensation.values()) {
           const [ox, oy] = originMap[skf.origin] ?? [0.5, 0.5];
-          const el = _sharedState.scene.elements.find((e: any) => e.id === skf.targetId);
+          const el = _activeState.scene.elements.find((e: any) => e.id === skf.targetId);
           if (!el) continue;
           const bounds = getElementBounds(el);
           const w = bounds.maxX - bounds.minX;
           const h = bounds.maxY - bounds.minY;
           const tx = -w * (skf.sx - 1) * ox;
           const ty = -h * (skf.sy - 1) * oy;
-          updateState(addKeyframeToState(_sharedState, skf.targetId, 'translateX', skf.time, tx, skf.easing as EasingType));
-          updateState(addKeyframeToState(_sharedState, skf.targetId, 'translateY', skf.time, ty, skf.easing as EasingType));
+          updateState(addKeyframeToState(_activeState, skf.targetId, 'translateX', skf.time, tx, skf.easing as EasingType));
+          updateState(addKeyframeToState(_activeState, skf.targetId, 'translateY', skf.time, ty, skf.easing as EasingType));
           count += 2;
         }
 
@@ -320,7 +343,7 @@ export function createServer(
       keyframeId: z.string().describe('Keyframe ID'),
     },
     async ({ trackId, keyframeId }) => {
-      const track = _sharedState.timeline.tracks.find(t => t.id === trackId);
+      const track = _activeState.timeline.tracks.find(t => t.id === trackId);
       if (!track) return { content: [{ type: 'text', text: 'Track not found.' }] };
       const before = track.keyframes.length;
       track.keyframes = track.keyframes.filter(kf => kf.id !== keyframeId);
@@ -345,12 +368,12 @@ export function createServer(
         const targetId = elementIds[i];
 
         if (revealStart > 0) {
-          updateState(addKeyframeToState(_sharedState, targetId, property as AnimatableProperty, 0, 0));
+          updateState(addKeyframeToState(_activeState, targetId, property as AnimatableProperty, 0, 0));
         }
         if (revealStart > 10) {
-          updateState(addKeyframeToState(_sharedState, targetId, property as AnimatableProperty, revealStart, 0));
+          updateState(addKeyframeToState(_activeState, targetId, property as AnimatableProperty, revealStart, 0));
         }
-        updateState(addKeyframeToState(_sharedState, targetId, property as AnimatableProperty, revealEnd, 1, 'easeOut'));
+        updateState(addKeyframeToState(_activeState, targetId, property as AnimatableProperty, revealEnd, 1, 'easeOut'));
       }
       const totalDuration = startTime + (elementIds.length - 1) * delay + duration;
       return { content: [{ type: 'text', text: `Sequence created: ${elementIds.length} elements, total ${totalDuration}ms.` }] };
@@ -365,8 +388,8 @@ export function createServer(
       end: z.number().min(100).describe('Clip end time (ms)'),
     },
     async ({ start, end }) => {
-      _sharedState.clipStart = start;
-      _sharedState.clipEnd = Math.max(start + 100, end);
+      _activeState.clipStart = start;
+      _activeState.clipEnd = Math.max(start + 100, end);
       return { content: [{ type: 'text', text: `Clip range: ${start}ms – ${end}ms (${(end - start) / 1000}s)` }] };
     },
   );
@@ -379,10 +402,10 @@ export function createServer(
       content: [{
         type: 'text',
         text: JSON.stringify({
-          timeline: _sharedState.timeline,
-          clipStart: _sharedState.clipStart,
-          clipEnd: _sharedState.clipEnd,
-          cameraFrame: _sharedState.cameraFrame,
+          timeline: _activeState.timeline,
+          clipStart: _activeState.clipStart,
+          clipEnd: _activeState.clipEnd,
+          cameraFrame: _activeState.cameraFrame,
         }, null, 2),
       }],
     }),
@@ -393,7 +416,7 @@ export function createServer(
     'Clear all animation tracks.',
     {},
     async () => {
-      _sharedState.timeline.tracks = [];
+      _activeState.timeline.tracks = [];
       return { content: [{ type: 'text', text: 'All animation tracks cleared.' }] };
     },
   );
@@ -403,9 +426,9 @@ export function createServer(
     'Clear all elements and all animation tracks. Resets the scene to a blank canvas.',
     {},
     async () => {
-      _sharedState.scene.elements = [];
-      _sharedState.scene.files = {};
-      _sharedState.timeline.tracks = [];
+      _activeState.scene.elements = [];
+      _activeState.scene.files = {};
+      _activeState.timeline.tracks = [];
       return { content: [{ type: 'text', text: 'Scene and all animations cleared.' }] };
     },
   );
@@ -423,7 +446,7 @@ export function createServer(
         const parsed = JSON.parse(keyframes);
         if (!Array.isArray(parsed)) return { content: [{ type: 'text', text: 'Error: must be array' }] };
 
-        const el = _sharedState.scene.elements.find((e: any) => e.id === targetId);
+        const el = _activeState.scene.elements.find((e: any) => e.id === targetId);
         if (!el) return { content: [{ type: 'text', text: `Element "${targetId}" not found.` }] };
 
         const bounds = getElementBounds(el);
@@ -454,8 +477,8 @@ export function createServer(
           const easing = kf.easing ?? 'linear';
 
           // Add scale keyframes
-          updateState(addKeyframeToState(_sharedState, targetId, 'scaleX', kf.time, sx, easing as EasingType));
-          updateState(addKeyframeToState(_sharedState, targetId, 'scaleY', kf.time, sy, easing as EasingType));
+          updateState(addKeyframeToState(_activeState, targetId, 'scaleX', kf.time, sx, easing as EasingType));
+          updateState(addKeyframeToState(_activeState, targetId, 'scaleY', kf.time, sy, easing as EasingType));
 
           // Compute translate compensation to keep origin fixed
           // When scaling from top-left (ox=0): no translate needed
@@ -465,8 +488,8 @@ export function createServer(
           const ty = -h * (sy - 1) * oy;
 
           if (Math.abs(tx) > 0.1 || Math.abs(ty) > 0.1 || ox !== 0 || oy !== 0) {
-            updateState(addKeyframeToState(_sharedState, targetId, 'translateX', kf.time, tx, easing as EasingType));
-            updateState(addKeyframeToState(_sharedState, targetId, 'translateY', kf.time, ty, easing as EasingType));
+            updateState(addKeyframeToState(_activeState, targetId, 'translateX', kf.time, tx, easing as EasingType));
+            updateState(addKeyframeToState(_activeState, targetId, 'translateY', kf.time, ty, easing as EasingType));
           }
 
           count++;
@@ -491,19 +514,19 @@ export function createServer(
       aspectRatio: z.enum(['16:9', '4:3', '1:1', '3:2']).optional().describe('Aspect ratio'),
     },
     async ({ x, y, width, aspectRatio }) => {
-      if (x !== undefined) _sharedState.cameraFrame.x = x;
-      if (y !== undefined) _sharedState.cameraFrame.y = y;
-      if (width !== undefined) _sharedState.cameraFrame.width = width;
-      if (aspectRatio !== undefined) _sharedState.cameraFrame.aspectRatio = aspectRatio;
+      if (x !== undefined) _activeState.cameraFrame.x = x;
+      if (y !== undefined) _activeState.cameraFrame.y = y;
+      if (width !== undefined) _activeState.cameraFrame.width = width;
+      if (aspectRatio !== undefined) _activeState.cameraFrame.aspectRatio = aspectRatio;
 
       // Create initial camera keyframes at t=0 so camera starts at the defined position
       const CAMERA_ID = '__camera_frame__';
-      updateState(addKeyframeToState(_sharedState, CAMERA_ID, 'translateX', 0, 0));
-      updateState(addKeyframeToState(_sharedState, CAMERA_ID, 'translateY', 0, 0));
-      updateState(addKeyframeToState(_sharedState, CAMERA_ID, 'scaleX', 0, 1));
-      updateState(addKeyframeToState(_sharedState, CAMERA_ID, 'scaleY', 0, 1));
+      updateState(addKeyframeToState(_activeState, CAMERA_ID, 'translateX', 0, 0));
+      updateState(addKeyframeToState(_activeState, CAMERA_ID, 'translateY', 0, 0));
+      updateState(addKeyframeToState(_activeState, CAMERA_ID, 'scaleX', 0, 1));
+      updateState(addKeyframeToState(_activeState, CAMERA_ID, 'scaleY', 0, 1));
 
-      return { content: [{ type: 'text', text: `Camera: ${_sharedState.cameraFrame.aspectRatio} at (${_sharedState.cameraFrame.x}, ${_sharedState.cameraFrame.y}), width ${_sharedState.cameraFrame.width}. Initial keyframes created at t=0.` }] };
+      return { content: [{ type: 'text', text: `Camera: ${_activeState.cameraFrame.aspectRatio} at (${_activeState.cameraFrame.x}, ${_activeState.cameraFrame.y}), width ${_activeState.cameraFrame.width}. Initial keyframes created at t=0.` }] };
     },
   );
 
@@ -518,7 +541,7 @@ export function createServer(
     },
     async ({ property, time, value, easing }) => {
       const CAMERA_ID = '__camera_frame__';
-      updateState(addKeyframeToState(_sharedState, CAMERA_ID, property as AnimatableProperty, time, value, (easing as EasingType) ?? 'linear'));
+      updateState(addKeyframeToState(_activeState, CAMERA_ID, property as AnimatableProperty, time, value, (easing as EasingType) ?? 'linear'));
       return { content: [{ type: 'text', text: `Camera keyframe: ${property} = ${value} at ${time}ms` }] };
     },
   );
@@ -547,7 +570,7 @@ export function createServer(
           let prop = kf.property;
           if (propMap[prop]) prop = propMap[prop];
           if (!validCameraProps.has(prop)) { skipped++; continue; }
-          updateState(addKeyframeToState(_sharedState, CAMERA_ID, prop as AnimatableProperty, kf.time, kf.value, (kf.easing as EasingType) ?? 'linear'));
+          updateState(addKeyframeToState(_activeState, CAMERA_ID, prop as AnimatableProperty, kf.time, kf.value, (kf.easing as EasingType) ?? 'linear'));
           count++;
         }
         return { content: [{ type: 'text', text: `Added ${count} camera keyframes.${skipped ? ` Skipped ${skipped} with invalid properties (use translateX, translateY, scaleX, scaleY).` : ''}` }] };
@@ -594,10 +617,10 @@ export function createServer(
 
   /** Get animated position of an element at a given time. */
   function getAnimatedBoundsAt(elId: string, time: number): { minX: number; minY: number; maxX: number; maxY: number } | null {
-    const el = _sharedState.scene.elements.find((e: any) => e.id === elId);
+    const el = _activeState.scene.elements.find((e: any) => e.id === elId);
     if (!el) return null;
     const base = getElementBounds(el);
-    const tracks = _sharedState.timeline.tracks.filter((t: any) => t.targetId === elId);
+    const tracks = _activeState.timeline.tracks.filter((t: any) => t.targetId === elId);
     let tx = 0, ty = 0, sx = 1, sy = 1;
     for (const track of tracks) {
       const v = interpolateTrackAt(track, time);
@@ -613,8 +636,8 @@ export function createServer(
 
   /** Get camera rect at a given time. */
   function getCameraRectAt(time: number): { left: number; top: number; right: number; bottom: number; cx: number; cy: number } {
-    const cf = _sharedState.cameraFrame;
-    const camTracks = _sharedState.timeline.tracks.filter((t: any) => t.targetId === '__camera_frame__');
+    const cf = _activeState.cameraFrame;
+    const camTracks = _activeState.timeline.tracks.filter((t: any) => t.targetId === '__camera_frame__');
     let tx = 0, ty = 0, sx = 1, sy = 1;
     for (const track of camTracks) {
       const v = interpolateTrackAt(track, time);
@@ -641,7 +664,7 @@ export function createServer(
     async ({ ids, axis, tolerance = 10 }) => {
       const centers: { id: string; cx: number; cy: number }[] = [];
       for (const id of ids) {
-        const el = _sharedState.scene.elements.find((e: any) => e.id === id);
+        const el = _activeState.scene.elements.find((e: any) => e.id === id);
         if (!el) return { content: [{ type: 'text', text: `Element "${id}" not found.` }] };
         const b = getElementBounds(el);
         centers.push({ id, cx: (b.minX + b.maxX) / 2, cy: (b.minY + b.maxY) / 2 });
@@ -666,7 +689,7 @@ export function createServer(
     async ({ axis, time, tolerance = 20 }) => {
       // Scene content center
       let sMinX = Infinity, sMinY = Infinity, sMaxX = -Infinity, sMaxY = -Infinity;
-      for (const el of _sharedState.scene.elements) {
+      for (const el of _activeState.scene.elements) {
         const b = getElementBounds(el);
         if (b.minX < sMinX) sMinX = b.minX; if (b.minY < sMinY) sMinY = b.minY;
         if (b.maxX > sMaxX) sMaxX = b.maxX; if (b.maxY > sMaxY) sMaxY = b.maxY;
@@ -689,14 +712,14 @@ export function createServer(
     },
     async ({ time }) => {
       const cam = getCameraRectAt(time);
-      const elements = _sharedState.scene.elements.filter((e: any) => !e.isDeleted && e.id !== '__camera_frame__');
+      const elements = _activeState.scene.elements.filter((e: any) => !e.isDeleted && e.id !== '__camera_frame__');
       let visible = 0;
       const details: string[] = [];
       for (const el of elements) {
         const b = getAnimatedBoundsAt(el.id, time);
         if (!b) continue;
         // Check opacity
-        const opTrack = _sharedState.timeline.tracks.find((t: any) => t.targetId === el.id && t.property === 'opacity');
+        const opTrack = _activeState.timeline.tracks.find((t: any) => t.targetId === el.id && t.property === 'opacity');
         const opacity = opTrack ? interpolateTrackAt(opTrack, time) : 1;
         // Check if bounds overlap camera
         const inView = b.maxX > cam.left && b.minX < cam.right && b.maxY > cam.top && b.minY < cam.bottom;
@@ -716,7 +739,7 @@ export function createServer(
       targetId: z.string().describe('Element ID'),
     },
     async ({ targetId }) => {
-      const tracks = _sharedState.timeline.tracks.filter((t: any) => t.targetId === targetId);
+      const tracks = _activeState.timeline.tracks.filter((t: any) => t.targetId === targetId);
       if (tracks.length === 0) {
         return { content: [{ type: 'text', text: `No animations for "${targetId}".` }] };
       }
@@ -752,12 +775,12 @@ export function createServer(
     },
     async ({ ids }) => {
       const idSet = new Set(ids);
-      const beforeEl = _sharedState.scene.elements.length;
-      const beforeTr = _sharedState.timeline.tracks.length;
-      _sharedState.scene.elements = _sharedState.scene.elements.filter((el: any) => !idSet.has(el.id));
-      _sharedState.timeline.tracks = _sharedState.timeline.tracks.filter((t: any) => !idSet.has(t.targetId));
-      const removedEl = beforeEl - _sharedState.scene.elements.length;
-      const removedTr = beforeTr - _sharedState.timeline.tracks.length;
+      const beforeEl = _activeState.scene.elements.length;
+      const beforeTr = _activeState.timeline.tracks.length;
+      _activeState.scene.elements = _activeState.scene.elements.filter((el: any) => !idSet.has(el.id));
+      _activeState.timeline.tracks = _activeState.timeline.tracks.filter((t: any) => !idSet.has(t.targetId));
+      const removedEl = beforeEl - _activeState.scene.elements.length;
+      const removedTr = beforeTr - _activeState.timeline.tracks.length;
       return { content: [{ type: 'text', text: `Deleted ${removedEl} elements and ${removedTr} animation tracks.` }] };
     },
   );
@@ -770,7 +793,7 @@ export function createServer(
     { id: z.string().optional().describe('Checkpoint ID (auto-generated if omitted)') },
     async ({ id }) => {
       const checkpointId = id ?? nanoid(12);
-      await store.save(checkpointId, _sharedState);
+      await store.save(checkpointId, _activeState);
       return { content: [{ type: 'text', text: `Saved checkpoint: ${checkpointId}` }] };
     },
   );
@@ -783,7 +806,7 @@ export function createServer(
       const loaded = await store.load(id);
       if (!loaded) return { content: [{ type: 'text', text: `Checkpoint "${id}" not found.` }] };
       updateState(loaded);
-      return { content: [{ type: 'text', text: `Loaded checkpoint "${id}": ${_sharedState.scene.elements.length} elements, ${_sharedState.timeline.tracks.length} tracks.` }] };
+      return { content: [{ type: 'text', text: `Loaded checkpoint "${id}": ${_activeState.scene.elements.length} elements, ${_activeState.timeline.tracks.length} tracks.` }] };
     },
   );
 

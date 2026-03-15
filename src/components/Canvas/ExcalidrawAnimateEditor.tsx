@@ -61,10 +61,14 @@ export function ExcalidrawAnimateEditor({
   onResizeElement,
 }: ExcalidrawAnimateEditorProps) {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
-  // Flag to ignore onChange callbacks triggered by our own updateScene calls.
-  // Using a boolean + timestamp instead of a counter because Excalidraw may
-  // fire onChange a variable number of times per updateScene call.
-  const ignoreChangesUntilRef = useRef(0);
+  // Monotonic version token for deterministic self-change suppression.
+  // Incremented before every programmatic api.updateScene() call.
+  // In onChange, we compare with the version we last saw — if it changed
+  // since we last processed a user edit, the onChange is from our own
+  // updateScene and should be ignored. This replaces the fragile
+  // Date.now()+100ms timestamp window which was a race condition.
+  const programmaticVersionRef = useRef(0);
+  const lastProcessedVersionRef = useRef(0);
   const lastAnimatedRef = useRef<Map<string, { x: number; y: number; width: number; height: number }>>(new Map());
   const lastElementOrderRef = useRef<string>(''); // Track z-order changes
   const [viewport, setViewport] = useState({ scrollX: 0, scrollY: 0, zoom: 1, width: 0, height: 0 });
@@ -99,7 +103,8 @@ export function ExcalidrawAnimateEditor({
       prevKeyRef.current = sceneKey;
       apiRef.current = null;
       lastElementOrderRef.current = '';
-      ignoreChangesUntilRef.current = 0;
+      programmaticVersionRef.current = 0;
+      lastProcessedVersionRef.current = 0;
       initialRenderDoneRef.current = false;
     }
   }, [sceneKey]);
@@ -207,7 +212,7 @@ export function ExcalidrawAnimateEditor({
     lastAnimatedRef.current = posMap;
     lastElementOrderRef.current = elements.map(el => el.id).join(',');
 
-    ignoreChangesUntilRef.current = Date.now() + 100;
+    programmaticVersionRef.current++;
     api.updateScene({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       elements: animated as any,
@@ -230,7 +235,7 @@ export function ExcalidrawAnimateEditor({
           const opacity = (el as any).opacity ?? 100;
           return opacity < minOpacity ? { ...el, opacity: minOpacity } as typeof el : el;
         });
-        ignoreChangesUntilRef.current = Date.now() + 100;
+        programmaticVersionRef.current++;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         api.updateScene({ elements: animated as any });
       }
@@ -253,7 +258,7 @@ export function ExcalidrawAnimateEditor({
       currentSelected.every(id => selectedElementIds.includes(id));
 
     if (!same) {
-      ignoreChangesUntilRef.current = Date.now() + 100;
+      programmaticVersionRef.current++;
       const selectedMap: Record<string, boolean> = {};
       for (const id of selectedElementIds) selectedMap[id] = true;
       api.updateScene({
@@ -280,10 +285,14 @@ export function ExcalidrawAnimateEditor({
       }
 
       // Ignore changes triggered by our own updateScene calls.
-      // Uses a timestamp window instead of a counter because Excalidraw
-      // may fire onChange a variable number of times per updateScene call.
-      const now = Date.now();
-      if (now < ignoreChangesUntilRef.current) return;
+      // If the programmatic version has advanced since we last processed
+      // a user edit, this onChange is from our own updateScene — skip it.
+      // This is deterministic (no timing dependency) and handles any number
+      // of onChange fires per updateScene call.
+      if (programmaticVersionRef.current !== lastProcessedVersionRef.current) {
+        lastProcessedVersionRef.current = programmaticVersionRef.current;
+        return;
+      }
       if (!apiRef.current) return;
 
       // Report selection changes
@@ -370,6 +379,7 @@ export function ExcalidrawAnimateEditor({
 
   const handleCameraMouseDown = useCallback((e: React.MouseEvent, handle?: string) => {
     e.stopPropagation();
+    useUndoRedoStore.getState().beginBatch();
     useUndoRedoStore.getState().pushState();
     camDragRef.current = { startX: e.clientX, startY: e.clientY, handle };
     if (!selectedElementIds.includes(CAMERA_FRAME_TARGET_ID)) {
@@ -423,6 +433,7 @@ export function ExcalidrawAnimateEditor({
       }
       camDragRef.current = null;
       setCamDragOffset(null);
+      useUndoRedoStore.getState().endBatch();
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -457,6 +468,27 @@ export function ExcalidrawAnimateEditor({
         files: scene.files,
       }
     : undefined;
+
+  // Batch undo entries during Excalidraw element drags. pointerdown starts
+  // the batch, pointerup ends it — so an entire drag produces one undo entry.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handlePointerDown = () => {
+      useUndoRedoStore.getState().beginBatch();
+    };
+    const handlePointerUp = () => {
+      useUndoRedoStore.getState().endBatch();
+    };
+
+    container.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      container.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, []);
 
   if (!scene) {
     return (

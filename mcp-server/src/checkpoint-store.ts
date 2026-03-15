@@ -67,7 +67,12 @@ export class FileCheckpointStore implements CheckpointStore {
     }
   }
 
+  private _pruning = false;
+
   private async prune(): Promise<void> {
+    // Serialize prune operations to avoid concurrent filesystem races
+    if (this._pruning) return;
+    this._pruning = true;
     try {
       const entries = await fs.promises.readdir(this.dir);
       const jsonFiles = entries.filter(f => f.endsWith('.json'));
@@ -80,8 +85,22 @@ export class FileCheckpointStore implements CheckpointStore {
       );
       stats.sort((a, b) => a.mtime - b.mtime);
       const toRemove = stats.slice(0, stats.length - MAX_CHECKPOINTS);
-      await Promise.all(toRemove.map(f => fs.promises.unlink(path.join(this.dir, f.name)).catch(() => {})));
-    } catch { /* best-effort */ }
+      await Promise.all(toRemove.map(async f => {
+        try {
+          await fs.promises.unlink(path.join(this.dir, f.name));
+        } catch (err: unknown) {
+          const code = (err as NodeJS.ErrnoException).code;
+          // ENOENT is expected (concurrent delete) — log anything else
+          if (code !== 'ENOENT') {
+            console.warn(`[checkpoint] Failed to prune ${f.name}:`, err);
+          }
+        }
+      }));
+    } catch (err) {
+      console.warn('[checkpoint] Prune scan failed:', err);
+    } finally {
+      this._pruning = false;
+    }
   }
 }
 

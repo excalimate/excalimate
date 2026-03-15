@@ -19,12 +19,12 @@ import type { Request, Response } from 'express';
 import { FileCheckpointStore } from './checkpoint-store.js';
 import { createServer, getSharedState } from './server.js';
 
-function getCorsOrigin(): Parameters<typeof cors>[0]['origin'] {
+function getCorsOrigin() {
   const raw = process.env.CORS_ORIGIN;
 
+  // No CORS origin configured: allow local dev + production domains
   if (!raw || !raw.trim()) {
-    // No CORS origin configured: disable CORS by default
-    return false;
+    return ['http://localhost:5173', 'https://excalimate.com', 'https://www.excalimate.com'];
   }
 
   const origins = raw
@@ -33,7 +33,7 @@ function getCorsOrigin(): Parameters<typeof cors>[0]['origin'] {
     .filter((o) => o.length > 0);
 
   if (origins.length === 0) {
-    return false;
+    return ['http://localhost:5173', 'https://excalimate.com', 'https://www.excalimate.com'];
   }
 
   if (origins.length === 1) {
@@ -41,7 +41,7 @@ function getCorsOrigin(): Parameters<typeof cors>[0]['origin'] {
   }
 
   // Multiple allowed origins: validate incoming origin against the list
-  return (origin, callback) => {
+  return (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow requests without an Origin header (e.g., same-origin or non-browser clients)
     if (!origin) {
       return callback(null, true);
@@ -242,13 +242,33 @@ async function startHTTPServer(factoryWithSSE: (sseClients: Set<Response>, broad
     res.send(data);
   });
 
-  app.listen(port, () => {
+  const httpServer = app.listen(port, () => {
     console.log(`Excalimate MCP server listening on http://localhost:${port}/mcp`);
     console.log(`Live preview SSE at http://localhost:${port}/live`);
   });
 
-  const shutdown = () => {
-    console.log('\nShutting down...');
+  let shuttingDown = false;
+  const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log('\nGraceful shutdown started...');
+
+    // 1. Stop accepting new connections
+    httpServer.close();
+
+    // 2. Stop the session cleanup timer
+    clearInterval(sessionCleanupTimer);
+
+    // 3. Close all SSE clients
+    for (const client of sseClients) {
+      try { client.end(); } catch { /* best-effort */ }
+    }
+    sseClients.clear();
+
+    // 4. Clear MCP sessions
+    sessions.clear();
+
+    console.log('Shutdown complete.');
     process.exit(0);
   };
   process.on('SIGINT', shutdown);
