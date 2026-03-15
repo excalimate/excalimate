@@ -21,8 +21,7 @@ Draw diagrams with the full Excalidraw editor, then animate elements with opacit
 
 ## Demo
 
-TODO: Embed demo video/GIF here
-<video src="docs/demo_video.mp4" />
+https://github.com/user-attachments/assets/77e87c62-0ff4-4a56-aee6-50553b94798c
 
 
 > [!CAUTION]
