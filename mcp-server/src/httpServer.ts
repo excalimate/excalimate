@@ -7,7 +7,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { getSharedState } from './server.js';
-import { registerShareRoutes } from './shareRoutes.js';
 
 function getCorsOrigin() {
   const raw = process.env.CORS_ORIGIN;
@@ -46,7 +45,7 @@ function getCorsOrigin() {
 }
 
 export async function startHTTPServer(
-  factoryWithSSE: (sseClients: Set<Response>, broadcastSSE: (data: string) => void, port: number) => McpServer,
+  factoryWithSSE: (sseClients: Set<Response>, broadcastSSE: (data: string) => void) => McpServer,
   portOverride?: number,
 ): Promise<void> {
   const port = portOverride ?? parseInt(process.env.PORT ?? '3001', 10);
@@ -65,24 +64,7 @@ export async function startHTTPServer(
   });
   app.use(limiter);
 
-  // Stricter rate limit for share uploads
-  const shareLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 10, // 10 shares per minute
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-
-  const jsonMiddleware = express.json();
-
-  // Parse JSON only for non-share routes (share uses raw binary)
-  app.use((req, res, next) => {
-    if (req.path === '/share' && req.method === 'POST') {
-      next();
-    } else {
-      jsonMiddleware(req, res, next);
-    }
-  });
+  app.use(express.json());
 
   // SSE clients for live state broadcasting
   const sseClients = new Set<Response>();
@@ -99,7 +81,7 @@ export async function startHTTPServer(
   }
 
   // Factory that wires SSE broadcasting
-  const factory = () => factoryWithSSE(sseClients, broadcastSSE, port);
+  const factory = () => factoryWithSSE(sseClients, broadcastSSE);
 
   // Session map: keep server + transport alive across requests
   const sessions = new Map<
@@ -192,10 +174,6 @@ export async function startHTTPServer(
   app.get('/state', (_req: Request, res: Response) => {
     res.json(getSharedState());
   });
-
-  // ── E2E Encrypted Sharing ──────────────────────────────────────
-  // The server only stores encrypted blobs. It never sees the encryption key.
-  registerShareRoutes(app, shareLimiter);
 
   const httpServer = app.listen(port, () => {
     console.log(`Excalimate MCP server listening on http://localhost:${port}/mcp`);

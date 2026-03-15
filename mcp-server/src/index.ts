@@ -35,7 +35,7 @@ async function main() {
   if (process.argv.includes('--stdio')) {
     await startStdioServer(() => createServer(store));
   } else {
-    await startHTTPServer((_sseClients, broadcastSSE, port) => {
+    await startHTTPServer((_sseClients, broadcastSSE) => {
       return createServer(store, (delta) => {
         try {
           const data = JSON.stringify({ type: 'state', state: delta });
@@ -43,7 +43,7 @@ async function main() {
         } catch (err) {
           console.error('Failed to broadcast state:', err);
         }
-      }, port);
+      });
     }, cliPort);
   }
 }

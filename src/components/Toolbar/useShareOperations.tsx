@@ -9,6 +9,8 @@ import {
   generateEncryptionKey,
 } from '../../services/encryption';
 
+const SHARE_API_URL = import.meta.env.VITE_SHARE_API_URL ?? 'https://share.excalimate.com';
+
 export function useShareOperations() {
   const [loading, setLoading] = useState(false);
 
@@ -41,22 +43,23 @@ export function useShareOperations() {
       const encrypted = await encryptData(payload, key);
       const keyStr = await exportKeyToString(key);
 
-      const serverUrl = import.meta.env.VITE_MCP_SERVER_URL ?? 'http://localhost:3001';
-      const response = await fetch(`${serverUrl}/share`, {
+      // Upload encrypted blob to share service (Cloudflare Worker + R2)
+      const response = await fetch(`${SHARE_API_URL}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },
         body: encrypted,
       });
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        const err = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error((err as { error?: string }).error ?? `Upload failed: ${response.status}`);
       }
-      const { id } = await response.json();
+      const { id } = await response.json() as { id: string };
 
       const shareUrl = `${window.location.origin}${window.location.pathname}#share=${id},${keyStr}`;
       await navigator.clipboard.writeText(shareUrl);
       notifications.show({
         title: 'Share link copied',
-        message: 'The encryption key is in the URL — the server cannot read your data.',
+        message: 'E2E encrypted — the server only stores an encrypted blob it cannot read.',
         color: 'green',
         icon: <IconCheck size={16} />,
       });

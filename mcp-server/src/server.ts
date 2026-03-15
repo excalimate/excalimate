@@ -23,7 +23,6 @@ export type { StateChangeListener } from './server/stateContext.js';
 export function createServer(
   store: CheckpointStore,
   onStateChange?: StateChangeListener,
-  serverPort: number = 3001,
 ): McpServer {
   const server = new McpServer({ name: 'excalimate', version: PKG_VERSION });
   const ctx = createStateContext(nanoid(8), server, onStateChange);
@@ -46,7 +45,7 @@ export function createServer(
   registerAnimationTools(server, ctx, getElementBounds);
   registerQueryTools(server, ctx, geometry);
   registerCheckpointTools(server, ctx, store);
-  registerShareTools(server, ctx, serverPort);
+  registerShareTools(server, ctx);
 
   return server;
 }
