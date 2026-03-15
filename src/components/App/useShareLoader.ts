@@ -21,8 +21,8 @@ export function useShareLoader(): void {
 
     (async () => {
       try {
-        const serverUrl = import.meta.env.VITE_MCP_SERVER_URL ?? 'http://localhost:3001';
-        const response = await fetch(`${serverUrl}/share/${shareId}`);
+        const shareApiUrl = import.meta.env.VITE_SHARE_API_URL ?? 'https://share.excalimate.com';
+        const response = await fetch(`${shareApiUrl}/share/${shareId}`);
         if (!response.ok) throw new Error('Share not found');
         const encrypted = await response.arrayBuffer();
         const key = await importKeyFromString(keyStr);

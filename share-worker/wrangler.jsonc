@@ -1,0 +1,23 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "excalimate-share",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-09-27",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"r2_buckets": [
+		{
+			"bucket_name": "excalimate-shares",
+			"binding": "SHARE_BUCKET"
+		}
+	],
+	"rules": [],
+	"vars": {
+		"MAX_SHARE_SIZE_MB": "2",
+		"SHARE_TTL_DAYS": "30",
+		"MAX_TOTAL_SHARES": "2000",
+		"MAX_DAILY_UPLOADS": "500",
+		"ALLOWED_ORIGINS": "https://excalimate.com,https://www.excalimate.com,http://localhost:5173",
+	},
+}

@@ -201,8 +201,8 @@ export async function loadShareUrl(shareUrl: string): Promise<SharedAnimationDat
     }
   }
 
-  const serverUrl = import.meta.env.VITE_MCP_SERVER_URL ?? 'http://localhost:3001';
-  const response = await fetch(`${serverUrl}/share/${shareId}`);
+  const shareApiUrl = import.meta.env.VITE_SHARE_API_URL ?? 'https://share.excalimate.com';
+  const response = await fetch(`${shareApiUrl}/share/${shareId}`);
   if (!response.ok) throw new Error('Shared animation not found.');
   const encrypted = await response.arrayBuffer();
   const key = await importKeyFromString(keyStr);

@@ -1,0 +1,15 @@
+{
+  "name": "@excalimate/share-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker for E2E encrypted animation sharing",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --config ./wrangler.jsonc",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250313.0",
+    "wrangler": "^4.12.0"
+  }
+}
