@@ -18,23 +18,33 @@ export function buildElementAnimationStates(
 ): Map<string, { tx: number; ty: number; sx: number; sy: number; rot: number; opacity: number }> {
   const elStates = new Map<string, { tx: number; ty: number; sx: number; sy: number; rot: number; opacity: number }>();
 
-  // Pre-build target lookup map for O(1) access instead of O(n) find() per entry
+  // Pre-build target lookup map for O(1) access
   const targetById = new Map<string, AnimatableTarget>();
   for (const t of targets) targetById.set(t.id, t);
+
+  // Detect once whether computeFrame cascaded group transforms.
+  // When hierarchy is used, group member elements have their own entries
+  // in frameState — we must skip group expansion to avoid double-application.
+  const groupIds = new Set<string>();
+  for (const t of targets) {
+    if (t.type === 'group') groupIds.add(t.id);
+  }
 
   for (const [tid, state] of frameState) {
     if (tid === CAMERA_FRAME_TARGET_ID) continue;
     const { translateX: tx, translateY: ty, scaleX: sx, scaleY: sy, rotation: rot, opacity } = state;
     if (tx === 0 && ty === 0 && sx === 1 && sy === 1 && rot === 0 && opacity === 1) continue;
-    const tgt = targetById.get(tid);
-    for (const eid of (tgt ? tgt.elementIds : [tid])) {
-      const p = elStates.get(eid) ?? { tx: 0, ty: 0, sx: 1, sy: 1, rot: 0, opacity: 1 };
-      elStates.set(eid, {
-        tx: p.tx + tx, ty: p.ty + ty,
-        sx: p.sx * sx, sy: p.sy * sy,
-        rot: p.rot + rot, opacity: p.opacity * opacity,
-      });
-    }
+
+    // Skip group entries — their transforms are already composed into
+    // member element entries by computeFrame's hierarchy cascade.
+    if (groupIds.has(tid)) continue;
+
+    const p = elStates.get(tid) ?? { tx: 0, ty: 0, sx: 1, sy: 1, rot: 0, opacity: 1 };
+    elStates.set(tid, {
+      tx: p.tx + tx, ty: p.ty + ty,
+      sx: p.sx * sx, sy: p.sy * sy,
+      rot: p.rot + rot, opacity: p.opacity * opacity,
+    });
   }
 
   return elStates;

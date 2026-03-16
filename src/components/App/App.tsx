@@ -73,6 +73,7 @@ export function App() {
   const {
     targetLabels,
     targetOrder,
+    targetParents,
     selectedTargets,
     selectedTargetTracks,
     selectedKeyframeDetails,
@@ -98,6 +99,7 @@ export function App() {
     handleDragElement,
     handleAddTrackProp,
     handleResizeElement,
+    handleRotateElement,
   } = useKeyframeActions();
 
   const closePropertyPanel = useCallback(() => {
@@ -123,7 +125,7 @@ export function App() {
               targets={targets}
               tracks={timeline.tracks}
               selectedElementIds={selectedElementIds}
-              onSelectElement={handleSelectTarget}
+              onSelectElements={handleSelectElements}
             />
           </aside>
         )}
@@ -148,6 +150,7 @@ export function App() {
                 onSelectElements={handleSelectElements}
                 onDragElement={handleDragElement}
                 onResizeElement={handleResizeElement}
+                onRotateElement={handleRotateElement}
               />
             )}
             </Suspense>
@@ -223,6 +226,7 @@ export function App() {
           onClipRangeChange={(start, end) => useAnimationStore.getState().setClipRange(start, end)}
           targetLabels={targetLabels}
           targetOrder={targetOrder}
+          targetParents={targetParents}
           selectedElementIds={selectedElementIds}
         />
         </ErrorBoundary>

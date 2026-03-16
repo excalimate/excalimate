@@ -49,13 +49,14 @@ export interface ExcalidrawAnimateEditorProps {
   onSelectElements: (ids: string[]) => void;
   onDragElement: (targetId: string, deltaX: number, deltaY: number) => void;
   onResizeElement: (targetId: string, dScaleX: number, dScaleY: number) => void;
+  onRotateElement: (targetId: string, angleDelta: number) => void;
 }
 
 export interface AnimateEditorRefs {
   apiRef: React.RefObject<ExcalidrawImperativeAPI | null>;
   programmaticVersionRef: React.MutableRefObject<number>;
   lastProcessedVersionRef: React.MutableRefObject<number>;
-  lastAnimatedRef: React.MutableRefObject<Map<string, { x: number; y: number; width: number; height: number }>>;
+  lastAnimatedRef: React.MutableRefObject<Map<string, { x: number; y: number; width: number; height: number; angle: number }>>;
   lastElementOrderRef: React.MutableRefObject<string>;
   initialRenderDoneRef: React.MutableRefObject<boolean>;
   sceneRef: React.MutableRefObject<ExcalidrawSceneData | null>;
@@ -64,6 +65,8 @@ export interface AnimateEditorRefs {
   onSelectRef: React.MutableRefObject<(ids: string[]) => void>;
   onDragRef: React.MutableRefObject<(targetId: string, dx: number, dy: number) => void>;
   onResizeRef: React.MutableRefObject<(targetId: string, dsx: number, dsy: number) => void>;
+  onRotateRef: React.MutableRefObject<(targetId: string, angleDelta: number) => void>;
+  isDraggingRef: React.MutableRefObject<boolean>;
 }
 
 export function ExcalidrawAnimateEditor({
@@ -75,6 +78,7 @@ export function ExcalidrawAnimateEditor({
   onSelectElements,
   onDragElement,
   onResizeElement,
+  onRotateElement,
 }: ExcalidrawAnimateEditorProps) {
   const theme = useUIStore((s) => s.theme);
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
@@ -86,7 +90,7 @@ export function ExcalidrawAnimateEditor({
   // Date.now()+100ms timestamp window which was a race condition.
   const programmaticVersionRef = useRef(0);
   const lastProcessedVersionRef = useRef(0);
-  const lastAnimatedRef = useRef<Map<string, { x: number; y: number; width: number; height: number }>>(new Map());
+  const lastAnimatedRef = useRef<Map<string, { x: number; y: number; width: number; height: number; angle: number }>>(new Map());
   const lastElementOrderRef = useRef<string>('');
   const viewportRef = useRef(
     (() => {
@@ -97,6 +101,10 @@ export function ExcalidrawAnimateEditor({
     })(),
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  // Tracks whether the user is actively dragging on the canvas.
+  // During drags, animation sync is suppressed to prevent jitter from
+  // the feedback loop: drag → keyframe → animation cascade → updateScene → onChange.
+  const isDraggingRef = useRef(false);
   // Track whether we've done the initial render (skip first updateScene since
   // initialData already rendered elements correctly on the canvas).
   const initialRenderDoneRef = useRef(false);
@@ -137,9 +145,11 @@ export function ExcalidrawAnimateEditor({
   const onSelectRef = useRef(onSelectElements);
   const onDragRef = useRef(onDragElement);
   const onResizeRef = useRef(onResizeElement);
+  const onRotateRef = useRef(onRotateElement);
   useEffect(() => { onSelectRef.current = onSelectElements; }, [onSelectElements]);
   useEffect(() => { onDragRef.current = onDragElement; }, [onDragElement]);
   useEffect(() => { onResizeRef.current = onResizeElement; }, [onResizeElement]);
+  useEffect(() => { onRotateRef.current = onRotateElement; }, [onRotateElement]);
 
   // Stable refs for animation data
   const sceneRef = useRef(scene);
@@ -162,6 +172,8 @@ export function ExcalidrawAnimateEditor({
     onSelectRef,
     onDragRef,
     onResizeRef,
+    onRotateRef,
+    isDraggingRef,
   }), []);
 
   // ── API Ready ──────────────────────────────────────────────────
@@ -380,9 +392,11 @@ export function ExcalidrawAnimateEditor({
 
     const handlePointerDown = () => {
       useUndoRedoStore.getState().beginBatch();
+      isDraggingRef.current = true;
     };
     const handlePointerUp = () => {
       useUndoRedoStore.getState().endBatch();
+      isDraggingRef.current = false;
     };
 
     container.addEventListener('pointerdown', handlePointerDown);

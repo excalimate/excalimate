@@ -46,9 +46,9 @@ export function useExcalidrawAnimationSync(params: {
     if (!initialRenderDoneRef.current) {
       initialRenderDoneRef.current = true;
       // Still set up tracking refs
-      const posMap = new Map<string, { x: number; y: number; width: number; height: number }>();
+      const posMap = new Map<string, { x: number; y: number; width: number; height: number; angle: number }>();
       for (const el of elements) {
-        posMap.set(el.id, { x: el.x, y: el.y, width: el.width, height: el.height });
+        posMap.set(el.id, { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle ?? 0 });
       }
       lastAnimatedRef.current = posMap;
       lastElementOrderRef.current = elements.map(el => el.id).join(',');
@@ -83,9 +83,9 @@ export function useExcalidrawAnimationSync(params: {
       });
     }
 
-    const posMap = new Map<string, { x: number; y: number; width: number; height: number }>();
+    const posMap = new Map<string, { x: number; y: number; width: number; height: number; angle: number }>();
     for (const el of animated) {
-      posMap.set(el.id, { x: el.x, y: el.y, width: el.width, height: el.height });
+      posMap.set(el.id, { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle ?? 0 });
     }
     lastAnimatedRef.current = posMap;
     lastElementOrderRef.current = elements.map(el => el.id).join(',');
@@ -157,10 +157,14 @@ export function useExcalidrawAnimationSync(params: {
     );
 
     // Only update if different (avoid infinite loop)
-    const sameElements = resolvedSet.size === currentSelected.size &&
-      [...resolvedSet].every(id => currentSelected.has(id));
-    const sameGroups = groupIdSet.size === currentGroups.size &&
-      [...groupIdSet].every(id => currentGroups.has(id));
+    let sameElements = resolvedSet.size === currentSelected.size;
+    if (sameElements) {
+      for (const id of resolvedSet) { if (!currentSelected.has(id)) { sameElements = false; break; } }
+    }
+    let sameGroups = groupIdSet.size === currentGroups.size;
+    if (sameGroups) {
+      for (const id of groupIdSet) { if (!currentGroups.has(id)) { sameGroups = false; break; } }
+    }
 
     if (!sameElements || !sameGroups) {
       programmaticVersionRef.current++;

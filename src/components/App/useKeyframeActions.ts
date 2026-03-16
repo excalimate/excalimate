@@ -235,6 +235,36 @@ export function useKeyframeActions(): {
     }
   }, []);
 
+  const handleRotateElement = useCallback((targetId: string, angleDelta: number) => {
+    if (guardLiveMode()) return;
+    useUndoRedoStore.getState().pushState();
+    const store = useAnimationStore.getState();
+    const time = Math.round(usePlaybackStore.getState().currentTime);
+    const target = useProjectStore.getState().targets.find((t) => t.id === targetId);
+    const targetType = target?.type ?? 'element';
+
+    let track = store.timeline.tracks.find(
+      (t) => t.targetId === targetId && t.property === 'rotation',
+    );
+    if (!track) {
+      store.addTrack(targetId, targetType, 'rotation');
+      track = useAnimationStore.getState().timeline.tracks.find(
+        (t) => t.targetId === targetId && t.property === 'rotation',
+      );
+    }
+    if (!track) return;
+
+    // Convert radians delta to degrees (Excalidraw uses radians, our animation uses degrees)
+    const deltaDeg = angleDelta * (180 / Math.PI);
+    const existing = track.keyframes.find((kf) => Math.abs(kf.time - time) < 1);
+    const currentValue = existing?.value ?? 0;
+    if (existing) {
+      store.updateKeyframe(track.id, existing.id, { value: currentValue + deltaDeg });
+    } else {
+      store.addKeyframe(track.id, time, currentValue + deltaDeg);
+    }
+  }, []);
+
   return {
     handleScrub,
     handleSelectTrack,
@@ -251,5 +281,6 @@ export function useKeyframeActions(): {
     handleDragElement,
     handleAddTrackProp,
     handleResizeElement,
+    handleRotateElement,
   };
 }

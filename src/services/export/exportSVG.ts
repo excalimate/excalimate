@@ -1,6 +1,7 @@
 import { getNonDeletedElements } from '@excalidraw/excalidraw';
 import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { AnimationEngine } from '../../core/engine/AnimationEngine';
+import { buildGroupHierarchy } from '../../core/models/GroupHierarchy';
 import { useAnimationStore } from '../../stores/animationStore';
 import {
   CAMERA_FRAME_TARGET_ID,
@@ -19,6 +20,8 @@ export async function exportAnimatedSVG(options: ExportOptions): Promise<void> {
   if (!project?.scene) throw new Error('No scene loaded');
 
   const elements = getNonDeletedElements(project.scene.elements as ExcalidrawElement[]) as NonDeletedExcalidrawElement[];
+  const targets = useProjectStore.getState().targets;
+  const hierarchy = buildGroupHierarchy(targets);
   const res = getExportResolution(cameraFrame.aspectRatio);
   const engine = new AnimationEngine();
   const { clipStart, clipEnd } = useAnimationStore.getState();
@@ -42,7 +45,7 @@ export async function exportAnimatedSVG(options: ExportOptions): Promise<void> {
   const offX = (svgVB?.x ?? 0) - sceneMinX;
   const offY = (svgVB?.y ?? 0) - sceneMinY;
 
-  const fs0 = engine.computeFrame(timeline, 0);
+  const fs0 = engine.computeFrame(timeline, 0, hierarchy);
   const cam0 = getCameraRect(cameraFrame, fs0);
   svg.setAttribute('viewBox', `${(cam0.x - cam0.width / 2) + offX} ${(cam0.y - cam0.height / 2) + offY} ${cam0.width} ${cam0.height}`);
   svg.setAttribute('width', String(res.width));
@@ -70,7 +73,7 @@ export async function exportAnimatedSVG(options: ExportOptions): Promise<void> {
     const steps: string[] = [];
     for (let i = 0; i <= totalFrames; i++) {
       const time = clipStart + (i / totalFrames) * clipDuration;
-      const fs = engine.computeFrame(timeline, time);
+      const fs = engine.computeFrame(timeline, time, hierarchy);
       const st = fs.get(elId);
       if (!st) continue;
       const pct = ((i / totalFrames) * 100).toFixed(2);

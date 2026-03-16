@@ -11,6 +11,7 @@ export function AnimateCanvasWrapper(props: {
   onSelectElements: (ids: string[]) => void;
   onDragElement: (targetId: string, deltaX: number, deltaY: number) => void;
   onResizeElement: (targetId: string, dScaleX: number, dScaleY: number) => void;
+  onRotateElement: (targetId: string, angleDelta: number) => void;
 }) {
   const frameState = usePlaybackStore((s) => s.frameState);
   return <ExcalidrawAnimateEditor {...props} frameState={frameState} />;

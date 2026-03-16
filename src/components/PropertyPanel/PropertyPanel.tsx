@@ -205,7 +205,7 @@ export function PropertyPanel({
                     />
                     <input
                       type="number"
-                      value={Number(displayVal.toFixed(config.displayScale ? 0 : 1))}
+                      value={Number(displayVal.toFixed(2))}
                       onChange={(e) => {
                         const v = Number(e.target.value);
                         if (Number.isFinite(v)) ensureAndSet(prop, toInternal(prop, v));
@@ -248,7 +248,7 @@ export function PropertyPanel({
               />
               <input
                 type="number"
-                value={Number(displayVal.toFixed(config.displayScale ? 0 : 1))}
+                value={Number(displayVal.toFixed(2))}
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   if (Number.isFinite(v)) ensureAndSet(prop, toInternal(prop, v));

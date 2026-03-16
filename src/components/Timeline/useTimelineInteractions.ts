@@ -3,7 +3,9 @@ import type { AnimationTrack } from '../../types/animation';
 import { MAX_ZOOM, MIN_ZOOM, TRACK_HEIGHT } from './timelineModel';
 import { pixelToTime, timeToPixel } from './timelineMath';
 
-export type TimelineRowData = { type: 'target-header'; group: { targetId: string; allTracks: AnimationTrack[] }; collapsed: boolean } | { type: 'property' };
+export type TimelineRowData =
+  | { type: 'target-header'; group: { targetId: string; allTracks: AnimationTrack[] }; collapsed: boolean }
+  | { type: 'property'; trackIds: string[] };
 
 export interface UseTimelineInteractionsParams {
   keyframeAreaRef: RefObject<HTMLDivElement | null>;
@@ -20,6 +22,8 @@ export interface UseTimelineInteractionsParams {
   clipStart: number;
   clipEnd: number;
   selectedElementIds: string[];
+  onSelectKeyframes: (ids: string[]) => void;
+  selectedKeyframeIds: string[];
   onAddKeyframe: (trackId: string, time: number, value: number) => void;
   onMoveKeyframe: (trackId: string, keyframeId: string, newTime: number) => void;
   onScrub: (time: number) => void;
@@ -41,6 +45,8 @@ export function useTimelineInteractions({
   clipStart,
   clipEnd,
   selectedElementIds,
+  onSelectKeyframes,
+  selectedKeyframeIds,
   onAddKeyframe,
   onMoveKeyframe,
   onScrub,
@@ -54,6 +60,13 @@ export function useTimelineInteractions({
     trackId: string;
     startClientX: number;
     startTime: number;
+  } | null>(null);
+  const [marqueeState, setMarqueeState] = useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+    additive: boolean;
   } | null>(null);
 
   const syncScroll = useCallback((source: 'left' | 'right') => {
@@ -184,6 +197,77 @@ export function useTimelineInteractions({
     [onMoveKeyframe, zoom],
   );
 
+  const handleMarqueeStart = useCallback(
+    (e: MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      const container = keyframeScrollRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const startX = e.clientX - rect.left;
+      const startY = e.clientY - rect.top + container.scrollTop;
+      const additive = e.shiftKey;
+
+      let currentX = startX;
+      let currentY = startY;
+
+      setMarqueeState({ startX, startY, currentX, currentY, additive });
+
+      const handleMouseMove = (me: globalThis.MouseEvent) => {
+        currentX = me.clientX - rect.left;
+        currentY = me.clientY - rect.top + container.scrollTop;
+        setMarqueeState((prev) => (prev ? { ...prev, currentX, currentY } : prev));
+      };
+
+      const handleMouseUp = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        setMarqueeState(null);
+
+        if (Math.abs(currentX - startX) < 3 && Math.abs(currentY - startY) < 3) return;
+
+        const minX = Math.min(startX, currentX);
+        const maxX = Math.max(startX, currentX);
+        const minY = Math.min(startY, currentY);
+        const maxY = Math.max(startY, currentY);
+        const trackById = new Map(tracks.map((track) => [track.id, track]));
+        const selected = new Set<string>();
+
+        rows.forEach((row, rowIndex) => {
+          const rowTop = rowIndex * TRACK_HEIGHT;
+          const rowBottom = rowTop + TRACK_HEIGHT;
+          const overlapsY = rowBottom >= minY && rowTop <= maxY;
+          if (!overlapsY) return;
+
+          const rowTracks =
+            row.type === 'target-header'
+              ? (row.collapsed ? row.group.allTracks : [])
+              : row.trackIds.map((trackId) => trackById.get(trackId)).filter((track): track is AnimationTrack => Boolean(track));
+
+          rowTracks.forEach((track) => {
+            track.keyframes.forEach((keyframe) => {
+              const keyframeX = timeToPixel(keyframe.time, zoom) - scrollX;
+              if (keyframeX >= minX && keyframeX <= maxX) {
+                selected.add(keyframe.id);
+              }
+            });
+          });
+        });
+
+        if (additive) {
+          onSelectKeyframes(Array.from(new Set([...selectedKeyframeIds, ...selected])));
+          return;
+        }
+        onSelectKeyframes(Array.from(selected));
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      e.preventDefault();
+    },
+    [keyframeScrollRef, onSelectKeyframes, rows, scrollX, selectedKeyframeIds, tracks, zoom],
+  );
+
   useEffect(() => {
     if (selectedElementIds.length === 0) return;
     const selectedId = selectedElementIds[0];
@@ -233,6 +317,8 @@ export function useTimelineInteractions({
     handleScrubberMouseDown,
     handleKeyframeDragStart,
     handleClipMarkerDrag,
+    handleMarqueeStart,
     dragState,
+    marqueeState,
   };
 }

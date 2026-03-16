@@ -21,6 +21,7 @@ export function useExcalidrawChangeBridge(params: {
     lastAnimatedRef,
     onDragRef,
     onResizeRef,
+    onRotateRef,
   } = refs;
 
   const lastSelectionRef = useRef<string[]>([]);
@@ -143,10 +144,87 @@ export function useExcalidrawChangeBridge(params: {
         lastGroupSignatureRef.current = nonDeleted.map(el => `${el.id}:${((el as any).groupIds ?? []).join('|')}`).join(',');
       }
 
-      // Detect user edits: compare current element positions with last animated positions
+      // Detect user edits: compare current element positions with last animated positions.
+      // When a group is selected, report drag/resize on the GROUP instead of individual
+      // elements — so keyframes are created on the group target, not each child.
       const lastAnimated = lastAnimatedRef.current;
       if (lastAnimated.size === 0) return;
 
+      // Build set of actively selected group IDs from Excalidraw appState
+      const activeGroupIds: string[] = appState?.selectedGroupIds
+        ? Object.keys(appState.selectedGroupIds).filter(
+            (id: string) => appState.selectedGroupIds[id],
+          )
+        : [];
+
+      // If a group is selected, handle edits specially:
+      // - DRAG: report on the group ID (uniform translation)
+      // - ROTATE/SCALE: report on INDIVIDUAL elements, because Excalidraw
+      //   transforms each element relative to the group center, producing
+      //   different position/angle/size changes per element. These can't be
+      //   represented as a single group animation value.
+      if (activeGroupIds.length > 0) {
+        const targets = useProjectStore.getState().targets;
+
+        for (const groupId of activeGroupIds) {
+          const groupTarget = targets.find(t => t.id === groupId && t.type === 'group');
+          if (!groupTarget) continue;
+
+          const memberSet = new Set(groupTarget.elementIds);
+
+          // Single pass: detect uniform drag AND collect per-element deltas
+          let firstDx = 0, firstDy = 0;
+          let isUniformDrag = true;
+          let hasAnyChange = false;
+          let checked = 0;
+
+          // Collect member deltas for potential per-element reporting
+          const memberDeltas: { id: string; dx: number; dy: number; dw: number; dh: number; dAngle: number }[] = [];
+
+          for (const el of elements) {
+            if (el.isDeleted || !memberSet.has(el.id)) continue;
+            const last = lastAnimated.get(el.id);
+            if (!last) continue;
+
+            const dx = el.x - last.x;
+            const dy = el.y - last.y;
+            const dw = last.width !== 0 ? el.width / last.width : 1;
+            const dh = last.height !== 0 ? el.height / last.height : 1;
+            const dAngle = (el.angle ?? 0) - last.angle;
+
+            if (checked === 0) {
+              firstDx = dx; firstDy = dy;
+            } else if (Math.abs(dx - firstDx) > 2 || Math.abs(dy - firstDy) > 2) {
+              isUniformDrag = false;
+            }
+
+            if (Math.abs(dx) > 1 || Math.abs(dy) > 1 ||
+                Math.abs(dw - 1) > 0.02 || Math.abs(dh - 1) > 0.02 ||
+                Math.abs(dAngle) > 0.01) {
+              hasAnyChange = true;
+            }
+
+            memberDeltas.push({ id: el.id, dx, dy, dw, dh, dAngle });
+            checked++;
+          }
+
+          if (!hasAnyChange) continue;
+
+          if (isUniformDrag && (Math.abs(firstDx) > 1 || Math.abs(firstDy) > 1)) {
+            onDragRef.current(groupId, firstDx, firstDy);
+          } else {
+            // Non-uniform → per-element keyframes
+            for (const m of memberDeltas) {
+              if (Math.abs(m.dx) > 1 || Math.abs(m.dy) > 1) onDragRef.current(m.id, m.dx, m.dy);
+              if (Math.abs(m.dw - 1) > 0.02 || Math.abs(m.dh - 1) > 0.02) onResizeRef.current(m.id, m.dw - 1, m.dh - 1);
+              if (Math.abs(m.dAngle) > 0.01) onRotateRef.current(m.id, m.dAngle);
+            }
+          }
+        }
+        return;
+      }
+
+      // No group selected — process individual elements
       for (const el of elements) {
         if (el.isDeleted) continue;
         const last = lastAnimated.get(el.id);
@@ -156,19 +234,20 @@ export function useExcalidrawChangeBridge(params: {
         const dy = el.y - last.y;
         const dw = last.width !== 0 ? el.width / last.width : 1;
         const dh = last.height !== 0 ? el.height / last.height : 1;
+        const dAngle = (el.angle ?? 0) - last.angle;
 
-        // Position change → create translate keyframe
         if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
           onDragRef.current(el.id, dx, dy);
         }
-
-        // Size change → create scale keyframe
         if (Math.abs(dw - 1) > 0.02 || Math.abs(dh - 1) > 0.02) {
           onResizeRef.current(el.id, dw - 1, dh - 1);
         }
+        if (Math.abs(dAngle) > 0.01) {
+          onRotateRef.current(el.id, dAngle);
+        }
       }
     },
-    [apiRef, lastAnimatedRef, lastElementOrderRef, lastProcessedVersionRef, onDragRef, onResizeRef, onSelectRef, programmaticVersionRef, sceneRef, setViewport],
+    [apiRef, lastAnimatedRef, lastElementOrderRef, lastProcessedVersionRef, onDragRef, onResizeRef, onRotateRef, onSelectRef, programmaticVersionRef, sceneRef, setViewport],
   );
 }
 

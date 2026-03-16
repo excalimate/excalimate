@@ -39,6 +39,8 @@ export type TargetGroup = {
   label: string;
   propertyTracks: VisualTrack[];
   allTracks: AnimationTrack[];
+  /** Child element/group entries nested under this group */
+  children: TargetGroup[];
 };
 
 export type VisualTrack = {
@@ -89,6 +91,7 @@ export function buildTargetGroups(
   tracks: AnimationTrack[],
   targetLabels: Map<string, string>,
   targetOrder: Map<string, number>,
+  targetParents: Map<string, string | undefined>,
 ): TargetGroup[] {
   const byTarget = new Map<string, AnimationTrack[]>();
   for (const t of tracks) {
@@ -137,6 +140,7 @@ export function buildTargetGroups(
       label: tLabel,
       propertyTracks,
       allTracks: targetTracks,
+      children: [],
     });
   }
 
@@ -177,9 +181,30 @@ export function buildTargetGroups(
       label: tLabel,
       propertyTracks,
       allTracks: targetTracks,
+      children: [],
     });
   }
 
   groups.sort((a, b) => (targetOrder.get(a.targetId) ?? 0) - (targetOrder.get(b.targetId) ?? 0));
-  return groups;
+
+  const groupById = new Map<string, TargetGroup>();
+  for (const group of groups) {
+    group.children = [];
+    groupById.set(group.targetId, group);
+  }
+
+  const roots: TargetGroup[] = [];
+  for (const group of groups) {
+    const parentId = targetParents.get(group.targetId);
+    if (parentId && parentId !== group.targetId) {
+      const parent = groupById.get(parentId);
+      if (parent) {
+        parent.children.push(group);
+        continue;
+      }
+    }
+    roots.push(group);
+  }
+
+  return roots;
 }
