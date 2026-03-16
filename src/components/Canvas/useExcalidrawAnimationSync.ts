@@ -124,24 +124,55 @@ export function useExcalidrawAnimationSync(params: {
     if (!ready || !apiRef.current) return;
 
     const api = apiRef.current;
+
+    // Build a target lookup map (O(1) per ID instead of O(n) find)
+    const targetById = new Map<string, AnimatableTarget>();
+    for (const t of targets) targetById.set(t.id, t);
+
+    // Resolve group IDs to their member element IDs + track which
+    // Excalidraw groupIds should be marked as selected groups.
+    const resolvedSet = new Set<string>();
+    const groupIdSet = new Set<string>();
+
+    for (const id of selectedElementIds) {
+      const target = targetById.get(id);
+      if (target?.type === 'group') {
+        groupIdSet.add(id);
+        for (const eid of target.elementIds) resolvedSet.add(eid);
+      } else {
+        resolvedSet.add(id);
+      }
+    }
+
     const appState = api.getAppState();
-    const currentSelected = Object.keys(appState.selectedElementIds || {}).filter(
-      id => (appState.selectedElementIds as Record<string, boolean>)[id],
+    const currentSelected = new Set(
+      Object.keys(appState.selectedElementIds || {}).filter(
+        id => (appState.selectedElementIds as Record<string, boolean>)[id],
+      ),
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawGroupIds = (appState as any).selectedGroupIds;
+    const currentGroups = new Set<string>(
+      rawGroupIds ? Object.keys(rawGroupIds).filter((id: string) => rawGroupIds[id]) : [],
     );
 
     // Only update if different (avoid infinite loop)
-    const same = currentSelected.length === selectedElementIds.length &&
-      currentSelected.every(id => selectedElementIds.includes(id));
+    const sameElements = resolvedSet.size === currentSelected.size &&
+      [...resolvedSet].every(id => currentSelected.has(id));
+    const sameGroups = groupIdSet.size === currentGroups.size &&
+      [...groupIdSet].every(id => currentGroups.has(id));
 
-    if (!same) {
+    if (!sameElements || !sameGroups) {
       programmaticVersionRef.current++;
       const selectedMap: Record<string, boolean> = {};
-      for (const id of selectedElementIds) selectedMap[id] = true;
+      for (const id of resolvedSet) selectedMap[id] = true;
+      const groupMap: Record<string, boolean> = {};
+      for (const id of groupIdSet) groupMap[id] = true;
       api.updateScene({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        appState: { selectedElementIds: selectedMap } as any,
+        appState: { selectedElementIds: selectedMap, selectedGroupIds: groupMap } as any,
       });
     }
-  }, [ready, selectedElementIds, apiRef, programmaticVersionRef]);
+  }, [ready, selectedElementIds, targets, apiRef, programmaticVersionRef]);
 }
 

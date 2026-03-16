@@ -24,6 +24,7 @@ export function useExcalidrawChangeBridge(params: {
   } = refs;
 
   const lastSelectionRef = useRef<string[]>([]);
+  const lastGroupSignatureRef = useRef<string>('');
 
   return useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,15 +53,35 @@ export function useExcalidrawChangeBridge(params: {
       }
       if (!apiRef.current) return;
 
-      // Report selection changes (only when they actually change)
+      // Report selection changes.
+      // When Excalidraw has selectedGroupIds, report the group IDs instead
+      // of the individual member element IDs — so the LayersPanel highlights
+      // the group, not the children.
       if (appState?.selectedElementIds) {
-        const selectedIds = Object.keys(appState.selectedElementIds).filter(
+        const rawElementIds = Object.keys(appState.selectedElementIds).filter(
           (id: string) => appState.selectedElementIds[id],
         );
+
+        // Check if Excalidraw has group selection active
+        const excalGroupIds: string[] = appState.selectedGroupIds
+          ? Object.keys(appState.selectedGroupIds).filter(
+              (id: string) => appState.selectedGroupIds[id],
+            )
+          : [];
+
+        let reportedIds: string[];
+        if (excalGroupIds.length > 0) {
+          // Report the group IDs — these match our AnimatableTarget group IDs
+          // since extractTargets uses the same Excalidraw groupIds as keys
+          reportedIds = excalGroupIds;
+        } else {
+          reportedIds = rawElementIds;
+        }
+
         const prev = lastSelectionRef.current;
-        if (selectedIds.length !== prev.length || selectedIds.some((id, i) => id !== prev[i])) {
-          lastSelectionRef.current = selectedIds;
-          onSelectRef.current(selectedIds);
+        if (reportedIds.length !== prev.length || reportedIds.some((id, i) => id !== prev[i])) {
+          lastSelectionRef.current = reportedIds;
+          onSelectRef.current(reportedIds);
         }
       }
 
@@ -103,6 +124,23 @@ export function useExcalidrawChangeBridge(params: {
           const newTargets = extractTargets(nonDeleted);
           useProjectStore.getState().setTargets(newTargets);
         }
+      }
+
+      // Detect group changes — re-extract targets when groupIds change.
+      // This catches Excalidraw group/ungroup operations that don't affect z-order.
+      // Skip if z-order detection already re-extracted targets above.
+      if (currentOrder === lastElementOrderRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const groupSig = nonDeleted.map(el => `${el.id}:${((el as any).groupIds ?? []).join('|')}`).join(',');
+        if (lastGroupSignatureRef.current && groupSig !== lastGroupSignatureRef.current) {
+          const newTargets = extractTargets(nonDeleted);
+          useProjectStore.getState().setTargets(newTargets);
+        }
+        lastGroupSignatureRef.current = groupSig;
+      } else {
+        // z-order changed and targets were re-extracted — update group sig to match
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        lastGroupSignatureRef.current = nonDeleted.map(el => `${el.id}:${((el as any).groupIds ?? []).join('|')}`).join(',');
       }
 
       // Detect user edits: compare current element positions with last animated positions
