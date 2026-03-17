@@ -1,6 +1,7 @@
 import { useProjectStore } from '../../stores/projectStore';
 import { useAnimationStore } from '../../stores/animationStore';
 import type { ExcalidrawSceneData } from '../../types/excalidraw';
+import type { AspectRatio } from '../../stores/projectStore';
 import {
   parseExcalidrawFileBlob,
   parseProjectFileBlob,
@@ -31,14 +32,14 @@ function importScene(name: string, scene: ExcalidrawSceneData) {
 }
 
 export function useFileOperations() {
-  const handleNew = () => {
-    if (!window.confirm('Create a new project? Unsaved changes will be lost.')) return;
-    useProjectStore.getState().createNewProject('Untitled Animation', {
+  const handleNew = (name: string, aspectRatio: AspectRatio) => {
+    useProjectStore.getState().createNewProject(name, {
       elements: [],
       appState: {},
       files: {},
     });
     useProjectStore.getState().setTargets([]);
+    useProjectStore.getState().setCameraAspectRatio(aspectRatio);
     resetTimeline();
   };
 

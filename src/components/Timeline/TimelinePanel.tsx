@@ -40,12 +40,37 @@ export interface TimelinePanelProps {
   onClipRangeChange: (start: number, end: number) => void;
   targetLabels: Map<string, string>;
   targetOrder: Map<string, number>;
+  targetParents: Map<string, string | undefined>;
   zoom?: number;
 }
 
 type RowData =
-  | { type: 'target-header'; group: TargetGroup; collapsed: boolean; segments: TrackSegment[] }
-  | { type: 'property'; vt: VisualTrack; group: TargetGroup; segments: TrackSegment[] };
+  | { type: 'target-header'; group: TargetGroup; collapsed: boolean; segments: TrackSegment[]; allTracks: AnimationTrack[]; indent: number }
+  | { type: 'property'; vt: VisualTrack; group: TargetGroup; segments: TrackSegment[]; indent: number };
+
+function collectGroupTracks(group: TargetGroup): AnimationTrack[] {
+  const childTracks = group.children.flatMap(collectGroupTracks);
+  return [...group.allTracks, ...childTracks];
+}
+
+function flattenRows(groups: TargetGroup[], expandedTargets: Set<string>, indent: number): RowData[] {
+  const result: RowData[] = [];
+  for (const group of groups) {
+    const collapsed = !expandedTargets.has(group.targetId);
+    const allTracks = collectGroupTracks(group);
+    const segments = collapsed ? buildTrackSegments(allTracks) : [];
+    result.push({ type: 'target-header', group, collapsed, segments, allTracks, indent });
+    if (!collapsed) {
+      for (const vt of group.propertyTracks) {
+        result.push({ type: 'property', vt, group, segments: buildTrackSegments(vt.tracks), indent: indent + 1 });
+      }
+      if (group.children.length > 0) {
+        result.push(...flattenRows(group.children, expandedTargets, indent + 1));
+      }
+    }
+  }
+  return result;
+}
 
 export function TimelinePanel({
   tracks,
@@ -67,6 +92,7 @@ export function TimelinePanel({
   onClipRangeChange,
   targetLabels,
   targetOrder,
+  targetParents,
   zoom: initialZoom = 0.1,
 }: TimelinePanelProps) {
   void _onDeleteKeyframe;
@@ -83,9 +109,28 @@ export function TimelinePanel({
   const totalWidth = timeToPixel(duration, zoom);
   const selectedKfSet = useMemo(() => new Set(selectedKeyframeIds), [selectedKeyframeIds]);
   const targetGroups = useMemo(
-    () => buildTargetGroups(tracks, targetLabels, targetOrder),
-    [tracks, targetLabels, targetOrder],
+    () => buildTargetGroups(tracks, targetLabels, targetOrder, targetParents),
+    [tracks, targetLabels, targetOrder, targetParents],
   );
+
+  // Build set of selected target IDs + children of selected groups for timeline highlighting
+  const selectedTargetSet = useMemo(() => {
+    const set = new Set(selectedElementIds);
+    function addChildren(groups: TargetGroup[]) {
+      for (const g of groups) {
+        if (set.has(g.targetId)) {
+          for (const child of g.children) {
+            set.add(child.targetId);
+            addChildren([child]);
+          }
+        } else {
+          addChildren(g.children);
+        }
+      }
+    }
+    addChildren(targetGroups);
+    return set;
+  }, [selectedElementIds, targetGroups]);
 
   const toggleCollapse = (targetId: string) => {
     setExpandedTargets((prev) => {
@@ -97,28 +142,26 @@ export function TimelinePanel({
   };
 
   const rows: RowData[] = useMemo(() => {
-    const result: RowData[] = [];
-    for (const group of targetGroups) {
-      const collapsed = !expandedTargets.has(group.targetId);
-      // Pre-compute segments once per group (collapsed) or per property track (expanded)
-      const headerSegments = collapsed ? buildTrackSegments(group.allTracks) : [];
-      result.push({ type: 'target-header', group, collapsed, segments: headerSegments });
-      if (!collapsed) {
-        for (const vt of group.propertyTracks) {
-          result.push({ type: 'property', vt, group, segments: buildTrackSegments(vt.tracks) });
-        }
-      }
-    }
-    return result;
+    return flattenRows(targetGroups, expandedTargets, 0);
   }, [targetGroups, expandedTargets]);
 
   const interactionRows: TimelineRowData[] = rows.map((row) =>
     row.type === 'target-header'
-      ? { type: 'target-header', group: { targetId: row.group.targetId, allTracks: row.group.allTracks }, collapsed: row.collapsed }
-      : { type: 'property' },
+      ? { type: 'target-header', group: { targetId: row.group.targetId, allTracks: row.allTracks }, collapsed: row.collapsed }
+      : { type: 'property', trackIds: row.vt.tracks.map((track) => track.id) },
   );
 
-  const { syncScroll, rulerWidth, handleKeyframeAreaClick, handleScrubberMouseDown, handleKeyframeDragStart, handleClipMarkerDrag, dragState } =
+  const {
+    syncScroll,
+    rulerWidth,
+    handleKeyframeAreaClick,
+    handleScrubberMouseDown,
+    handleKeyframeDragStart,
+    handleClipMarkerDrag,
+    handleMarqueeStart,
+    dragState,
+    marqueeState,
+  } =
     useTimelineInteractions({
       keyframeAreaRef,
       trackListRef,
@@ -134,6 +177,8 @@ export function TimelinePanel({
       clipStart,
       clipEnd,
       selectedElementIds,
+      onSelectKeyframes,
+      selectedKeyframeIds,
       onAddKeyframe,
       onMoveKeyframe,
       onScrub,
@@ -166,14 +211,16 @@ export function TimelinePanel({
         >
           {rows.map((row) => {
             if (row.type === 'target-header') {
-              const { group, collapsed } = row;
-              const isAnySelected = group.allTracks.some((t) => t.id === selectedTrackId);
+              const { group, collapsed, indent, allTracks } = row;
+              const isAnySelected = allTracks.some((t) => t.id === selectedTrackId);
+              const isTargetSelected = selectedTargetSet.has(group.targetId);
               return (
                 <div
                   key={`hdr-${group.targetId}`}
-                  className={`flex items-center h-7 px-1 gap-1 cursor-pointer border-b border-border text-xs select-none
-                    ${isAnySelected ? 'bg-accent-muted text-accent' : 'hover:bg-surface text-text'}
-                    ${group.allTracks.some((t) => !t.enabled) ? 'opacity-40' : ''}`}
+                  className={`flex items-center h-7 pr-1 gap-1 cursor-pointer border-b border-border text-xs select-none
+                    ${isAnySelected || isTargetSelected ? 'bg-accent-muted text-accent' : 'hover:bg-surface text-text'}
+                    ${allTracks.some((t) => !t.enabled) ? 'opacity-40' : ''}`}
+                  style={{ paddingLeft: `${4 + indent * 16}px` }}
                   onClick={() => toggleCollapse(group.targetId)}
                 >
                   <span className="shrink-0 text-[10px] w-3 text-center text-text-muted">{collapsed ? <IconChevronRight size={12} /> : <IconChevronDown size={12} />}</span>
@@ -184,7 +231,7 @@ export function TimelinePanel({
                     size="xs"
                     onClick={(e: MouseEvent) => {
                       e.stopPropagation();
-                      group.allTracks.forEach((t) => onAddKeyframe(t.id, Math.round(currentTime), 0));
+                      allTracks.forEach((t) => onAddKeyframe(t.id, Math.round(currentTime), 0));
                     }}
                     title="Add keyframe for all properties"
                   >
@@ -196,7 +243,7 @@ export function TimelinePanel({
                     size="xs"
                     onClick={(e: MouseEvent) => {
                       e.stopPropagation();
-                      group.allTracks.forEach((t) => onRemoveTrack(t.id));
+                      allTracks.forEach((t) => onRemoveTrack(t.id));
                     }}
                     title="Remove all tracks"
                   >
@@ -205,14 +252,16 @@ export function TimelinePanel({
                 </div>
               );
             }
-            const { vt } = row;
+            const { vt, indent } = row;
             const isSelected = vt.tracks.some((t) => t.id === selectedTrackId);
+            const isTargetSelected = selectedTargetSet.has(vt.targetId);
             return (
               <div
                 key={vt.id}
-                className={`flex items-center h-7 pl-5 pr-2 gap-1 cursor-pointer border-b border-border text-xs select-none
-                  ${isSelected ? 'bg-accent-muted text-accent' : 'hover:bg-surface text-text-muted'}
+                className={`flex items-center h-7 pr-2 gap-1 cursor-pointer border-b border-border text-xs select-none
+                  ${isSelected || isTargetSelected ? 'bg-accent-muted text-accent' : 'hover:bg-surface text-text-muted'}
                   ${vt.tracks.some((t) => !t.enabled) ? 'opacity-40' : ''}`}
+                style={{ paddingLeft: `${20 + indent * 16}px` }}
                 onClick={() => onSelectTrack(vt.tracks[0].id)}
               >
                 <span className="shrink-0">{vt.icon}</span>
@@ -270,6 +319,7 @@ export function TimelinePanel({
           role="grid"
           aria-label="Keyframe timeline"
           onScroll={() => syncScroll('right')}
+          onMouseDown={handleMarqueeStart}
         >
           {clipStartX > 0 && (
             <div
@@ -321,19 +371,32 @@ export function TimelinePanel({
             </div>
           )}
 
+          {marqueeState && (
+            <div
+              className="absolute pointer-events-none border border-indigo-400 bg-indigo-400/10 z-30"
+              style={{
+                left: Math.min(marqueeState.startX, marqueeState.currentX),
+                top: Math.min(marqueeState.startY, marqueeState.currentY),
+                width: Math.abs(marqueeState.currentX - marqueeState.startX),
+                height: Math.abs(marqueeState.currentY - marqueeState.startY),
+              }}
+            />
+          )}
+
           {rows.map((row) => {
             if (row.type === 'target-header') {
-              const { group, collapsed } = row;
+              const { group, collapsed, allTracks } = row;
               const allKfs: { kf: Keyframe; trackId: string }[] = [];
               if (collapsed) {
-                for (const t of group.allTracks) {
+                for (const t of allTracks) {
                   for (const kf of t.keyframes) {
                     allKfs.push({ kf, trackId: t.id });
                   }
                 }
               }
+              const isHeaderSelected = selectedTargetSet.has(group.targetId);
               return (
-                <div key={`hdr-${group.targetId}`} className="relative border-b border-border bg-surface/[0.01]" style={{ height: TRACK_HEIGHT }}>
+                <div key={`hdr-${group.targetId}`} className={`relative border-b border-border ${isHeaderSelected ? 'bg-accent/5' : 'bg-surface/[0.01]'}`} style={{ height: TRACK_HEIGHT }}>
                   {/* Pre-computed interpolation segments */}
                   {collapsed && row.segments.map((seg, i) => {
                     const x1 = timeToPixel(seg.t1, zoom) - scrollX;
@@ -369,6 +432,7 @@ export function TimelinePanel({
 
             const { vt } = row;
             const isSelected = vt.tracks.some((t) => t.id === selectedTrackId);
+            const isTargetSelected = selectedTargetSet.has(vt.targetId);
             const allKfs: { kf: Keyframe; trackId: string }[] = [];
             for (const t of vt.tracks) {
               for (const kf of t.keyframes) {
@@ -380,7 +444,7 @@ export function TimelinePanel({
               <div
                 key={vt.id}
                 role="row"
-                className={`relative border-b border-border ${isSelected ? 'bg-accent/5' : 'hover:bg-surface/[0.02]'}`}
+                className={`relative border-b border-border ${isSelected || isTargetSelected ? 'bg-accent/5' : 'hover:bg-surface/[0.02]'}`}
                 style={{ height: TRACK_HEIGHT }}
                 onDoubleClick={(e) => handleKeyframeAreaClick(e, vt.tracks[0].id)}
               >

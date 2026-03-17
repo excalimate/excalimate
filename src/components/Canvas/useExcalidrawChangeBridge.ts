@@ -2,6 +2,8 @@ import { useCallback, useRef } from 'react';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { setCanvasViewport } from './canvasViewport';
 import { useProjectStore } from '../../stores/projectStore';
+import { useAnimationStore } from '../../stores/animationStore';
+import { useUndoRedoStore } from '../../stores/undoRedoStore';
 import { extractTargets } from './extractTargets';
 import type { AnimateEditorRefs } from './ExcalidrawAnimateEditor';
 
@@ -15,15 +17,18 @@ export function useExcalidrawChangeBridge(params: {
     apiRef,
     programmaticVersionRef,
     lastProcessedVersionRef,
+    initialRenderDoneRef,
     onSelectRef,
     sceneRef,
     lastElementOrderRef,
     lastAnimatedRef,
     onDragRef,
     onResizeRef,
+    onRotateRef,
   } = refs;
 
   const lastSelectionRef = useRef<string[]>([]);
+  const lastGroupSignatureRef = useRef<string>('');
 
   return useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,15 +57,42 @@ export function useExcalidrawChangeBridge(params: {
       }
       if (!apiRef.current) return;
 
-      // Report selection changes (only when they actually change)
+      // Wait until the animation sync hook has initialized tracking refs.
+      // After a sceneKey change (e.g. undo restoring deleted elements),
+      // Excalidraw remounts and fires onChange BEFORE the animation sync runs.
+      // Without this guard, stale lastAnimatedRef values cause false drag
+      // detections that create unwanted keyframes and undo entries.
+      if (!initialRenderDoneRef.current) return;
+
+      // Report selection changes.
+      // When Excalidraw has selectedGroupIds, report the group IDs instead
+      // of the individual member element IDs — so the LayersPanel highlights
+      // the group, not the children.
       if (appState?.selectedElementIds) {
-        const selectedIds = Object.keys(appState.selectedElementIds).filter(
+        const rawElementIds = Object.keys(appState.selectedElementIds).filter(
           (id: string) => appState.selectedElementIds[id],
         );
+
+        // Check if Excalidraw has group selection active
+        const excalGroupIds: string[] = appState.selectedGroupIds
+          ? Object.keys(appState.selectedGroupIds).filter(
+              (id: string) => appState.selectedGroupIds[id],
+            )
+          : [];
+
+        let reportedIds: string[];
+        if (excalGroupIds.length > 0) {
+          // Report the group IDs — these match our AnimatableTarget group IDs
+          // since extractTargets uses the same Excalidraw groupIds as keys
+          reportedIds = excalGroupIds;
+        } else {
+          reportedIds = rawElementIds;
+        }
+
         const prev = lastSelectionRef.current;
-        if (selectedIds.length !== prev.length || selectedIds.some((id, i) => id !== prev[i])) {
-          lastSelectionRef.current = selectedIds;
-          onSelectRef.current(selectedIds);
+        if (reportedIds.length !== prev.length || reportedIds.some((id, i) => id !== prev[i])) {
+          lastSelectionRef.current = reportedIds;
+          onSelectRef.current(reportedIds);
         }
       }
 
@@ -73,11 +105,40 @@ export function useExcalidrawChangeBridge(params: {
         // First onChange after mount — just initialize, don't process
         lastElementOrderRef.current = currentOrder;
       } else if (currentOrder !== lastElementOrderRef.current) {
-        // Only process if element count is the same (genuine reorder, not a
-        // framework artifact like an empty onChange during updateScene transitions).
         const prevIds = lastElementOrderRef.current.split(',');
         lastElementOrderRef.current = currentOrder;
-        if (nonDeleted.length > 0 && nonDeleted.length === prevIds.length) {
+
+        // Detect deleted elements and clean up their animation tracks
+        if (nonDeleted.length < prevIds.length) {
+          const currentIds = new Set(nonDeleted.map(el => el.id));
+          const deletedIds = prevIds.filter(id => !currentIds.has(id));
+          if (deletedIds.length > 0) {
+            // Push undo state BEFORE deletion so Ctrl+Z can restore everything
+            useUndoRedoStore.getState().pushState(true);
+            const deletedSet = new Set(deletedIds);
+
+            // Also find group targets whose members were deleted
+            const targets = useProjectStore.getState().targets;
+            for (const target of targets) {
+              if (target.type === 'group') {
+                // If ALL member elements of this group are deleted, mark the group for cleanup
+                const allMembersDeleted = target.elementIds.every(eid => deletedSet.has(eid));
+                if (allMembersDeleted) {
+                  deletedSet.add(target.id);
+                }
+              }
+            }
+
+            const trackIdsToRemove = useAnimationStore.getState().timeline.tracks
+              .filter(t => deletedSet.has(t.targetId))
+              .map(t => t.id);
+            for (const trackId of trackIdsToRemove) {
+              useAnimationStore.getState().removeTrack(trackId);
+            }
+          }
+        }
+
+        if (nonDeleted.length > 0) {
           const currentScene = sceneRef.current;
           if (currentScene) {
             // Restore original element properties (opacity, position, etc.) from the base scene
@@ -89,8 +150,8 @@ export function useExcalidrawChangeBridge(params: {
 
             const restoredElements = nonDeleted.map(el => {
               const orig = origMap.get(el.id);
-              if (orig) return { ...orig }; // Use original properties, just adopt new array order
-              return el; // New element, keep as-is
+              if (orig) return { ...orig };
+              return el;
             });
 
             const reorderedScene = {
@@ -105,10 +166,104 @@ export function useExcalidrawChangeBridge(params: {
         }
       }
 
-      // Detect user edits: compare current element positions with last animated positions
+      // Detect group changes — re-extract targets when groupIds change.
+      // This catches Excalidraw group/ungroup operations that don't affect z-order.
+      // Skip if z-order detection already re-extracted targets above.
+      if (currentOrder === lastElementOrderRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const groupSig = nonDeleted.map(el => `${el.id}:${((el as any).groupIds ?? []).join('|')}`).join(',');
+        if (lastGroupSignatureRef.current && groupSig !== lastGroupSignatureRef.current) {
+          const newTargets = extractTargets(nonDeleted);
+          useProjectStore.getState().setTargets(newTargets);
+        }
+        lastGroupSignatureRef.current = groupSig;
+      } else {
+        // z-order changed and targets were re-extracted — update group sig to match
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        lastGroupSignatureRef.current = nonDeleted.map(el => `${el.id}:${((el as any).groupIds ?? []).join('|')}`).join(',');
+      }
+
+      // Detect user edits: compare current element positions with last animated positions.
+      // When a group is selected, report drag/resize on the GROUP instead of individual
+      // elements — so keyframes are created on the group target, not each child.
       const lastAnimated = lastAnimatedRef.current;
       if (lastAnimated.size === 0) return;
 
+      // Build set of actively selected group IDs from Excalidraw appState
+      const activeGroupIds: string[] = appState?.selectedGroupIds
+        ? Object.keys(appState.selectedGroupIds).filter(
+            (id: string) => appState.selectedGroupIds[id],
+          )
+        : [];
+
+      // If a group is selected, handle edits specially:
+      // - DRAG: report on the group ID (uniform translation)
+      // - ROTATE/SCALE: report on INDIVIDUAL elements, because Excalidraw
+      //   transforms each element relative to the group center, producing
+      //   different position/angle/size changes per element. These can't be
+      //   represented as a single group animation value.
+      if (activeGroupIds.length > 0) {
+        const targets = useProjectStore.getState().targets;
+
+        for (const groupId of activeGroupIds) {
+          const groupTarget = targets.find(t => t.id === groupId && t.type === 'group');
+          if (!groupTarget) continue;
+
+          const memberSet = new Set(groupTarget.elementIds);
+
+          // Single pass: detect uniform drag AND collect per-element deltas
+          let firstDx = 0, firstDy = 0;
+          let isUniformDrag = true;
+          let hasAnyChange = false;
+          let checked = 0;
+
+          // Collect member deltas for potential per-element reporting
+          const memberDeltas: { id: string; dx: number; dy: number; dw: number; dh: number; dAngle: number }[] = [];
+
+          for (const el of elements) {
+            if (el.isDeleted || !memberSet.has(el.id)) continue;
+            const last = lastAnimated.get(el.id);
+            if (!last) continue;
+
+            const dx = el.x - last.x;
+            const dy = el.y - last.y;
+            const dw = last.width !== 0 ? el.width / last.width : 1;
+            const dh = last.height !== 0 ? el.height / last.height : 1;
+            const dAngle = (el.angle ?? 0) - last.angle;
+
+            if (checked === 0) {
+              firstDx = dx; firstDy = dy;
+            } else if (Math.abs(dx - firstDx) > 2 || Math.abs(dy - firstDy) > 2) {
+              isUniformDrag = false;
+            }
+
+            if (Math.abs(dx) > 1 || Math.abs(dy) > 1 ||
+                Math.abs(dw - 1) > 0.02 || Math.abs(dh - 1) > 0.02 ||
+                Math.abs(dAngle) > 0.01) {
+              hasAnyChange = true;
+            }
+
+            memberDeltas.push({ id: el.id, dx, dy, dw, dh, dAngle });
+            checked++;
+          }
+
+          if (!hasAnyChange) continue;
+
+          if (isUniformDrag && (Math.abs(firstDx) > 1 || Math.abs(firstDy) > 1)) {
+            onDragRef.current(groupId, firstDx, firstDy);
+          } else {
+            // Non-uniform → per-element keyframes
+            for (const m of memberDeltas) {
+              if (Math.abs(m.dx) > 1 || Math.abs(m.dy) > 1) onDragRef.current(m.id, m.dx, m.dy);
+              if (Math.abs(m.dw - 1) > 0.02 || Math.abs(m.dh - 1) > 0.02) onResizeRef.current(m.id, m.dw - 1, m.dh - 1);
+              if (Math.abs(m.dAngle) > 0.01) onRotateRef.current(m.id, m.dAngle);
+            }
+          }
+        }
+        return;
+      }
+
+      // No group selected — process individual elements
       for (const el of elements) {
         if (el.isDeleted) continue;
         const last = lastAnimated.get(el.id);
@@ -118,19 +273,20 @@ export function useExcalidrawChangeBridge(params: {
         const dy = el.y - last.y;
         const dw = last.width !== 0 ? el.width / last.width : 1;
         const dh = last.height !== 0 ? el.height / last.height : 1;
+        const dAngle = (el.angle ?? 0) - last.angle;
 
-        // Position change → create translate keyframe
         if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
           onDragRef.current(el.id, dx, dy);
         }
-
-        // Size change → create scale keyframe
         if (Math.abs(dw - 1) > 0.02 || Math.abs(dh - 1) > 0.02) {
           onResizeRef.current(el.id, dw - 1, dh - 1);
         }
+        if (Math.abs(dAngle) > 0.01) {
+          onRotateRef.current(el.id, dAngle);
+        }
       }
     },
-    [apiRef, lastAnimatedRef, lastElementOrderRef, lastProcessedVersionRef, onDragRef, onResizeRef, onSelectRef, programmaticVersionRef, sceneRef, setViewport],
+    [apiRef, initialRenderDoneRef, lastAnimatedRef, lastElementOrderRef, lastProcessedVersionRef, onDragRef, onResizeRef, onRotateRef, onSelectRef, programmaticVersionRef, sceneRef, setViewport],
   );
 }
 

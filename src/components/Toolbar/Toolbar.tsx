@@ -105,7 +105,8 @@ export function Toolbar() {
       {/* Left section: Logo and file controls */}
       <div className="flex items-center gap-1 mr-4">
         <img src={theme === 'dark' ? '/excalimate_logo_dark.svg' : '/excalimate_logo.svg'} alt="Excalimate logo" className="w-auto h-5 mr-2" />
-        <FileControls />
+        <div data-hint="file"><FileControls /></div>
+        <div data-hint="tools">
         <Menu shadow="md" width={200} position="bottom-start">
           <Menu.Target>
             <Button variant="subtle" color="gray" size="compact-sm" rightSection={<IconChevronDown size={12} />}>
@@ -122,15 +123,17 @@ export function Toolbar() {
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>
+        </div>
       </div>
 
       {/* Center section: Mode switcher */}
-      <div className="flex-1 flex justify-center">
+      <div className="flex-1 flex justify-center" data-hint="mode">
         <ModeSwitcher />
       </div>
 
       {/* Right section */}
       <div className="flex items-center gap-1">
+        <span data-hint="ghost">
         <Tooltip label="Ghost Mode">
           <ActionIcon
             variant={ghostMode ? 'light' : 'subtle'}
@@ -141,6 +144,8 @@ export function Toolbar() {
             <IconGhost size={16} />
           </ActionIcon>
         </Tooltip>
+        </span>
+        <span data-hint="live">
         <Tooltip label={connected ? 'Disconnect from MCP server' : 'Connect to MCP live'}>
           <ActionIcon
             variant={connected ? 'light' : 'subtle'}
@@ -151,6 +156,7 @@ export function Toolbar() {
             {connected ? <IconBroadcast size={16} /> : <IconBroadcastOff size={16} />}
           </ActionIcon>
         </Tooltip>
+        </span>
         <div className="w-px h-5 bg-border mx-1" />
         <ExportControls />
         <div className="w-px h-5 bg-border mx-1" />

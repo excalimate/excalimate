@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo, type ReactNode, createElement } from 'react';
+import { useCallback, useState, useMemo, useRef, type ReactNode, createElement } from 'react';
 import {
   IconRectangle, IconOval, IconSquareRotated, IconLine, IconArrowRight,
   IconTypography, IconBrush, IconPhoto, IconMovie, IconBoxMultiple, IconShape,
@@ -14,7 +14,7 @@ interface LayersPanelProps {
   targets: AnimatableTarget[];
   tracks: AnimationTrack[];
   selectedElementIds: string[];
-  onSelectElement: (id: string) => void;
+  onSelectElements: (ids: string[]) => void;
 }
 
 const ic = (Comp: typeof IconRectangle) => createElement(Comp, { size: 12 });
@@ -87,6 +87,7 @@ function LayerNode({
   depth,
   trackCountForTarget,
   isSelected,
+  isDirectlySelected,
   onSelect,
   expandedGroups,
   toggleExpand,
@@ -95,7 +96,8 @@ function LayerNode({
   depth: number;
   trackCountForTarget: (id: string) => number;
   isSelected: (id: string) => boolean;
-  onSelect: (id: string) => void;
+  isDirectlySelected: (id: string) => boolean;
+  onSelect: (id: string, e: React.MouseEvent) => void;
   expandedGroups: Set<string>;
   toggleExpand: (id: string) => void;
 }) {
@@ -108,13 +110,16 @@ function LayerNode({
   return (
     <>
       <div
-        className={`flex items-center gap-1.5 py-1.5 cursor-pointer border-b border-border/50 transition-colors ${
-          isSelected(target.id)
+        className={`flex items-center gap-1.5 py-1.5 cursor-pointer border-b border-border/50 transition-colors select-none ${
+          isDirectlySelected(target.id)
             ? 'bg-accent-muted text-accent'
-            : 'hover:bg-surface text-text-muted'
+            : isSelected(target.id)
+              ? 'bg-accent-muted/50 text-accent/80'
+              : 'hover:bg-surface text-text-muted'
         }`}
         style={{ paddingLeft, paddingRight: 8 }}
-        onClick={() => onSelect(target.id)}
+        onClick={(e) => onSelect(target.id, e)}
+        {...(target.id === '__camera_frame__' ? { 'data-hint': 'camera' } : {})}
       >
         {isGroup && (
           <span
@@ -149,6 +154,7 @@ function LayerNode({
           depth={depth + 1}
           trackCountForTarget={trackCountForTarget}
           isSelected={isSelected}
+          isDirectlySelected={isDirectlySelected}
           onSelect={onSelect}
           expandedGroups={expandedGroups}
           toggleExpand={toggleExpand}
@@ -162,22 +168,94 @@ export function LayersPanel({
   targets,
   tracks,
   selectedElementIds,
-  onSelectElement,
+  onSelectElements,
 }: LayersPanelProps) {
-  // Track manually collapsed groups (all groups expanded by default)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // Track last clicked ID for shift-range selection
+  const lastClickedRef = useRef<string | null>(null);
 
   const tree = useMemo(() => buildTree(targets), [targets]);
 
+  // Flat list of target IDs in display order + index lookup for shift-range selection
+  const { flatIds, flatIdIndex } = useMemo(() => {
+    const ids: string[] = [];
+    function collect(nodes: TreeNode[]) {
+      for (const node of nodes) {
+        ids.push(node.target.id);
+        if (node.children.length > 0) collect(node.children);
+      }
+    }
+    collect(tree);
+    const index = new Map<string, number>();
+    for (let i = 0; i < ids.length; i++) index.set(ids[i], i);
+    return { flatIds: ids, flatIdIndex: index };
+  }, [tree]);
+
+  // Pre-build track count map for O(1) lookup per node
+  const trackCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of tracks) {
+      map.set(t.targetId, (map.get(t.targetId) ?? 0) + 1);
+    }
+    return map;
+  }, [tracks]);
+
   const trackCountForTarget = useCallback(
-    (targetId: string) => tracks.filter((t) => t.targetId === targetId).length,
-    [tracks],
+    (targetId: string) => trackCountMap.get(targetId) ?? 0,
+    [trackCountMap],
   );
 
+  // Build a set of selected IDs including children of selected groups
+  const selectedSet = useMemo(() => {
+    const set = new Set(selectedElementIds);
+    const targetById = new Map<string, AnimatableTarget>();
+    for (const t of targets) targetById.set(t.id, t);
+    for (const id of selectedElementIds) {
+      const target = targetById.get(id);
+      if (target?.type === 'group') {
+        for (const eid of target.elementIds) set.add(eid);
+      }
+    }
+    return set;
+  }, [selectedElementIds, targets]);
+
+  const directSelectedSet = useMemo(() => new Set(selectedElementIds), [selectedElementIds]);
+
   const isSelected = useCallback(
-    (id: string) => selectedElementIds.includes(id),
-    [selectedElementIds],
+    (id: string) => selectedSet.has(id),
+    [selectedSet],
   );
+
+  const isDirectlySelected = useCallback(
+    (id: string) => directSelectedSet.has(id),
+    [directSelectedSet],
+  );
+
+  const handleSelect = useCallback((id: string, e: React.MouseEvent) => {
+    if (e.shiftKey && lastClickedRef.current) {
+      const fromIdx = flatIdIndex.get(lastClickedRef.current);
+      const toIdx = flatIdIndex.get(id);
+      if (fromIdx !== undefined && toIdx !== undefined) {
+        const start = Math.min(fromIdx, toIdx);
+        const end = Math.max(fromIdx, toIdx);
+        const rangeIds = flatIds.slice(start, end + 1);
+        const merged = new Set(selectedElementIds);
+        for (const rid of rangeIds) merged.add(rid);
+        onSelectElements([...merged]);
+      } else {
+        onSelectElements([id]);
+      }
+    } else if (e.ctrlKey || e.metaKey) {
+      if (directSelectedSet.has(id)) {
+        onSelectElements(selectedElementIds.filter(sid => sid !== id));
+      } else {
+        onSelectElements([...selectedElementIds, id]);
+      }
+    } else {
+      onSelectElements([id]);
+    }
+    lastClickedRef.current = id;
+  }, [flatIds, flatIdIndex, directSelectedSet, selectedElementIds, onSelectElements]);
 
   const toggleExpand = useCallback((id: string) => {
     setCollapsedGroups((prev) => {
@@ -215,7 +293,8 @@ export function LayersPanel({
             depth={0}
             trackCountForTarget={trackCountForTarget}
             isSelected={isSelected}
-            onSelect={onSelectElement}
+            isDirectlySelected={isDirectlySelected}
+            onSelect={handleSelect}
             expandedGroups={expandedGroups}
             toggleExpand={toggleExpand}
           />

@@ -35,7 +35,7 @@ export function SelectedKeyframeEditor({
       <NumberInput label="Time" value={keyframe.time} onChange={(v) => onUpdate({ time: Math.max(0, v) })} min={0} step={10} suffix="ms" />
       <NumberInput
         label="Value"
-        value={displayVal}
+        value={Number(displayVal.toFixed(2))}
         onChange={(v) => onUpdate({ value: toInternal(track.property, v) })}
         min={config.min}
         max={config.max}

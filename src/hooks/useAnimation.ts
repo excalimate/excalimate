@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { AnimationEngine } from '../core/engine/AnimationEngine';
-import type { GroupHierarchy } from '../core/engine/AnimationEngine';
+import { buildGroupHierarchy } from '../core/models/GroupHierarchy';
 import { useAnimationStore } from '../stores/animationStore';
 import { usePlaybackStore } from '../stores/playbackStore';
 import { useProjectStore } from '../stores/projectStore';
@@ -14,15 +14,7 @@ export function useAnimation(): FrameState {
   const { targets } = useProjectStore();
 
   // Build group hierarchy from targets
-  const groupHierarchy = useMemo<GroupHierarchy>(() => {
-    const hierarchy: GroupHierarchy = {};
-    for (const target of targets) {
-      if (target.type === 'group') {
-        hierarchy[target.id] = target.elementIds;
-      }
-    }
-    return hierarchy;
-  }, [targets]);
+  const groupHierarchy = useMemo(() => buildGroupHierarchy(targets), [targets]);
 
   // Invalidate engine cache when timeline changes
   useEffect(() => {

@@ -1,13 +1,22 @@
 import { create } from 'zustand';
 import type { AnimationTimeline } from '../types/animation';
+import type { ExcalidrawSceneData, AnimatableTarget } from '../types/excalidraw';
 import { useAnimationStore } from './animationStore';
 import { usePlaybackStore } from './playbackStore';
+import { useProjectStore } from './projectStore';
 
 const MAX_HISTORY = 50;
 
+interface Snapshot {
+  timeline: AnimationTimeline;
+  time: number;
+  scene?: ExcalidrawSceneData;
+  targets?: AnimatableTarget[];
+}
+
 interface UndoRedoState {
-  past: { timeline: AnimationTimeline; time: number }[];
-  future: { timeline: AnimationTimeline; time: number }[];
+  past: Snapshot[];
+  future: Snapshot[];
   canUndo: boolean;
   canRedo: boolean;
 
@@ -15,7 +24,7 @@ interface UndoRedoState {
    * Push the current timeline state onto the undo stack.
    * Always creates a new undo entry unless inside a batch (see beginBatch).
    */
-  pushState: () => void;
+  pushState: (includeScene?: boolean) => void;
 
   /**
    * Begin a batched operation (e.g. drag). While batched, only the first
@@ -44,8 +53,12 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
   canUndo: false,
   canRedo: false,
 
-  pushState: () => {
-    // Inside a batch: only the first push creates an undo entry
+  /**
+   * Push the current state onto the undo stack.
+   * @param includeScene If true, also snapshot scene + targets (needed for element deletion undo).
+   *                     Defaults to false to avoid expensive cloning during rapid keyframe edits.
+   */
+  pushState: (includeScene = false) => {
     if (_batchDepth > 0) {
       if (_batchHasPushed) return;
       _batchHasPushed = true;
@@ -53,8 +66,25 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
 
     const currentTimeline = structuredClone(useAnimationStore.getState().timeline);
     const currentTime = usePlaybackStore.getState().currentTime;
+
+    // Only clone scene/targets when explicitly requested (e.g., before element deletion)
+    let currentScene: ExcalidrawSceneData | undefined;
+    let currentTargets: AnimatableTarget[] | undefined;
+    if (includeScene) {
+      const projectState = useProjectStore.getState();
+      if (projectState.project?.scene) {
+        currentScene = structuredClone(projectState.project.scene) as ExcalidrawSceneData;
+      }
+      currentTargets = structuredClone(projectState.targets) as AnimatableTarget[];
+    }
+
     set((state) => {
-      const newPast = [...state.past, { timeline: currentTimeline, time: currentTime }];
+      const newPast = [...state.past, {
+        timeline: currentTimeline,
+        time: currentTime,
+        scene: currentScene,
+        targets: currentTargets,
+      }];
       if (newPast.length > MAX_HISTORY) newPast.shift();
       return {
         past: newPast,
@@ -80,16 +110,33 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
     const { past } = get();
     if (past.length === 0) return null;
 
-    const currentTimeline = structuredClone(useAnimationStore.getState().timeline);
-    const currentTime = usePlaybackStore.getState().currentTime;
     const prev = past[past.length - 1];
     const newPast = past.slice(0, -1);
 
+    const currentTimeline = structuredClone(useAnimationStore.getState().timeline);
+    const currentTime = usePlaybackStore.getState().currentTime;
+
+    // Only snapshot scene/targets if the entry we're restoring has them
+    let currentScene: ExcalidrawSceneData | undefined;
+    let currentTargets: AnimatableTarget[] | undefined;
+    if (prev.scene || prev.targets) {
+      const ps = useProjectStore.getState();
+      if (ps.project?.scene) currentScene = structuredClone(ps.project.scene) as ExcalidrawSceneData;
+      currentTargets = structuredClone(ps.targets) as AnimatableTarget[];
+    }
+
     useAnimationStore.getState().setTimeline(prev.timeline);
+    if (prev.scene) useProjectStore.getState().updateScene(prev.scene);
+    if (prev.targets) useProjectStore.getState().setTargets(prev.targets);
 
     set({
       past: newPast,
-      future: [{ timeline: currentTimeline, time: currentTime }, ...get().future],
+      future: [{
+        timeline: currentTimeline,
+        time: currentTime,
+        scene: currentScene,
+        targets: currentTargets,
+      }, ...get().future],
       canUndo: newPast.length > 0,
       canRedo: true,
     });
@@ -101,15 +148,31 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
     const { future } = get();
     if (future.length === 0) return null;
 
-    const currentTimeline = structuredClone(useAnimationStore.getState().timeline);
-    const currentTime = usePlaybackStore.getState().currentTime;
     const next = future[0];
     const newFuture = future.slice(1);
 
+    const currentTimeline = structuredClone(useAnimationStore.getState().timeline);
+    const currentTime = usePlaybackStore.getState().currentTime;
+
+    let currentScene: ExcalidrawSceneData | undefined;
+    let currentTargets: AnimatableTarget[] | undefined;
+    if (next.scene || next.targets) {
+      const ps = useProjectStore.getState();
+      if (ps.project?.scene) currentScene = structuredClone(ps.project.scene) as ExcalidrawSceneData;
+      currentTargets = structuredClone(ps.targets) as AnimatableTarget[];
+    }
+
     useAnimationStore.getState().setTimeline(next.timeline);
+    if (next.scene) useProjectStore.getState().updateScene(next.scene);
+    if (next.targets) useProjectStore.getState().setTargets(next.targets);
 
     set({
-      past: [...get().past, { timeline: currentTimeline, time: currentTime }],
+      past: [...get().past, {
+        timeline: currentTimeline,
+        time: currentTime,
+        scene: currentScene,
+        targets: currentTargets,
+      }],
       future: newFuture,
       canUndo: true,
       canRedo: newFuture.length > 0,

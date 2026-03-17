@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react';
 import { useHotkeys } from '@mantine/hooks';
 import { useAnimationStore } from '../stores/animationStore';
 import { useUndoRedoStore } from '../stores/undoRedoStore';
@@ -9,10 +10,30 @@ import { getPlaybackController, computeFrameAtTime } from '../core/engine/playba
 const FRAME_DURATION = 1000 / 60;
 
 function deleteSelectedKeyframes() {
-  const { selectedTrackId, selectedKeyframeIds, removeKeyframe } = useAnimationStore.getState();
-  if (selectedTrackId && selectedKeyframeIds.length > 0) {
-    for (const kfId of selectedKeyframeIds) removeKeyframe(selectedTrackId, kfId);
+  const { selectedKeyframeIds, timeline } = useAnimationStore.getState();
+  if (selectedKeyframeIds.length === 0) return;
+
+  useUndoRedoStore.getState().pushState();
+
+  const selectedSet = new Set(selectedKeyframeIds);
+
+  // Collect all (trackId, keyframeId) pairs first, then batch-remove.
+  // This avoids calling removeKeyframe (which triggers set()) N times.
+  const toRemove: [string, string][] = [];
+  for (const track of timeline.tracks) {
+    for (const kf of track.keyframes) {
+      if (selectedSet.has(kf.id)) {
+        toRemove.push([track.id, kf.id]);
+      }
+    }
   }
+
+  const store = useAnimationStore.getState();
+  for (const [trackId, kfId] of toRemove) {
+    store.removeKeyframe(trackId, kfId);
+  }
+
+  useAnimationStore.getState().clearKeyframeSelection();
 }
 
 /**
@@ -20,6 +41,48 @@ function deleteSelectedKeyframes() {
  * Uses getState() for all actions to avoid subscribing to store state.
  */
 export function useAppHotkeys() {
+  // In animate mode, intercept Ctrl+Z / Ctrl+Shift+Z in the capture phase
+  // BEFORE Excalidraw's own undo handler sees the event. This ensures our
+  // timeline undo/redo takes priority over Excalidraw's canvas undo.
+  // Use useLayoutEffect to guarantee registration BEFORE Excalidraw's
+  // own keydown listener. useEffect would race with child component effects.
+  useLayoutEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (useUIStore.getState().mode !== 'animate') return;
+
+      // Ctrl+Z / Ctrl+Shift+Z — undo/redo
+      const isMod = e.ctrlKey || e.metaKey;
+      if (isMod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        if (e.shiftKey) {
+          const result = useUndoRedoStore.getState().redo();
+          const time = result?.time ?? usePlaybackStore.getState().currentTime;
+          computeFrameAtTime(time);
+        } else {
+          const result = useUndoRedoStore.getState().undo();
+          const time = result?.time ?? usePlaybackStore.getState().currentTime;
+          computeFrameAtTime(time);
+        }
+        return;
+      }
+
+      // Escape — clear keyframe selection (Excalidraw handles element
+      // deselection internally, but stopPropagation prevents our Mantine
+      // handler from firing, so we catch it in capture phase here)
+      if (e.key === 'Escape') {
+        const { selectedKeyframeIds } = useAnimationStore.getState();
+        if (selectedKeyframeIds.length > 0) {
+          useAnimationStore.getState().clearKeyframeSelection();
+        }
+      }
+    };
+    // Capture phase — fires before Excalidraw's bubble-phase handler
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
+
   useHotkeys([
     // Playback
     ['Space', () => getPlaybackController().togglePlayPause()],
@@ -38,17 +101,8 @@ export function useAppHotkeys() {
       computeFrameAtTime(Math.min(duration, time + FRAME_DURATION));
     }],
 
-    // Undo/Redo
-    ['mod+Z', () => {
-      const result = useUndoRedoStore.getState().undo();
-      const time = result?.time ?? usePlaybackStore.getState().currentTime;
-      computeFrameAtTime(time);
-    }],
-    ['mod+shift+Z', () => {
-      const result = useUndoRedoStore.getState().redo();
-      const time = result?.time ?? usePlaybackStore.getState().currentTime;
-      computeFrameAtTime(time);
-    }],
+    // Undo/Redo in animate mode is handled by the capture-phase interceptor above.
+    // In edit mode, Excalidraw handles its own undo natively — no handler needed.
 
     // Delete selected keyframes
     ['Delete', deleteSelectedKeyframes],

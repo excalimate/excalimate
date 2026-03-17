@@ -1,6 +1,7 @@
 import { getNonDeletedElements } from '@excalidraw/excalidraw';
 import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { AnimationEngine } from '../../core/engine/AnimationEngine';
+import { buildGroupHierarchy } from '../../core/models/GroupHierarchy';
 import { useAnimationStore } from '../../stores/animationStore';
 import {
   getExportResolution,
@@ -19,6 +20,7 @@ export async function exportWebM(options: ExportOptions): Promise<void> {
 
   const elements = getNonDeletedElements(project.scene.elements as ExcalidrawElement[]) as NonDeletedExcalidrawElement[];
   const targets = useProjectStore.getState().targets;
+  const hierarchy = buildGroupHierarchy(targets);
   const res = getExportResolution(cameraFrame.aspectRatio);
   const engine = new AnimationEngine();
   const { clipStart, clipEnd } = useAnimationStore.getState();
@@ -57,7 +59,7 @@ export async function exportWebM(options: ExportOptions): Promise<void> {
   onProgress?.(0);
   for (let i = 0; i <= totalFrames; i++) {
     const time = clipStart + (i / totalFrames) * clipDuration;
-    const frameState = engine.computeFrame(timeline, time);
+    const frameState = engine.computeFrame(timeline, time, hierarchy);
     await renderFrame(elements, project.scene.files, frameState, targets, res.width, res.height, canvas);
     const frame = new VideoFrame(canvas, { timestamp: i * frameDurationUs, duration: frameDurationUs });
     encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });

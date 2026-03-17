@@ -124,7 +124,22 @@ export function PropertyPanel({
             Animation Properties
           </div>
         </div>
-        {allTargets.length === 0 ? (
+        {allVisibleKeyframes.length > 0 ? (
+          <>
+            <div className="px-3 py-1 text-[10px] text-text-muted uppercase tracking-wider bg-surface-alt">
+              Selected Keyframes
+            </div>
+            {allVisibleKeyframes.map(({ track, keyframe }) => (
+              <SelectedKeyframeEditor
+                key={keyframe.id}
+                track={track}
+                keyframe={keyframe}
+                onUpdate={(updates) => onUpdateKeyframe(track.id, keyframe.id, updates)}
+                onDelete={() => onDeleteKeyframe(track.id, keyframe.id)}
+              />
+            ))}
+          </>
+        ) : allTargets.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 text-sm text-text-muted px-4 text-center">
             <IconKeyframe size={32} className="mb-2 opacity-40" />
             <p>Draw something in the editor to get started.</p>
@@ -205,7 +220,7 @@ export function PropertyPanel({
                     />
                     <input
                       type="number"
-                      value={Number(displayVal.toFixed(config.displayScale ? 0 : 1))}
+                      value={Number(displayVal.toFixed(2))}
                       onChange={(e) => {
                         const v = Number(e.target.value);
                         if (Number.isFinite(v)) ensureAndSet(prop, toInternal(prop, v));
@@ -248,7 +263,7 @@ export function PropertyPanel({
               />
               <input
                 type="number"
-                value={Number(displayVal.toFixed(config.displayScale ? 0 : 1))}
+                value={Number(displayVal.toFixed(2))}
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   if (Number.isFinite(v)) ensureAndSet(prop, toInternal(prop, v));

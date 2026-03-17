@@ -10,6 +10,7 @@ export function useSelectionDerivedState(params: {
 }): {
   targetLabels: Map<string, string>;
   targetOrder: Map<string, number>;
+  targetParents: Map<string, string | undefined>;
   selectedTargets: AnimatableTarget[];
   selectedTargetTracks: AnimationTrack[];
   selectedKeyframeDetails: { track: AnimationTrack; keyframe: Keyframe }[];
@@ -32,6 +33,14 @@ export function useSelectionDerivedState(params: {
   const targetOrder = useMemo(() => {
     const map = new Map<string, number>();
     targets.forEach((t, i) => map.set(t.id, i));
+    return map;
+  }, [targets]);
+
+  const targetParents = useMemo(() => {
+    const map = new Map<string, string | undefined>();
+    for (const target of targets) {
+      map.set(target.id, target.parentGroupId);
+    }
     return map;
   }, [targets]);
 
@@ -64,6 +73,7 @@ export function useSelectionDerivedState(params: {
   return {
     targetLabels,
     targetOrder,
+    targetParents,
     selectedTargets,
     selectedTargetTracks,
     selectedKeyframeDetails,

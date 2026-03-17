@@ -7,6 +7,8 @@ import { NavigationProgress } from '@mantine/nprogress';
 import { Toolbar } from '../Toolbar';
 import { LayersPanel } from '../Layers/LayersPanel';
 import { SequenceRevealPanel } from '../SequenceReveal/SequenceRevealPanel';
+import { WelcomeOverlay } from '../Onboarding/WelcomeOverlay';
+import { ToolbarHints } from '../Onboarding/ToolbarHints';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { useAnimationStore } from '../../stores/animationStore';
 import { useProjectStore } from '../../stores/projectStore';
@@ -73,6 +75,7 @@ export function App() {
   const {
     targetLabels,
     targetOrder,
+    targetParents,
     selectedTargets,
     selectedTargetTracks,
     selectedKeyframeDetails,
@@ -98,6 +101,7 @@ export function App() {
     handleDragElement,
     handleAddTrackProp,
     handleResizeElement,
+    handleRotateElement,
   } = useKeyframeActions();
 
   const closePropertyPanel = useCallback(() => {
@@ -113,17 +117,18 @@ export function App() {
         <div className="flex flex-col h-screen w-screen bg-surface text-text">
           {/* Top toolbar */}
           <Toolbar />
+          <ToolbarHints />
 
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden px-2 pb-2 gap-2">
         {/* Left: Layers panel (animate mode only) */}
         {mode === 'animate' && layersPanelOpen && (
-          <aside className="w-[200px] border border-border bg-surface rounded-lg shadow-float overflow-y-auto shrink-0">
+          <aside data-hint="layers" className="w-[200px] border border-border bg-surface rounded-lg shadow-float overflow-y-auto shrink-0">
             <LayersPanel
               targets={targets}
               tracks={timeline.tracks}
               selectedElementIds={selectedElementIds}
-              onSelectElement={handleSelectTarget}
+              onSelectElements={handleSelectElements}
             />
           </aside>
         )}
@@ -148,10 +153,13 @@ export function App() {
                 onSelectElements={handleSelectElements}
                 onDragElement={handleDragElement}
                 onResizeElement={handleResizeElement}
+                onRotateElement={handleRotateElement}
               />
             )}
             </Suspense>
           </ErrorBoundary>
+          {/* Onboarding hints for empty projects */}
+          <WelcomeOverlay />
           {/* Sequence Reveal Panel (floating) */}
           {mode === 'animate' && sequenceRevealOpen && (
             <SequenceRevealPanel
@@ -203,7 +211,7 @@ export function App() {
       </div>
 
       {/* Bottom: Timeline panel */}
-      <div className="h-[250px] mx-2 mb-2 border border-border bg-surface-alt rounded-lg shadow-float overflow-hidden">
+      <div data-hint="timeline" className="h-[250px] mx-2 mb-2 border border-border bg-surface-alt rounded-lg shadow-float overflow-hidden">
         <ErrorBoundary fallback={<div className="flex items-center justify-center h-full text-sm text-danger">Timeline error</div>}>
         <TimelinePanelWrapper
           tracks={timeline.tracks}
@@ -223,6 +231,7 @@ export function App() {
           onClipRangeChange={(start, end) => useAnimationStore.getState().setClipRange(start, end)}
           targetLabels={targetLabels}
           targetOrder={targetOrder}
+          targetParents={targetParents}
           selectedElementIds={selectedElementIds}
         />
         </ErrorBoundary>

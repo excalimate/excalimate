@@ -1,6 +1,7 @@
 import { getNonDeletedElements } from '@excalidraw/excalidraw';
 import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { AnimationEngine } from '../../core/engine/AnimationEngine';
+import { buildGroupHierarchy } from '../../core/models/GroupHierarchy';
 import { useAnimationStore } from '../../stores/animationStore';
 import {
   getExportResolution,
@@ -19,6 +20,7 @@ export async function exportGIF(options: ExportOptions): Promise<void> {
 
   const elements = getNonDeletedElements(project.scene.elements as ExcalidrawElement[]) as NonDeletedExcalidrawElement[];
   const targets = useProjectStore.getState().targets;
+  const hierarchy = buildGroupHierarchy(targets);
   const res = getExportResolution(cameraFrame.aspectRatio);
   const maxWidth = quality === 'low' ? 480 : quality === 'medium' ? 640 : quality === 'high' ? 800 : 1280;
   const scale = Math.min(1, maxWidth / res.width);
@@ -47,7 +49,7 @@ export async function exportGIF(options: ExportOptions): Promise<void> {
 
   for (let i = 0; i <= totalFrames; i++) {
     const time = clipStart + (i / totalFrames) * clipDuration;
-    const frameState = engine.computeFrame(timeline, time);
+    const frameState = engine.computeFrame(timeline, time, hierarchy);
 
     await renderFrame(elements, project.scene.files, frameState, targets, gifW, gifH, canvas);
     gif.addFrame(canvas, { delay: Math.round(1000 / fps), copy: true });
