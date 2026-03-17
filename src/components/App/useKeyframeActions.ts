@@ -41,6 +41,7 @@ export function useKeyframeActions(): {
   handleDragElement: (targetId: string, deltaX: number, deltaY: number) => void;
   handleAddTrackProp: (targetId: string, targetType: 'element' | 'group', property: AnimatableProperty) => void;
   handleResizeElement: (targetId: string, dScaleX: number, dScaleY: number) => void;
+  handleRotateElement: (targetId: string, angleDelta: number) => void;
 } {
   const handleScrub = useCallback((time: number) => {
     computeFrameAtTime(time);

@@ -48,7 +48,7 @@ interface UIState {
   setDrawToolActive: (active: boolean) => void;
 }
 
-export const useUIStore = create<UIState>()((set) => ({
+export const useUIStore = create<UIState>()((set, get) => ({
   mode: 'edit',
   theme: getInitialTheme(),
   selectedElementIds: [],
