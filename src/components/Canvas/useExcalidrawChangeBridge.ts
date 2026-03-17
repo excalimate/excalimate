@@ -2,6 +2,8 @@ import { useCallback, useRef } from 'react';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { setCanvasViewport } from './canvasViewport';
 import { useProjectStore } from '../../stores/projectStore';
+import { useAnimationStore } from '../../stores/animationStore';
+import { useUndoRedoStore } from '../../stores/undoRedoStore';
 import { extractTargets } from './extractTargets';
 import type { AnimateEditorRefs } from './ExcalidrawAnimateEditor';
 
@@ -15,6 +17,7 @@ export function useExcalidrawChangeBridge(params: {
     apiRef,
     programmaticVersionRef,
     lastProcessedVersionRef,
+    initialRenderDoneRef,
     onSelectRef,
     sceneRef,
     lastElementOrderRef,
@@ -53,6 +56,13 @@ export function useExcalidrawChangeBridge(params: {
         return;
       }
       if (!apiRef.current) return;
+
+      // Wait until the animation sync hook has initialized tracking refs.
+      // After a sceneKey change (e.g. undo restoring deleted elements),
+      // Excalidraw remounts and fires onChange BEFORE the animation sync runs.
+      // Without this guard, stale lastAnimatedRef values cause false drag
+      // detections that create unwanted keyframes and undo entries.
+      if (!initialRenderDoneRef.current) return;
 
       // Report selection changes.
       // When Excalidraw has selectedGroupIds, report the group IDs instead
@@ -95,11 +105,40 @@ export function useExcalidrawChangeBridge(params: {
         // First onChange after mount — just initialize, don't process
         lastElementOrderRef.current = currentOrder;
       } else if (currentOrder !== lastElementOrderRef.current) {
-        // Only process if element count is the same (genuine reorder, not a
-        // framework artifact like an empty onChange during updateScene transitions).
         const prevIds = lastElementOrderRef.current.split(',');
         lastElementOrderRef.current = currentOrder;
-        if (nonDeleted.length > 0 && nonDeleted.length === prevIds.length) {
+
+        // Detect deleted elements and clean up their animation tracks
+        if (nonDeleted.length < prevIds.length) {
+          const currentIds = new Set(nonDeleted.map(el => el.id));
+          const deletedIds = prevIds.filter(id => !currentIds.has(id));
+          if (deletedIds.length > 0) {
+            // Push undo state BEFORE deletion so Ctrl+Z can restore everything
+            useUndoRedoStore.getState().pushState(true);
+            const deletedSet = new Set(deletedIds);
+
+            // Also find group targets whose members were deleted
+            const targets = useProjectStore.getState().targets;
+            for (const target of targets) {
+              if (target.type === 'group') {
+                // If ALL member elements of this group are deleted, mark the group for cleanup
+                const allMembersDeleted = target.elementIds.every(eid => deletedSet.has(eid));
+                if (allMembersDeleted) {
+                  deletedSet.add(target.id);
+                }
+              }
+            }
+
+            const trackIdsToRemove = useAnimationStore.getState().timeline.tracks
+              .filter(t => deletedSet.has(t.targetId))
+              .map(t => t.id);
+            for (const trackId of trackIdsToRemove) {
+              useAnimationStore.getState().removeTrack(trackId);
+            }
+          }
+        }
+
+        if (nonDeleted.length > 0) {
           const currentScene = sceneRef.current;
           if (currentScene) {
             // Restore original element properties (opacity, position, etc.) from the base scene
@@ -111,8 +150,8 @@ export function useExcalidrawChangeBridge(params: {
 
             const restoredElements = nonDeleted.map(el => {
               const orig = origMap.get(el.id);
-              if (orig) return { ...orig }; // Use original properties, just adopt new array order
-              return el; // New element, keep as-is
+              if (orig) return { ...orig };
+              return el;
             });
 
             const reorderedScene = {
@@ -247,7 +286,7 @@ export function useExcalidrawChangeBridge(params: {
         }
       }
     },
-    [apiRef, lastAnimatedRef, lastElementOrderRef, lastProcessedVersionRef, onDragRef, onResizeRef, onRotateRef, onSelectRef, programmaticVersionRef, sceneRef, setViewport],
+    [apiRef, initialRenderDoneRef, lastAnimatedRef, lastElementOrderRef, lastProcessedVersionRef, onDragRef, onResizeRef, onRotateRef, onSelectRef, programmaticVersionRef, sceneRef, setViewport],
   );
 }
 

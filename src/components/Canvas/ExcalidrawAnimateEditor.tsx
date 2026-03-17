@@ -128,18 +128,22 @@ export function ExcalidrawAnimateEditor({
   const [readyForKey, setReadyForKey] = useState<string | null>(null);
   const ready = readyForKey === sceneKey;
 
-  // Reset refs when Excalidraw remounts (sceneKey changed)
+  // Reset refs synchronously during render when sceneKey changes.
+  // This MUST happen before Excalidraw mounts and fires onChange, because the
+  // change bridge uses these refs to detect user edits. If refs are stale
+  // (e.g. lastAnimatedRef has old animated positions), the change bridge
+  // misinterprets the first onChange as a user drag and creates false keyframes.
+  // A useEffect would fire AFTER Excalidraw's mount onChange — too late.
   const prevKeyRef = useRef(sceneKey);
-  useEffect(() => {
-    if (sceneKey !== prevKeyRef.current) {
-      prevKeyRef.current = sceneKey;
-      apiRef.current = null;
-      lastElementOrderRef.current = '';
-      programmaticVersionRef.current = 0;
-      lastProcessedVersionRef.current = 0;
-      initialRenderDoneRef.current = false;
-    }
-  }, [sceneKey]);
+  if (sceneKey !== prevKeyRef.current) {
+    prevKeyRef.current = sceneKey;
+    apiRef.current = null;
+    lastElementOrderRef.current = '';
+    lastAnimatedRef.current = new Map();
+    programmaticVersionRef.current = 0;
+    lastProcessedVersionRef.current = 0;
+    initialRenderDoneRef.current = false;
+  }
 
   // Stable callback refs
   const onSelectRef = useRef(onSelectElements);
