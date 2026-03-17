@@ -1,4 +1,4 @@
-import { Kbd, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import {
   IconFolderOpen,
   IconFileImport,
@@ -17,14 +17,13 @@ import { useAnimationStore } from '../../stores/animationStore';
 export function WelcomeOverlay() {
   const mode = useUIStore((s) => s.mode);
   const drawToolActive = useUIStore((s) => s.drawToolActive);
-  const selectedElementIds = useUIStore((s) => s.selectedElementIds);
+  const hasSelection = useUIStore((s) => s.selectedElementIds.length > 0);
   const theme = useUIStore((s) => s.theme);
   const targets = useProjectStore((s) => s.targets);
   const tracks = useAnimationStore((s) => s.timeline.tracks);
 
   const hasElements = targets.length > 1;
   const hasTracks = tracks.length > 0;
-  const hasSelection = selectedElementIds.length > 0;
 
   // Hide when the user has content or is actively interacting
   if (mode === 'edit' && (hasElements || drawToolActive)) return null;
@@ -99,12 +98,10 @@ export function WelcomeOverlay() {
 function ActionLink({
   icon,
   label,
-  shortcut,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
-  shortcut?: string;
   onClick: () => void;
 }) {
   return (
@@ -125,9 +122,6 @@ function ActionLink({
       >
         {label}
       </span>
-      {shortcut && (
-        <Kbd size="xs" style={{ opacity: 0.5 }}>{shortcut}</Kbd>
-      )}
     </button>
   );
 }
