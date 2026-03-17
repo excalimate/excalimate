@@ -60,7 +60,7 @@ export async function exportWebM(options: ExportOptions): Promise<void> {
   for (let i = 0; i <= totalFrames; i++) {
     const time = clipStart + (i / totalFrames) * clipDuration;
     const frameState = engine.computeFrame(timeline, time, hierarchy);
-    await renderFrame(elements, project.scene.files, frameState, targets, res.width, res.height, canvas);
+    await renderFrame(elements, project.scene.files, frameState, targets, res.width, res.height, canvas, options.theme ?? 'light');
     const frame = new VideoFrame(canvas, { timestamp: i * frameDurationUs, duration: frameDurationUs });
     encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
     frame.close();

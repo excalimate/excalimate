@@ -51,7 +51,7 @@ export async function exportGIF(options: ExportOptions): Promise<void> {
     const time = clipStart + (i / totalFrames) * clipDuration;
     const frameState = engine.computeFrame(timeline, time, hierarchy);
 
-    await renderFrame(elements, project.scene.files, frameState, targets, gifW, gifH, canvas);
+    await renderFrame(elements, project.scene.files, frameState, targets, gifW, gifH, canvas, options.theme ?? 'light');
     gif.addFrame(canvas, { delay: Math.round(1000 / fps), copy: true });
     onProgress?.((i + 1) / (totalFrames + 1) * 0.8);
   }

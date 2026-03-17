@@ -3,6 +3,7 @@ import {
   IconFolderOpen,
   IconFileImport,
   IconBroadcast,
+  IconServer,
 } from '@tabler/icons-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -82,6 +83,11 @@ export function WelcomeOverlay() {
               onClick={() => {
                 document.querySelector<HTMLButtonElement>('[data-hint="live"] button')?.click();
               }}
+            />
+            <ActionLink
+              icon={<IconServer size={16} />}
+              label="MCP Setup Guide"
+              onClick={() => useUIStore.getState().setActivePage('mcp-guide')}
             />
           </Stack>
         )}
