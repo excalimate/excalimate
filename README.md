@@ -18,6 +18,7 @@
 
 Draw diagrams with the full Excalidraw editor, then animate elements with opacity fades, position slides, scale effects, rotation, and arrow draw-on animations. Export as MP4, WebM, GIF, or animated SVG. Includes an **MCP server** so AI agents can create and animate diagrams in real-time.
 
+[![@excalimate/mcp-server MCP server](https://glama.ai/mcp/servers/excalimate/excalimate/badges/card.svg)](https://glama.ai/mcp/servers/excalimate/excalimate)
 
 ## Demo
 
