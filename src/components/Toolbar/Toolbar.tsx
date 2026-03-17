@@ -15,6 +15,7 @@ import { FileControls } from './FileControls';
 import { ModeSwitcher } from './ModeSwitcher';
 import { ThemeToggle } from './ThemeToggle';
 import { ExportControls } from './ExportControls';
+import { InfoLinks } from './InfoLinks';
 import { useUIStore } from '../../stores/uiStore';
 import { useMcpLive, getMcpUrl } from '../../hooks/useMcpLive';
 
@@ -161,6 +162,7 @@ export function Toolbar() {
         <ExportControls />
         <div className="w-px h-5 bg-border mx-1" />
         <ThemeToggle />
+        <InfoLinks />
       </div>
       <Modal
         opened={showConnectionError}

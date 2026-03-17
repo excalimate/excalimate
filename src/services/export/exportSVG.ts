@@ -28,10 +28,15 @@ export async function exportAnimatedSVG(options: ExportOptions): Promise<void> {
   const clipDuration = clipEnd - clipStart;
   const totalFrames = Math.ceil(clipDuration / 1000 * fps);
 
+  const isDark = options.theme === 'dark';
   const svg = await exportToSvg({
     elements,
     files: project.scene.files ?? {},
-    appState: { exportBackground: true },
+    appState: {
+      exportBackground: true,
+      exportWithDarkMode: isDark,
+      viewBackgroundColor: '#ffffff',
+    },
     exportPadding: 0,
   });
 

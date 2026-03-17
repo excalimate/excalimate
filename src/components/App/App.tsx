@@ -10,6 +10,7 @@ import { SequenceRevealPanel } from '../SequenceReveal/SequenceRevealPanel';
 import { WelcomeOverlay } from '../Onboarding/WelcomeOverlay';
 import { ToolbarHints } from '../Onboarding/ToolbarHints';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { McpSetupGuide } from '../Pages/McpSetupGuide';
 import { useAnimationStore } from '../../stores/animationStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -56,6 +57,9 @@ export function App() {
   }, [theme]);
 
   const mantineColorScheme = theme === 'dark' ? 'dark' : 'light';
+
+  // Page navigation — render a full-screen page instead of the main app
+  const activePage = useUIStore((s) => s.activePage);
 
   // Use selectors to avoid over-subscription
   const mode = useUIStore((s) => s.mode);
@@ -114,6 +118,9 @@ export function App() {
       <ModalsProvider>
         <Notifications position="bottom-right" />
         <NavigationProgress />
+        {activePage === 'mcp-guide' ? (
+          <McpSetupGuide />
+        ) : (
         <div className="flex flex-col h-screen w-screen bg-surface text-text">
           {/* Top toolbar */}
           <Toolbar />
@@ -237,6 +244,7 @@ export function App() {
         </ErrorBoundary>
       </div>
     </div>
+        )}
         </ModalsProvider>
       </MantineProvider>
   );

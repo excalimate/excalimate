@@ -28,6 +28,8 @@ interface UIState {
   liveMode: boolean;
   /** True when a shape/draw tool is active in Excalidraw (not selection/hand). */
   drawToolActive: boolean;
+  /** The currently displayed page. null = main app. */
+  activePage: string | null;
 
   // Actions
   setMode: (mode: AppMode) => void;
@@ -46,6 +48,7 @@ interface UIState {
   toggleLayersPanel: () => void;
   setLiveMode: (live: boolean) => void;
   setDrawToolActive: (active: boolean) => void;
+  setActivePage: (page: string | null) => void;
 }
 
 export const useUIStore = create<UIState>()((set, get) => ({
@@ -57,6 +60,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
   layersPanelOpen: true,
   liveMode: false,
   drawToolActive: false,
+  activePage: null,
   panelSizes: {
     leftPanel: 48,
     rightPanel: 280,
@@ -153,5 +157,9 @@ export const useUIStore = create<UIState>()((set, get) => ({
 
   setDrawToolActive: (active: boolean): void => {
     set({ drawToolActive: active });
+  },
+
+  setActivePage: (page: string | null): void => {
+    set({ activePage: page });
   },
 }));

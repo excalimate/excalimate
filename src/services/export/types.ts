@@ -5,6 +5,7 @@ export interface ExportOptions {
   format: ExportFormat;
   quality?: ExportQuality;
   fps?: number;
+  theme?: 'light' | 'dark';
   onProgress?: (progress: number) => void;
 }
 

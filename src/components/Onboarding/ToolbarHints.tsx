@@ -45,7 +45,7 @@ interface HintPos {
 export function ToolbarHints() {
   const mode = useUIStore((s) => s.mode);
   const drawToolActive = useUIStore((s) => s.drawToolActive);
-  const selectedElementIds = useUIStore((s) => s.selectedElementIds);
+  const hasSelection = useUIStore((s) => s.selectedElementIds.length > 0);
   const targets = useProjectStore((s) => s.targets);
   const tracks = useAnimationStore((s) => s.timeline.tracks);
   const [hints, setHints] = useState<HintPos[]>([]);
@@ -53,7 +53,6 @@ export function ToolbarHints() {
 
   const hasElements = targets.length > 1;
   const hasTracks = tracks.length > 0;
-  const hasSelection = selectedElementIds.length > 0;
   // Edit: hide when elements exist or drawing tool active
   // Animate: hide when tracks exist OR user selects an element (they're interacting)
   const visible = mode === 'edit'

@@ -14,17 +14,23 @@ export async function renderFrame(
   outW: number,
   outH: number,
   outputCanvas: HTMLCanvasElement,
+  theme: 'light' | 'dark' = 'light',
 ): Promise<void> {
   try {
     const animated = applyAnimationToElements(elements, frameState, targets);
 
     const cfg = useProjectStore.getState().cameraFrame;
+    const isDark = theme === 'dark';
 
     const { exportToSvg } = await import('@excalidraw/excalidraw');
     const svg = await exportToSvg({
       elements: animated,
       files: files ?? {},
-      appState: { exportBackground: true },
+      appState: {
+        exportBackground: true,
+        exportWithDarkMode: isDark,
+        viewBackgroundColor: '#ffffff',
+      },
       exportPadding: 0,
     });
 
@@ -82,7 +88,7 @@ export async function renderFrame(
     await new Promise<void>((resolve) => {
       img.onload = () => {
         const ctx = outputCanvas.getContext('2d')!;
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = isDark ? '#121212' : '#ffffff';
         ctx.fillRect(0, 0, outW, outH);
         ctx.drawImage(img, 0, 0, outW, outH);
         URL.revokeObjectURL(url);
