@@ -40,14 +40,18 @@ export function useExcalidrawAnimationSync(params: {
 
     if (elements.length === 0) return;
 
-    // Skip the very first call — initialData already rendered the elements
-    // on the canvas. Calling api.updateScene() immediately after mount
-    // breaks Excalidraw's canvas rendering in v0.18.
+    // Skip the very first api.updateScene() call — initialData already
+    // rendered the animated elements on the canvas. Calling api.updateScene()
+    // immediately after mount breaks Excalidraw's canvas rendering in v0.18.
+    // BUT we must set up tracking refs with the ANIMATED positions (matching
+    // what Excalidraw actually rendered from initialData).
     if (!initialRenderDoneRef.current) {
       initialRenderDoneRef.current = true;
-      // Still set up tracking refs
+      const latestFrame = usePlaybackStore.getState().frameState;
+      const latestTgts = useProjectStore.getState().targets;
+      const animated = applyAnimationToElements(elements, latestFrame, latestTgts);
       const posMap = new Map<string, { x: number; y: number; width: number; height: number; angle: number }>();
-      for (const el of elements) {
+      for (const el of animated) {
         posMap.set(el.id, { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle ?? 0 });
       }
       lastAnimatedRef.current = posMap;
@@ -59,16 +63,6 @@ export function useExcalidrawAnimationSync(params: {
     const latestTargets = useProjectStore.getState().targets;
 
     let animated = applyAnimationToElements(elements, latestFrameState, latestTargets);
-
-    // Clamp minimum opacity to 1 (out of 100) for the canvas preview.
-    animated = animated.map(el => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const opacity = (el as any).opacity ?? 100;
-      if (opacity < 1) {
-        return { ...el, opacity: 1 } as typeof el;
-      }
-      return el;
-    });
 
     // Ghost mode: make hidden elements more visible for authoring
     const ghostMode = useUIStore.getState().ghostMode;
@@ -105,13 +99,13 @@ export function useExcalidrawAnimationSync(params: {
         const sc = sceneRef.current;
         const elements = getNonDeletedElements(sc.elements as ExcalidrawElement[]) as NonDeletedExcalidrawElement[];
         let animated = applyAnimationToElements(elements, frameStateRef.current, targetsRef.current);
-        // Always clamp min opacity (see main useEffect comment for why)
-        const minOpacity = s.ghostMode ? 15 : 1;
-        animated = animated.map(el => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const opacity = (el as any).opacity ?? 100;
-          return opacity < minOpacity ? { ...el, opacity: minOpacity } as typeof el : el;
-        });
+        if (s.ghostMode) {
+          animated = animated.map(el => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const opacity = (el as any).opacity ?? 100;
+            return opacity < 15 ? { ...el, opacity: 15 } as typeof el : el;
+          });
+        }
         programmaticVersionRef.current++;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         api.updateScene({ elements: animated as any });

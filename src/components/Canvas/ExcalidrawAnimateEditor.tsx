@@ -20,7 +20,7 @@ import type React from 'react';
 import { Excalidraw, getNonDeletedElements } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
-import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { ExcalidrawSceneData } from '../../types/excalidraw';
 import type { FrameState } from '../../types/animation';
 import type { AnimatableTarget } from '../../types/excalidraw';
@@ -28,6 +28,8 @@ import type { CameraFrame } from '../../stores/projectStore';
 import { CAMERA_FRAME_TARGET_ID, useProjectStore, getFrameHeight } from '../../stores/projectStore';
 import { useUndoRedoStore } from '../../stores/undoRedoStore';
 import { useUIStore } from '../../stores/uiStore';
+import { usePlaybackStore } from '../../stores/playbackStore';
+import { applyAnimationToElements } from '../../core/engine/renderUtils';
 import { getCanvasViewport } from './canvasViewport';
 import { CameraFrameOverlay } from './CameraFrameOverlay';
 import { computeCameraOverlayPosition } from './cameraOverlayMath';
@@ -307,11 +309,10 @@ export function ExcalidrawAnimateEditor({
   }, []);
 
   // ── Compute initial data ───────────────────────────────────────
-  // IMPORTANT: Pass raw scene elements (not animation-transformed) as initialData.
-  // Animation transforms are applied via api.updateScene() in the useEffect.
-  // If we pass animated elements here (e.g. opacity 0 at time 0), Excalidraw
-  // may re-apply initialData on internal re-renders, overriding the
-  // api.updateScene() call that set opacity to the correct animated value.
+  // Apply animation to elements so the canvas immediately shows the correct
+  // animated state. The animation sync hook skips its first api.updateScene()
+  // call (Excalidraw v0.18 breaks if called right after mount), so initialData
+  // is the only way to get the right visual on mount.
 
   // Read saved viewport ONCE on mount — after that Excalidraw manages its own
   // viewport internally and the change bridge writes back for future remounts.
@@ -370,23 +371,42 @@ export function ExcalidrawAnimateEditor({
 
   const initialViewport = mountViewportRef.current ?? fitAllViewport;
 
-  const initialData = scene
-    ? {
-        elements: getNonDeletedElements(scene.elements as ExcalidrawElement[]),
-        appState: {
-          ...scene.appState,
-          // Preserve the user's viewport across Excalidraw remounts
-          ...(initialViewport ? {
-            scrollX: initialViewport.scrollX,
-            scrollY: initialViewport.scrollY,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            zoom: { value: initialViewport.zoom } as any,
-          } : {}),
-          selectedElementIds: Object.fromEntries(selectedElementIds.map(id => [id, true as const])),
-        },
-        files: scene.files,
-      }
-    : undefined;
+  const initialData = useMemo(() => {
+    if (!scene) return undefined;
+
+    const rawElements = getNonDeletedElements(scene.elements as ExcalidrawElement[]) as NonDeletedExcalidrawElement[];
+    // Apply current animation state so the canvas is correct from the first frame
+    const latestFrame = usePlaybackStore.getState().frameState;
+    const latestTargets = useProjectStore.getState().targets;
+    let elements = applyAnimationToElements(rawElements, latestFrame, latestTargets);
+
+    // Ghost mode: make hidden elements more visible for authoring
+    const ghostMode = useUIStore.getState().ghostMode;
+    if (ghostMode) {
+      elements = elements.map(el => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const opacity = (el as any).opacity ?? 100;
+        return opacity < 15 ? { ...el, opacity: 15 } as typeof el : el;
+      });
+    }
+
+    return {
+      elements,
+      appState: {
+        ...scene.appState,
+        ...(initialViewport ? {
+          scrollX: initialViewport.scrollX,
+          scrollY: initialViewport.scrollY,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          zoom: { value: initialViewport.zoom } as any,
+        } : {}),
+        selectedElementIds: Object.fromEntries(selectedElementIds.map(id => [id, true as const])),
+      },
+      files: scene.files,
+    };
+    // Only recompute when sceneKey changes (Excalidraw remounts).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneKey]);
 
   // Batch undo entries during Excalidraw element drags. pointerdown starts
   // the batch, pointerup ends it — so an entire drag produces one undo entry.

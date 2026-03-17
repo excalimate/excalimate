@@ -119,6 +119,7 @@ function LayerNode({
         }`}
         style={{ paddingLeft, paddingRight: 8 }}
         onClick={(e) => onSelect(target.id, e)}
+        {...(target.id === '__camera_frame__' ? { 'data-hint': 'camera' } : {})}
       >
         {isGroup && (
           <span

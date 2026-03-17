@@ -231,11 +231,6 @@ function applyState(state: any) {
 
     const targets = extractTargets(elements);
     projectStore.setTargets(targets);
-
-    // Switch to animate mode when receiving live updates
-    if (useUIStore.getState().mode !== 'animate') {
-      useUIStore.getState().setMode('animate');
-    }
   }
 
   // 2. Animation store — batch timeline + clip range into one set()
@@ -243,6 +238,16 @@ function applyState(state: any) {
     const updates: Record<string, unknown> = {};
     if (state.timeline) {
       updates.timeline = state.timeline;
+
+      // Switch to animate mode only once the MCP server adds keyframes.
+      // While only scene elements are being created, the user stays in edit mode
+      // so they can see elements appearing naturally on the canvas.
+      if (
+        state.timeline.tracks?.length > 0 &&
+        useUIStore.getState().mode !== 'animate'
+      ) {
+        useUIStore.getState().setMode('animate');
+      }
     }
     if (state.clipStart !== undefined && state.clipEnd !== undefined) {
       updates.clipStart = Math.max(0, state.clipStart);

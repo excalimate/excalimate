@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 import { ImportExcalidrawModal } from './ImportExcalidrawModal';
 import { LoadAnimationModal } from './LoadAnimationModal';
+import { NewProjectModal } from './NewProjectModal';
 import { useFileOperations } from './useFileOperations';
 import { useShareOperations } from './useShareOperations';
 import { useProjectStore, getExportResolution } from '../../stores/projectStore';
@@ -24,6 +25,7 @@ export function FileControls() {
 
   const [importOpen, setImportOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const aspectRatio = useProjectStore((s) => s.cameraFrame.aspectRatio);
   const { liveUrl, setLiveUrl } = useMcpLive();
@@ -38,7 +40,7 @@ export function FileControls() {
         </Menu.Target>
 
         <Menu.Dropdown>
-          <Menu.Item leftSection={<IconFilePlus size={16} />} onClick={handleNew}>
+          <Menu.Item leftSection={<IconFilePlus size={16} />} onClick={() => setNewOpen(true)}>
             New
           </Menu.Item>
           <Menu.Item leftSection={<IconFolderOpen size={16} />} onClick={() => setLoadOpen(true)}>
@@ -67,6 +69,12 @@ export function FileControls() {
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
+
+      <NewProjectModal
+        opened={newOpen}
+        onClose={() => setNewOpen(false)}
+        onCreate={handleNew}
+      />
 
       <ImportExcalidrawModal
         opened={importOpen}

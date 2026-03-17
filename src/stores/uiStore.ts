@@ -4,13 +4,15 @@ import type {
   PanelSizes,
   TimelineViewport,
 } from '../types/ui';
+import { computeFrameAtTime } from '../core/engine/playbackSingleton';
+import { usePlaybackStore } from './playbackStore';
 
 export type Theme = 'light' | 'dark';
 
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem('excalimate-theme');
   if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return 'light';
 }
 
 interface UIState {
@@ -24,6 +26,8 @@ interface UIState {
   sequenceRevealOpen: boolean;
   layersPanelOpen: boolean;
   liveMode: boolean;
+  /** True when a shape/draw tool is active in Excalidraw (not selection/hand). */
+  drawToolActive: boolean;
 
   // Actions
   setMode: (mode: AppMode) => void;
@@ -41,6 +45,7 @@ interface UIState {
   toggleSequenceReveal: () => void;
   toggleLayersPanel: () => void;
   setLiveMode: (live: boolean) => void;
+  setDrawToolActive: (active: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()((set) => ({
@@ -51,6 +56,7 @@ export const useUIStore = create<UIState>()((set) => ({
   sequenceRevealOpen: false,
   layersPanelOpen: true,
   liveMode: false,
+  drawToolActive: false,
   panelSizes: {
     leftPanel: 48,
     rightPanel: 280,
@@ -66,12 +72,16 @@ export const useUIStore = create<UIState>()((set) => ({
 
   setMode: (mode: AppMode): void => {
     set({ mode });
+    // Ensure the animation frame is computed when entering animate mode,
+    // so the canvas immediately shows the correct animated state.
+    if (mode === 'animate') {
+      computeFrameAtTime(usePlaybackStore.getState().currentTime);
+    }
   },
 
   toggleMode: (): void => {
-    set((state) => ({
-      mode: state.mode === 'edit' ? 'animate' : 'edit',
-    }));
+    const next = get().mode === 'edit' ? 'animate' : 'edit';
+    get().setMode(next);
   },
 
   setTheme: (theme: Theme): void => {
@@ -139,5 +149,9 @@ export const useUIStore = create<UIState>()((set) => ({
   },
   setLiveMode: (live: boolean): void => {
     set({ liveMode: live });
+  },
+
+  setDrawToolActive: (active: boolean): void => {
+    set({ drawToolActive: active });
   },
 }));

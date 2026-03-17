@@ -49,20 +49,33 @@ export function useAppHotkeys() {
   useLayoutEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (useUIStore.getState().mode !== 'animate') return;
+
+      // Ctrl+Z / Ctrl+Shift+Z — undo/redo
       const isMod = e.ctrlKey || e.metaKey;
-      if (!isMod || e.key.toLowerCase() !== 'z') return;
+      if (isMod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
 
-      e.preventDefault();
-      e.stopImmediatePropagation();
+        if (e.shiftKey) {
+          const result = useUndoRedoStore.getState().redo();
+          const time = result?.time ?? usePlaybackStore.getState().currentTime;
+          computeFrameAtTime(time);
+        } else {
+          const result = useUndoRedoStore.getState().undo();
+          const time = result?.time ?? usePlaybackStore.getState().currentTime;
+          computeFrameAtTime(time);
+        }
+        return;
+      }
 
-      if (e.shiftKey) {
-        const result = useUndoRedoStore.getState().redo();
-        const time = result?.time ?? usePlaybackStore.getState().currentTime;
-        computeFrameAtTime(time);
-      } else {
-        const result = useUndoRedoStore.getState().undo();
-        const time = result?.time ?? usePlaybackStore.getState().currentTime;
-        computeFrameAtTime(time);
+      // Escape — clear keyframe selection (Excalidraw handles element
+      // deselection internally, but stopPropagation prevents our Mantine
+      // handler from firing, so we catch it in capture phase here)
+      if (e.key === 'Escape') {
+        const { selectedKeyframeIds } = useAnimationStore.getState();
+        if (selectedKeyframeIds.length > 0) {
+          useAnimationStore.getState().clearKeyframeSelection();
+        }
       }
     };
     // Capture phase — fires before Excalidraw's bubble-phase handler

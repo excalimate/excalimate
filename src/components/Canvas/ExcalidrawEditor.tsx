@@ -48,6 +48,13 @@ export function ExcalidrawEditor({
         });
       }
 
+      // Track whether a drawing tool is active (hides onboarding overlay)
+      const toolType: string = appState?.activeTool?.type ?? 'selection';
+      const isDrawTool = toolType !== 'selection' && toolType !== 'hand' && toolType !== 'eraser';
+      if (isDrawTool !== useUIStore.getState().drawToolActive) {
+        useUIStore.getState().setDrawToolActive(isDrawTool);
+      }
+
       if (onSceneChangeRef.current) {
         const files = apiRef.current.getFiles();
         onSceneChangeRef.current({
