@@ -1,0 +1,5 @@
+# Cloudflare Pages redirects
+# https://developers.cloudflare.com/pages/configuration/redirects/
+
+# Redirect www to apex
+# https://www.excalimate.com/* https://excalimate.com/:splat 301

@@ -1,0 +1,177 @@
+---
+
+---
+
+<section id="open-source" class="oss">
+  <div class="container">
+    <header class="oss-header reveal">
+      <h2 class="oss-title">Open source, community driven</h2>
+      <p class="oss-desc">
+        Excalimate is free and open source under the MIT license. Built by the community, for the
+        community.
+      </p>
+    </header>
+
+    <div class="oss-cards stagger">
+      <div class="oss-card reveal">
+        <div
+          class="oss-card-icon"
+          style="background: color-mix(in srgb, var(--p2) 15%, transparent)"
+        >
+          <img src="/svg/star.svg" width="28" height="28" alt="" aria-hidden="true" />
+        </div>
+        <div class="oss-card-text">
+          <span class="oss-card-title">Open Source</span>
+          <span class="oss-card-desc"
+            >Fully transparent codebase. Read it, fork it, improve it.</span
+          >
+        </div>
+      </div>
+
+      <div class="oss-card reveal">
+        <div
+          class="oss-card-icon"
+          style="background: color-mix(in srgb, var(--p5) 15%, transparent)"
+        >
+          <img src="/svg/checkmark.svg" width="28" height="28" alt="" aria-hidden="true" />
+        </div>
+        <div class="oss-card-text">
+          <span class="oss-card-title">MIT Licensed</span>
+          <span class="oss-card-desc"
+            >Use it anywhere — personal projects, startups, enterprise.</span
+          >
+        </div>
+      </div>
+
+      <div class="oss-card reveal">
+        <div
+          class="oss-card-icon"
+          style="background: color-mix(in srgb, var(--p4) 15%, transparent)"
+        >
+          <img src="/svg/people.svg" width="28" height="28" alt="" aria-hidden="true" />
+        </div>
+        <div class="oss-card-text">
+          <span class="oss-card-title">Community Driven</span>
+          <span class="oss-card-desc"
+            >Built with contributors. PRs, ideas, and feedback welcome.</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <div class="oss-cta reveal">
+      <a
+        href="https://github.com/excalimate/excalimate"
+        target="_blank"
+        rel="noopener"
+        class="btn btn-primary btn-lg"
+      >
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.64 7.64 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+          ></path>
+        </svg>
+        Star us on GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .oss {
+    background: var(--bg-alt);
+    padding: 120px 0;
+  }
+
+  .oss-header {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .oss-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    color: var(--tx);
+  }
+
+  .oss-desc {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 16px auto 0;
+    max-width: 520px;
+    line-height: 1.65;
+  }
+
+  .oss-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  @media (min-width: 1024px) {
+    .oss-cards {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+  }
+
+  .oss-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+  }
+
+  .oss-card-icon {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .oss-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .oss-card-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--tx);
+    line-height: 1.3;
+  }
+
+  .oss-card-desc {
+    font-family: var(--f-body);
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--tx2);
+    line-height: 1.5;
+  }
+
+  .oss-cta {
+    text-align: center;
+    margin-top: 48px;
+  }
+</style>
+
+<script>
+  document.querySelector('.oss-cta .btn')?.addEventListener('click', () => {
+    if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+      posthog.capture('cta_clicked', { button_text: 'Star us on GitHub', location: 'open_source' });
+    }
+  });
+</script>

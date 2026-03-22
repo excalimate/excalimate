@@ -1,0 +1,174 @@
+/* =================================================================
+   Excalimate Landing — Design System
+   "Precision with personality"
+   ================================================================= */
+
+/* ── Reset ──────────────────────────────────────────────────────── */
+*,*::before,*::after{
+  margin:0;padding:0;box-sizing:border-box;
+  font-optical-sizing:auto;
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;overflow-x:hidden}
+body{
+  font-family:var(--f-body);font-weight:400;line-height:1.7;
+  color:var(--tx);background:var(--bg);
+  font-feature-settings:'ss02' on, 'ss03' on;
+  font-variant-numeric:tabular-nums;
+  overflow-x:hidden;
+}
+img,svg,video{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+ul,ol{list-style:none}
+
+/* ── Fonts ──────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'BricolageGrotesqueVariable';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/BricolageGrotesqueVariable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'InterVariable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/InterVariable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'InterVariable';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/InterVariable-Italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Excalifont';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Excalifont-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Virgil';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/prod/fonts/Virgil/Virgil-Regular.woff2') format('woff2');
+}
+
+:root {
+  --f-display: 'BricolageGrotesqueVariable', 'Bricolage Grotesque', system-ui, sans-serif;
+  --f-body: 'InterVariable', 'Inter', system-ui, -apple-system, sans-serif;
+  --f-sketch: 'Excalifont', cursive;
+}
+
+
+
+/* =================================================================
+   🎨 PALETTE — Swap these colors to retheme the entire page
+   Copy any 5-color palette from coolors.co or similar.
+   Set --p-btn-text to #fff or #111 depending on whether --p2 is dark or light.
+   ================================================================= */
+:root {
+  --p1: #221E22;  /* Dark base */
+  --p2: #FFC300;  /* Primary accent — buttons, CTAs, highlights */
+  --p3: #EE5622;  /* Secondary accent — decorative, annotations, icons */
+  --p4: #7129c5;  /* Tertiary accent — variety */
+  --p5: #169b3e;  /* Quaternary accent — variety */
+  --p-btn-text: #221E22; /* Text on --p2 buttons: use #fff if --p2 is dark, #111 if --p2 is light */
+}
+
+/* ── Design Tokens ──────────────────────────────────────────────── */
+:root {
+  --bg:#f7f7f8;--bg-alt:#f3f3f3;--bg-raised:#ffffff;
+  --surface:#ffffff;--surface-hover:#f4f4f5;
+  --border:rgba(0,0,0,.08);--border-strong:rgba(0,0,0,.14);
+  --tx:#111115;--tx2:#4a4a55;--tx3:#656570;
+  --card-bg:#ffffff;--card-border:var(--tx);
+  --code-bg:#0d1117;
+  --shadow-card:4px 4px 0 var(--tx);
+  --shadow-hover:6px 6px 0 var(--tx);
+  --shadow-frame:6px 6px 0 var(--tx);
+  --border-w:2px;--border-w-sm:1.5px;
+  --border-c:var(--tx);
+  --radius:8px;--radius-lg:10px;
+  --accent:var(--p2);--accent-hover:var(--p2);--accent-light:var(--p3);
+  --accent-glow:color-mix(in srgb, var(--p2) 20%, transparent);
+  --accent-glow-strong:color-mix(in srgb, var(--p2) 35%, transparent);
+  --accent-text:var(--p-btn-text);
+  --yellow:var(--p3);--yellow-glow:color-mix(in srgb, var(--p2) 10%, transparent);
+  --green:var(--p4);--violet:var(--p5);
+  --grad-hero:var(--bg);
+  --grad-cta:var(--accent);
+}
+
+/* ── Container ──────────────────────────────────────────────────── */
+.container{max-width:1200px;padding-inline:20px;margin-inline:auto;width:100%}
+@media(min-width:640px){.container{padding-inline:32px}}
+@media(min-width:1024px){.container{padding-inline:48px}}
+
+/* ── Skip link ──────────────────────────────────────────────────── */
+.skip-link{position:absolute;top:-100%;left:16px;padding:8px 20px;background:var(--accent);color:var(--accent-text);border-radius:8px;font-size:14px;font-weight:600;z-index:200;transition:top .2s}
+.skip-link:focus{top:16px}
+:focus-visible{outline:var(--border-w) solid var(--accent);outline-offset:3px}
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  padding:12px 28px;border-radius:var(--radius);
+  font-family:var(--f-body);font-weight:600;font-size:15px;line-height:1;
+  white-space:nowrap;transition:transform .15s ease,box-shadow .15s ease;position:relative;
+  border:var(--border-w) solid var(--border-c);
+}
+.btn:active{transform:translate(2px,2px);box-shadow:none}
+.btn-primary{background:var(--accent);color:var(--accent-text);box-shadow:4px 4px 0 var(--border-c)}
+.btn-primary:hover{box-shadow:6px 6px 0 var(--border-c);transform:translate(-1px,-1px)}
+.btn-secondary{background:var(--surface);color:var(--tx);box-shadow:4px 4px 0 var(--border-c)}
+.btn-secondary:hover{box-shadow:6px 6px 0 var(--border-c);transform:translate(-1px,-1px)}
+.btn-lg{padding:16px 36px;font-size:16px;border-radius:var(--radius-lg)}
+.btn-white{background:#fff;color:var(--tx);font-weight:700;box-shadow:4px 4px 0 var(--border-c)}
+.btn-white:hover{box-shadow:6px 6px 0 var(--border-c);transform:translate(-1px,-1px)}
+.btn-ghost-white{background:transparent;color:#fff;border-color:#fff;box-shadow:4px 4px 0 #fff}
+.btn-ghost-white:hover{box-shadow:6px 6px 0 #fff;transform:translate(-1px,-1px)}
+
+/* ── Scroll reveal ──────────────────────────────────────────────── */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.stagger>.reveal:nth-child(1){transition-delay:0ms}
+.stagger>.reveal:nth-child(2){transition-delay:80ms}
+.stagger>.reveal:nth-child(3){transition-delay:160ms}
+.stagger>.reveal:nth-child(4){transition-delay:240ms}
+.stagger>.reveal:nth-child(5){transition-delay:320ms}
+.stagger>.reveal:nth-child(6){transition-delay:400ms}
+.stagger>.reveal:nth-child(7){transition-delay:480ms}
+
+/* ── Hero entrance ──────────────────────────────────────────────── */
+@keyframes rise{from{opacity:0;transform:translateY(36px);filter:blur(8px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
+.hero-s1{animation:rise .95s cubic-bezier(.16,1,.3,1) .05s both}
+.hero-s2{animation:rise .95s cubic-bezier(.16,1,.3,1) .2s both}
+.hero-s3{animation:rise .95s cubic-bezier(.16,1,.3,1) .35s both}
+.hero-s4{animation:rise 1.2s cubic-bezier(.16,1,.3,1) .55s both}
+
+/* ── Animations ─────────────────────────────────────────────────── */
+@keyframes drift{0%,100%{transform:translate(0,0)}33%{transform:translate(50px,-35px)}66%{transform:translate(-30px,25px)}}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes pulse-ring{0%{box-shadow:4px 4px 0 var(--tx),0 0 0 0 var(--accent)}70%{box-shadow:4px 4px 0 var(--tx),0 0 0 10px transparent}100%{box-shadow:4px 4px 0 var(--tx),0 0 0 0 transparent}}
+@keyframes gentle-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes spin-in{from{transform:rotate(-90deg) scale(.5);opacity:0}to{transform:rotate(0) scale(1);opacity:1}}
+.pulse{animation:pulse-ring 2.8s ease-out infinite}
+
+/* ── Grain overlay ──────────────────────────────────────────────── */
+.grain{position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.028;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");background-size:180px}
+
+/* ── Reduced motion ─────────────────────────────────────────────── */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}.grain{display:none}
+  .reveal{opacity:1;transform:none}
+}

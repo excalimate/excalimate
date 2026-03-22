@@ -1,0 +1,377 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import Callout from '../../components/Callout.astro';
+import RelatedGuides from '../../components/RelatedGuides.astro';
+
+const title = 'What is Excalidraw? The Open Source Whiteboard Tool — Excalimate';
+const description = 'Discover Excalidraw, the free open-source virtual whiteboard for hand-drawn diagrams. Learn how Excalimate extends it with animation capabilities.';
+
+const elementExample = `// Excalidraw stores elements as simple JSON
+{
+  "type": "rectangle",
+  "x": 100,
+  "y": 200,
+  "width": 200,
+  "height": 80,
+  "strokeColor": "#1e1e1e",
+  "backgroundColor": "#a5d8ff",
+  "fillStyle": "hachure",
+  "roughness": 1
+}`;
+---
+
+<PageLayout title={title} description={description} path="/guides/what-is-excalidraw">
+  <Nav />
+
+  <main id="main" class="guide">
+    <div class="guide-container">
+      <!-- Header -->
+      <header class="guide-header">
+        <a href="/guides" class="guide-back">&larr; Back to guides</a>
+        <h1 class="guide-title">What is Excalidraw?</h1>
+        <p class="guide-subtitle">The open-source virtual whiteboard that makes diagrams feel human</p>
+      </header>
+
+      <div class="guide-body">
+        <!-- What is Excalidraw -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h2 class="step-title">An Open-Source Virtual Whiteboard</h2>
+          </div>
+          <p class="step-text">
+            <strong>Excalidraw</strong> is a free, open-source virtual whiteboard tool for
+            creating hand-drawn style diagrams. It runs entirely in the browser — no
+            installation, no account required. Just open
+            <a href="https://excalidraw.com" target="_blank" rel="noopener noreferrer" class="inline-link">excalidraw.com</a>
+            and start drawing.
+          </p>
+          <p class="step-text">
+            Since its launch in 2020, Excalidraw has become one of the most popular
+            diagramming tools among developers, designers, and educators. Its source code
+            is available on GitHub under the MIT license, and a thriving community
+            contributes to its ongoing development.
+          </p>
+        </section>
+
+        <!-- Key features -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h2 class="step-title">Key Features</h2>
+          </div>
+          <p class="step-text">
+            Excalidraw packs a surprising amount of power into a minimal, distraction-free
+            interface:
+          </p>
+          <ul class="param-list">
+            <li><strong>Shapes and connectors</strong> — rectangles, ellipses, diamonds, arrows, lines, and freehand drawing</li>
+            <li><strong>Text</strong> — add labels, titles, and annotations anywhere on the canvas</li>
+            <li><strong>Real-time collaboration</strong> — share a link and draw together with others live</li>
+            <li><strong>Libraries</strong> — import reusable element collections from the community library</li>
+            <li><strong>Export</strong> — save as PNG, SVG, or the native <code class="inline-code">.excalidraw</code> JSON format</li>
+            <li><strong>Dark mode</strong> — full dark theme support for comfortable use</li>
+            <li><strong>Privacy-first</strong> — end-to-end encryption for shared sessions</li>
+          </ul>
+        </section>
+
+        <!-- The hand-drawn aesthetic -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">3</span>
+            <h2 class="step-title">The Hand-Drawn Aesthetic</h2>
+          </div>
+          <p class="step-text">
+            What makes Excalidraw instantly recognizable is its hand-drawn, sketchy visual
+            style. Lines aren't perfectly straight. Corners aren't perfectly sharp. Fills use
+            crosshatch patterns instead of solid colors.
+          </p>
+          <p class="step-text">
+            This isn't a limitation — it's a deliberate design choice. The hand-drawn look
+            signals that diagrams are <strong>informal and evolving</strong>, which encourages
+            collaboration and reduces the pressure to make things "perfect." It's the digital
+            equivalent of sketching on a whiteboard.
+          </p>
+          <Callout type="info">
+            The hand-drawn style is powered by the <strong>Rough.js</strong> library, which
+            generates sketch-like renderings of geometric shapes. Excalidraw lets you control
+            the "roughness" level — from very sketchy to nearly clean — depending on your
+            preference.
+          </Callout>
+        </section>
+
+        <!-- The file format -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">4</span>
+            <h2 class="step-title">The Excalidraw File Format</h2>
+          </div>
+          <p class="step-text">
+            Excalidraw stores drawings as plain JSON — a list of elements with their
+            properties. This makes diagrams easy to version-control, diff, and generate
+            programmatically.
+          </p>
+          <CodeBlock code={elementExample} label="Excalidraw element JSON" />
+          <p class="step-text">
+            This openness is key to Excalidraw's ecosystem. Tools and integrations can read,
+            write, and manipulate Excalidraw files directly. Many note-taking apps, documentation
+            platforms, and development tools have built-in Excalidraw support.
+          </p>
+        </section>
+
+        <!-- How Excalimate extends Excalidraw -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">5</span>
+            <h2 class="step-title">How Excalimate Extends Excalidraw</h2>
+          </div>
+          <p class="step-text">
+            <strong>Excalimate</strong> is built on top of Excalidraw's open-source editor. It
+            includes the full Excalidraw drawing experience — every shape, every tool, every
+            feature — and adds a complete animation layer on top.
+          </p>
+          <p class="step-text">
+            With Excalimate, you can:
+          </p>
+          <ul class="param-list">
+            <li><strong>Animate any element</strong> — add keyframe animations for opacity, position, scale, rotation, and draw progress</li>
+            <li><strong>Control timing</strong> — use a visual timeline to orchestrate when elements appear and move</li>
+            <li><strong>Add easing</strong> — apply easing curves for natural, professional motion</li>
+            <li><strong>Camera animations</strong> — pan and zoom the camera to guide viewers through complex diagrams</li>
+            <li><strong>Export animations</strong> — render to MP4, WebM, GIF, animated SVG, dotLottie, and Lottie JSON</li>
+            <li><strong>AI-powered</strong> — use the MCP server to let AI assistants create animated diagrams from text prompts</li>
+          </ul>
+          <Callout type="tip">
+            Any <code>.excalidraw</code> file can be opened in Excalimate. Your existing
+            Excalidraw diagrams work out of the box — just open them and start adding animations.
+          </Callout>
+        </section>
+
+        <!-- Excalidraw ecosystem -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">6</span>
+            <h2 class="step-title">The Excalidraw Ecosystem</h2>
+          </div>
+          <p class="step-text">
+            Excalidraw has grown beyond a standalone tool into a broad ecosystem:
+          </p>
+          <ul class="param-list">
+            <li><strong>VS Code extension</strong> — edit Excalidraw files directly in your code editor</li>
+            <li><strong>Obsidian plugin</strong> — embed diagrams in your knowledge base</li>
+            <li><strong>Notion, Confluence, Docusaurus</strong> — integrations for popular platforms</li>
+            <li><strong>@excalidraw/excalidraw</strong> — React component for embedding in your own apps</li>
+            <li><strong>Excalidraw+</strong> — the official hosted version with collaboration features</li>
+            <li><strong>Excalimate</strong> — animation and export capabilities for the Excalidraw editor</li>
+          </ul>
+          <p class="step-text">
+            Whether you're sketching architecture diagrams, wireframing UIs, or mapping out
+            ideas, Excalidraw and its ecosystem provide a lightweight, approachable toolset
+            that stays out of your way.
+          </p>
+        </section>
+      </div>
+      <RelatedGuides current="/guides/what-is-excalidraw" />
+    </div>
+  </main>
+
+  <Footer />
+</PageLayout>
+
+<style>
+  .guide {
+    background: var(--bg);
+    padding: 40px 0 80px;
+  }
+
+  .guide-container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  @media (min-width: 640px) {
+    .guide-container {
+      padding: 0 32px;
+    }
+  }
+
+  /* ── Header ── */
+  .guide-header {
+    margin-bottom: 56px;
+  }
+
+  .guide-back {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s;
+  }
+
+  .guide-back:hover {
+    color: var(--tx);
+  }
+
+  .guide-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.1;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .guide-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 12px 0 0;
+    line-height: 1.5;
+  }
+
+  /* ── Steps ── */
+  .guide-body {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent-text);
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .step-text {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .step-text :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-text :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+  }
+
+  /* ── Inline code ── */
+  .inline-code {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+
+  /* ── Links ── */
+  .inline-link {
+    color: var(--p4);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .inline-link:hover {
+    color: var(--tx);
+  }
+
+  /* ── Lists ── */
+  .param-list {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .param-list :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .param-list :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+</style>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'What is Excalidraw? The Open Source Whiteboard Tool',
+    description:
+      'Discover Excalidraw, the free open-source virtual whiteboard for hand-drawn diagrams. Learn how Excalimate extends it with animation capabilities.',
+    author: {
+      '@type': 'Organization',
+      name: 'Excalimate',
+      url: 'https://excalimate.com',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Excalimate',
+      url: 'https://excalimate.com',
+    },
+  })}
+/>

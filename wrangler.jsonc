@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "excalimate",
+  "name": "excalimate-app",
   "compatibility_date": "2025-09-27",
   "pages_build_output_dir": "./dist",
   "observability": {

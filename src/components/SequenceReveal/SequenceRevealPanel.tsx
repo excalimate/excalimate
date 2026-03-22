@@ -7,6 +7,7 @@ import { ActionIcon, Button, CloseButton } from '@mantine/core';
 import { IconListDetails, IconPencil, IconX, IconArrowUp, IconArrowDown } from '@tabler/icons-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useSequenceEditor } from './useSequenceEditor';
+import { trackSequenceAction } from '../../services/analytics/posthog';
 export type { RevealSequence } from './sequenceStore';
 
 // ── Panel props & component ──────────────────────────────────────
@@ -67,7 +68,7 @@ export function SequenceRevealPanel({ targets, selectedElementIds }: SequenceRev
                 <ActionIcon variant="subtle" color="indigo" size="xs" onClick={() => startEditing(seq)}>
                   <IconPencil size={14} />
                 </ActionIcon>
-                <ActionIcon variant="subtle" color="red" size="xs" onClick={() => deleteSequence(seq.id)}>
+                <ActionIcon variant="subtle" color="red" size="xs" onClick={() => { deleteSequence(seq.id); trackSequenceAction('delete'); }}>
                   <IconX size={14} />
                 </ActionIcon>
               </div>
@@ -164,7 +165,7 @@ export function SequenceRevealPanel({ targets, selectedElementIds }: SequenceRev
               <Button
                 fullWidth
                 size="xs"
-                onClick={updateSequence}
+                onClick={() => { updateSequence(); trackSequenceAction('update'); }}
                 disabled={draftOrder.length === 0}
               >
                 Update Keyframes
@@ -181,7 +182,7 @@ export function SequenceRevealPanel({ targets, selectedElementIds }: SequenceRev
             <Button
               fullWidth
               size="xs"
-              onClick={createSequence}
+              onClick={() => { createSequence(); trackSequenceAction('create'); }}
               disabled={draftOrder.length === 0}
             >
               Generate at {currentTime}ms

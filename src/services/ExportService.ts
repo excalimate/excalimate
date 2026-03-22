@@ -1,5 +1,6 @@
 export {
   type ExportFormat,
+  type LottieFontEmbeddingMode,
   type ExportOptions,
   type ExportQuality,
 } from './export/types';

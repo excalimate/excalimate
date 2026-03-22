@@ -1,0 +1,429 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import Callout from '../../components/Callout.astro';
+import RelatedGuides from '../../components/RelatedGuides.astro';
+
+const title = 'Why Animate Diagrams? Benefits of Animated Visuals — Excalimate';
+const description = 'Discover why animated diagrams are more effective than static images. Learn the benefits of animation for presentations, documentation, and education.';
+
+const revealExample = `// Progressive reveal — show one element at a time
+create_animated_scene({
+  elements: [
+    rectangle("User Request"),
+    arrow("req-to-lb"),
+    rectangle("Load Balancer"),
+    arrow("lb-to-svc"),
+    rectangle("Service A"),
+    rectangle("Service B"),
+  ],
+  sequences: [{
+    elementIds: [
+      "user-request",
+      "req-to-lb",
+      "load-balancer",
+      "lb-to-svc",
+      "service-a",
+      "service-b"
+    ],
+    delay: 400,
+    duration: 500
+  }]
+})`;
+---
+
+<PageLayout title={title} description={description} path="/guides/why-animate-diagrams">
+  <Nav />
+
+  <main id="main" class="guide">
+    <div class="guide-container">
+      <!-- Header -->
+      <header class="guide-header">
+        <a href="/guides" class="guide-back">&larr; Back to guides</a>
+        <h1 class="guide-title">Why Animate Diagrams?</h1>
+        <p class="guide-subtitle">How animation transforms static visuals into powerful communication tools</p>
+      </header>
+
+      <div class="guide-body">
+        <!-- The problem with static diagrams -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h2 class="step-title">The Problem with Static Diagrams</h2>
+          </div>
+          <p class="step-text">
+            Static diagrams try to show everything at once. A complex architecture diagram
+            might have dozens of boxes, arrows, and labels — all competing for the viewer's
+            attention simultaneously. This creates <strong>cognitive overload</strong>.
+          </p>
+          <p class="step-text">
+            When viewers see a dense static diagram, they don't know where to start looking.
+            There's no visual hierarchy, no narrative flow, no guidance. They have to decode
+            the entire system mentally, which is slow and error-prone.
+          </p>
+          <p class="step-text">
+            The result? Your audience either glazes over the diagram entirely or misinterprets
+            important relationships because they processed elements in the wrong order.
+          </p>
+        </section>
+
+        <!-- Progressive reveal -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h2 class="step-title">Progressive Reveal Reduces Complexity</h2>
+          </div>
+          <p class="step-text">
+            The most powerful benefit of animated diagrams is <strong>progressive
+            reveal</strong> — showing elements one at a time in a deliberate sequence. Instead
+            of dumping the entire diagram on screen, you build it up piece by piece.
+          </p>
+          <p class="step-text">
+            This mirrors how humans naturally explain things. When you draw on a whiteboard,
+            you don't reveal the whole diagram at once — you draw each piece as you talk
+            about it. Animation recreates that experience digitally.
+          </p>
+          <CodeBlock code={revealExample} label="Progressive reveal sequence" />
+          <p class="step-text">
+            By revealing elements sequentially, each piece gets a moment of undivided
+            attention. The viewer processes one concept before the next appears, dramatically
+            reducing cognitive load.
+          </p>
+        </section>
+
+        <!-- Guides attention -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">3</span>
+            <h2 class="step-title">Animation Guides Attention</h2>
+          </div>
+          <p class="step-text">
+            Human eyes are hard-wired to track motion. When something moves on screen, we
+            instinctively look at it. Animated diagrams exploit this biological reflex to
+            <strong>direct the viewer's gaze</strong> exactly where it needs to be.
+          </p>
+          <p class="step-text">
+            An arrow that draws itself across the screen naturally leads the eye from source
+            to destination. A box that pops in with a bounce effect draws immediate focus. A
+            camera that pans from one section to another creates a guided tour of the content.
+          </p>
+          <ul class="param-list">
+            <li><strong>Draw progress</strong> — arrows and lines that animate their path guide the eye along connections</li>
+            <li><strong>Fade and scale</strong> — elements that appear draw immediate attention to new concepts</li>
+            <li><strong>Camera movement</strong> — panning and zooming creates a narrative path through complex diagrams</li>
+          </ul>
+        </section>
+
+        <!-- Shows processes and sequences -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">4</span>
+            <h2 class="step-title">Shows Processes and Sequences Naturally</h2>
+          </div>
+          <p class="step-text">
+            Many technical concepts are inherently <strong>sequential</strong> — request flows,
+            data pipelines, deployment processes, state machines. Static diagrams can only
+            hint at sequence using numbered labels or arrow directions. Animation shows
+            sequence directly.
+          </p>
+          <p class="step-text">
+            When a request visually "travels" from client to load balancer to service, the
+            temporal order is unmistakable. The animation <strong>is</strong> the explanation.
+            No need for numbered steps, no ambiguity about which direction data flows, no
+            cognitive effort to reconstruct the sequence from a flat image.
+          </p>
+        </section>
+
+        <!-- Engagement and retention -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">5</span>
+            <h2 class="step-title">More Engaging, Better Retention</h2>
+          </div>
+          <p class="step-text">
+            Research in multimedia learning consistently shows that dynamic visuals improve
+            both engagement and retention compared to static images:
+          </p>
+          <ul class="param-list">
+            <li><strong>Dual coding</strong> — animations combine spatial and temporal information, engaging multiple cognitive channels</li>
+            <li><strong>Attention capture</strong> — motion inherently captures and holds attention longer than static content</li>
+            <li><strong>Narrative structure</strong> — animated sequences create a story arc that's easier to remember</li>
+            <li><strong>Active processing</strong> — viewers mentally predict what comes next, increasing engagement</li>
+          </ul>
+          <p class="step-text">
+            In educational settings, animated explanations consistently outperform static
+            diagrams for teaching procedural and conceptual knowledge, especially for
+            complex multi-step processes.
+          </p>
+        </section>
+
+        <!-- Use cases -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">6</span>
+            <h2 class="step-title">Use Cases for Animated Diagrams</h2>
+          </div>
+          <ul class="param-list">
+            <li>
+              <strong>Presentations</strong> — reveal architecture, data flows, and processes step by step instead of
+              showing dense static slides
+            </li>
+            <li>
+              <strong>Technical documentation</strong> — explain system interactions, deployment pipelines,
+              and state transitions with animated walkthroughs
+            </li>
+            <li>
+              <strong>Tutorials and education</strong> — teach concepts progressively, building complexity
+              as the learner's understanding grows
+            </li>
+            <li>
+              <strong>Social media</strong> — short animated diagrams perform significantly better than
+              static images on Twitter/X, LinkedIn, and YouTube
+            </li>
+            <li>
+              <strong>Product demos</strong> — show how features work by animating user flows and
+              system interactions
+            </li>
+            <li>
+              <strong>Onboarding</strong> — introduce new team members to system architecture with
+              guided animated walkthroughs instead of overwhelming static diagrams
+            </li>
+          </ul>
+        </section>
+
+        <!-- Accessibility -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">7</span>
+            <h2 class="step-title">Accessibility Considerations</h2>
+          </div>
+          <Callout type="info">
+            Animated content should always be accessible. Follow these best practices:
+            provide a <strong>static fallback</strong> (PNG or SVG) for users who prefer
+            reduced motion, ensure animations can be <strong>paused</strong> (Lottie and
+            video players support this natively), keep animations <strong>under 5 seconds</strong>
+            for auto-playing content, and avoid flashing or strobing effects. Excalimate's
+            export formats — especially dotLottie and video — all support pause controls.
+          </Callout>
+          <p class="step-text">
+            Well-crafted animated diagrams actually <strong>improve</strong> accessibility for
+            many users. Sequential presentation reduces the cognitive effort needed to
+            understand complex systems, and guided attention helps viewers with attention
+            difficulties focus on the right information at the right time.
+          </p>
+        </section>
+
+        <!-- How Excalimate makes it easy -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">8</span>
+            <h2 class="step-title">How Excalimate Makes It Easy</h2>
+          </div>
+          <p class="step-text">
+            Excalimate removes the traditional barriers to creating animated diagrams:
+          </p>
+          <ul class="param-list">
+            <li><strong>No video editing software</strong> — animate directly in the diagram editor with a visual timeline</li>
+            <li><strong>AI-powered</strong> — describe what you want and let AI create the animation via the MCP server</li>
+            <li><strong>Excalidraw foundation</strong> — familiar drawing tools you already know, plus animation on top</li>
+            <li><strong>Multiple export formats</strong> — MP4, GIF, dotLottie, animated SVG, and more from a single source</li>
+            <li><strong>Instant preview</strong> — see your animations in real-time as you build them</li>
+          </ul>
+          <p class="step-text">
+            Going from a static diagram to a polished animated version takes minutes, not
+            hours. Draw your diagram, add keyframes, preview, and export.
+          </p>
+        </section>
+      </div>
+      <RelatedGuides current="/guides/why-animate-diagrams" />
+    </div>
+  </main>
+
+  <Footer />
+</PageLayout>
+
+<style>
+  .guide {
+    background: var(--bg);
+    padding: 40px 0 80px;
+  }
+
+  .guide-container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  @media (min-width: 640px) {
+    .guide-container {
+      padding: 0 32px;
+    }
+  }
+
+  /* ── Header ── */
+  .guide-header {
+    margin-bottom: 56px;
+  }
+
+  .guide-back {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s;
+  }
+
+  .guide-back:hover {
+    color: var(--tx);
+  }
+
+  .guide-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.1;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .guide-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 12px 0 0;
+    line-height: 1.5;
+  }
+
+  /* ── Steps ── */
+  .guide-body {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent-text);
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .step-text {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .step-text :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-text :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+  }
+
+  /* ── Inline code ── */
+  .inline-code {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+
+  /* ── Lists ── */
+  .param-list {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .param-list :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .param-list :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+</style>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'Why Animate Diagrams? Benefits of Animated Visuals',
+    description:
+      'Discover why animated diagrams are more effective than static images. Learn the benefits of animation for presentations, documentation, and education.',
+    author: {
+      '@type': 'Organization',
+      name: 'Excalimate',
+      url: 'https://excalimate.com',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Excalimate',
+      url: 'https://excalimate.com',
+    },
+  })}
+/>

@@ -15,6 +15,7 @@ import { useAnimationStore } from '../../stores/animationStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useAppHotkeys } from '../../hooks/useAppHotkeys';
+import { ConsentBanner } from '../ConsentBanner';
 import { getPlaybackController } from '../../core/engine/playbackSingleton';
 import { useShareLoader } from './useShareLoader';
 import { useSceneChangeSync } from './useSceneChangeSync';
@@ -245,6 +246,7 @@ export function App() {
       </div>
     </div>
         )}
+        <ConsentBanner />
         </ModalsProvider>
       </MantineProvider>
   );

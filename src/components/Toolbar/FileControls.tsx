@@ -3,6 +3,7 @@ import { Menu, Button, Modal, Select, Divider, TextInput } from '@mantine/core';
 import {
   IconFilePlus, IconFolderOpen, IconDeviceFloppy,
   IconFileImport, IconShare, IconChevronDown, IconSettings, IconMaximize, IconServer, IconCheck,
+  IconCookie,
 } from '@tabler/icons-react';
 import { ImportExcalidrawModal } from './ImportExcalidrawModal';
 import { LoadAnimationModal } from './LoadAnimationModal';
@@ -66,6 +67,9 @@ export function FileControls() {
 
           <Menu.Item leftSection={<IconSettings size={16} />} onClick={() => setPrefsOpen(true)}>
             Preferences
+          </Menu.Item>
+          <Menu.Item leftSection={<IconCookie size={16} />} onClick={() => { import('../../stores/consentStore').then(m => m.useConsentStore.getState().openSettings()); }}>
+            Cookie Settings
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>

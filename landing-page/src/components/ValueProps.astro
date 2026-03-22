@@ -1,0 +1,167 @@
+---
+/**
+ * ValueProps — 3-card value proposition grid
+ * Uses global tokens from global.css for theming.
+ */
+---
+
+<section id="features" class="section-light value-props">
+  <div class="container">
+    <header class="vp-header reveal">
+      <h2 class="vp-title">Everything you need to animate diagrams</h2>
+      <p class="vp-subtitle">A complete toolkit from drawing to export — no other tools needed.</p>
+    </header>
+
+    <div class="vp-grid stagger">
+      <!-- Card 1 — Full Excalidraw Editor -->
+      <article class="vp-card reveal">
+        <div class="vp-icon">
+          <img src="/svg/card-editor.svg" alt="" width="64" height="64" aria-hidden="true" />
+        </div>
+        <h3 class="vp-card-title">Full Excalidraw Editor</h3>
+        <p class="vp-card-desc">
+          Draw, edit, and connect — the complete whiteboard experience built right in.
+        </p>
+      </article>
+
+      <!-- Card 2 — Keyframe Animation -->
+      <article class="vp-card reveal">
+        <div class="vp-icon">
+          <img src="/svg/card-keyframes.svg" alt="" width="64" height="64" aria-hidden="true" />
+        </div>
+        <h3 class="vp-card-title">Keyframe Animation</h3>
+        <p class="vp-card-desc">
+          Opacity, position, scale, rotation, and draw progress — all on a visual timeline.
+        </p>
+      </article>
+
+      <!-- Card 3 — Export Anywhere -->
+      <article class="vp-card reveal">
+        <div class="vp-icon">
+          <img src="/svg/card-export.svg" alt="" width="64" height="64" aria-hidden="true" />
+        </div>
+        <h3 class="vp-card-title">Export Anywhere</h3>
+        <p class="vp-card-desc">
+          MP4, WebM, GIF, animated SVG, and dotLottie. E2E encrypted sharing included.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ── Section ──────────────────────────────────────────────── */
+  .value-props {
+    padding: 120px 0;
+  }
+
+  .section-light {
+    background: var(--bg-alt);
+  }
+
+  /* ── Header ───────────────────────────────────────────────── */
+  .vp-header {
+    text-align: center;
+    margin-bottom: 72px;
+  }
+
+  .vp-title {
+    font-family: var(--f-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    color: var(--tx);
+  }
+
+  .vp-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    line-height: 1.65;
+    margin-top: 16px;
+    max-width: 520px;
+    margin-inline: auto;
+  }
+
+  /* ── Grid ──────────────────────────────────────────────────── */
+  .vp-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  @media (min-width: 640px) {
+    .vp-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .vp-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* ── Card ──────────────────────────────────────────────────── */
+  .vp-card {
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: 8px;
+    padding: 32px;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .vp-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hover);
+  }
+  .vp-card:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
+
+  /* ── Icon area ─────────────────────────────────────────────── */
+  .vp-icon {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .vp-icon img {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── Card text ─────────────────────────────────────────────── */
+  .vp-card-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--tx);
+    line-height: 1.3;
+    margin-top: 20px;
+  }
+
+  .vp-card-desc {
+    font-family: var(--f-body);
+    font-weight: 400;
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.65;
+    margin-top: 10px;
+  }
+
+  /* ── Reduced motion ────────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .vp-card {
+      transition: none;
+    }
+    .vp-card:hover {
+      transform: none;
+    }
+  }
+</style>

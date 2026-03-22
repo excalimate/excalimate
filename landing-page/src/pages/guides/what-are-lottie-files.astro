@@ -1,0 +1,392 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import Callout from '../../components/Callout.astro';
+import RelatedGuides from '../../components/RelatedGuides.astro';
+
+const title = 'What are Lottie Files? Lightweight Web Animations — Excalimate';
+const description = 'Learn about Lottie files, the lightweight animation format for web and mobile. Understand dotLottie, Lottie JSON, and how to create them with Excalimate.';
+
+const embedExample = `<!-- Install the web component -->
+<script src="https://unpkg.com/@dotlottie/player-component"></script>
+
+<!-- Embed your animation -->
+<dotlottie-wc
+  src="my-animation.lottie"
+  autoplay
+  loop
+  style="width: 400px; height: 300px"
+></dotlottie-wc>`;
+
+const reactExample = `import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+
+function AnimatedDiagram() {
+  return (
+    <DotLottieReact
+      src="/animations/architecture.lottie"
+      autoplay
+      loop={false}
+      style={{ width: 600, height: 400 }}
+    />
+  );
+}`;
+
+const lottieJsonSnippet = `// Lottie JSON structure (simplified)
+{
+  "v": "5.7.0",        // Lottie spec version
+  "fr": 60,            // Frame rate
+  "ip": 0,             // In-point (first frame)
+  "op": 180,           // Out-point (last frame)
+  "w": 1920,           // Width
+  "h": 1080,           // Height
+  "layers": [
+    {
+      "ty": 4,          // Shape layer
+      "nm": "Rectangle",
+      "ks": { ... },    // Transform keyframes
+      "shapes": [ ... ] // Shape definitions
+    }
+  ]
+}`;
+---
+
+<PageLayout title={title} description={description} path="/guides/what-are-lottie-files">
+  <Nav />
+
+  <main id="main" class="guide">
+    <div class="guide-container">
+      <!-- Header -->
+      <header class="guide-header">
+        <a href="/guides" class="guide-back">&larr; Back to guides</a>
+        <h1 class="guide-title">What are Lottie Files?</h1>
+        <p class="guide-subtitle">The lightweight animation format that powers the modern web</p>
+      </header>
+
+      <div class="guide-body">
+        <!-- What is Lottie -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h2 class="step-title">What is Lottie?</h2>
+          </div>
+          <p class="step-text">
+            <strong>Lottie</strong> is a JSON-based animation format originally created by
+            Airbnb in 2017. It describes vector animations as structured data — shapes,
+            transforms, keyframes, and easing curves — rather than rasterized pixels.
+          </p>
+          <p class="step-text">
+            A Lottie player reads this JSON data and renders the animation in real-time using
+            the device's graphics engine. The result is silky-smooth, resolution-independent
+            animation that looks perfect on any screen size.
+          </p>
+          <CodeBlock code={lottieJsonSnippet} label="Lottie JSON structure" />
+        </section>
+
+        <!-- Lottie JSON vs dotLottie -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h2 class="step-title">Lottie JSON vs dotLottie</h2>
+          </div>
+          <p class="step-text">
+            There are two file formats for Lottie animations:
+          </p>
+          <ul class="param-list">
+            <li>
+              <strong>Lottie JSON</strong> (<code class="inline-code">.json</code>) — the original format.
+              Human-readable, widely supported by animation tools and players. However, files can
+              be large for complex animations since JSON is verbose.
+            </li>
+            <li>
+              <strong>dotLottie</strong> (<code class="inline-code">.lottie</code>) — the modern compressed format.
+              A binary container that compresses the JSON data and bundles any embedded assets.
+              Significantly smaller file sizes while maintaining full fidelity.
+            </li>
+          </ul>
+          <Callout type="tip">
+            dotLottie files are typically <strong>up to 90% smaller</strong> than their Lottie JSON
+            equivalents. For web use, always prefer dotLottie — faster loading, less bandwidth,
+            same visual quality.
+          </Callout>
+        </section>
+
+        <!-- Advantages over GIF/video -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">3</span>
+            <h2 class="step-title">Why Lottie Beats GIF and Video</h2>
+          </div>
+          <p class="step-text">
+            Before Lottie, adding animations to websites meant choosing between GIFs
+            (large, low quality, no transparency) or video files (even larger, needs a
+            player). Lottie changes the equation entirely:
+          </p>
+          <ul class="param-list">
+            <li><strong>Tiny file size</strong> — a 10-second Lottie animation can be under 50KB, while an equivalent GIF might be 2MB+</li>
+            <li><strong>Resolution independent</strong> — vector-based rendering scales perfectly on any display, from mobile to 4K</li>
+            <li><strong>Transparency support</strong> — alpha channels work natively, unlike GIF's binary transparency</li>
+            <li><strong>Scriptable</strong> — control playback speed, direction, frame range, and interactivity via JavaScript</li>
+            <li><strong>No codec dependencies</strong> — renders using the browser's canvas or SVG, no video decoder needed</li>
+            <li><strong>Accessible</strong> — animations can be paused, slowed down, or disabled for accessibility preferences</li>
+          </ul>
+        </section>
+
+        <!-- Where Lottie is used -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">4</span>
+            <h2 class="step-title">Where Lottie is Used</h2>
+          </div>
+          <p class="step-text">
+            Lottie has been adopted across platforms and industries:
+          </p>
+          <ul class="param-list">
+            <li><strong>Web applications</strong> — loading spinners, onboarding flows, micro-interactions</li>
+            <li><strong>Mobile apps</strong> — iOS and Android have native Lottie players (lottie-ios, lottie-android)</li>
+            <li><strong>Product UI</strong> — animated icons, success/error states, empty states, progress indicators</li>
+            <li><strong>Marketing</strong> — animated hero sections, feature highlights, call-to-action elements</li>
+            <li><strong>Documentation</strong> — animated diagrams that explain architecture, data flows, and processes</li>
+            <li><strong>Presentations</strong> — embedded in web-based slide decks for dynamic visuals</li>
+          </ul>
+          <Callout type="info">
+            Companies like Google, Spotify, Airbnb, and Duolingo use Lottie animations
+            in production. The format has become an industry standard for lightweight
+            motion design.
+          </Callout>
+        </section>
+
+        <!-- Creating Lottie with Excalimate -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">5</span>
+            <h2 class="step-title">Creating Lottie Files with Excalimate</h2>
+          </div>
+          <p class="step-text">
+            Excalimate can export your animated diagrams directly as both <strong>Lottie
+            JSON</strong> and <strong>dotLottie</strong> files. This means you can:
+          </p>
+          <ul class="param-list">
+            <li>Design your diagram in the Excalidraw-powered editor</li>
+            <li>Add keyframe animations, easing, and camera movements</li>
+            <li>Export as dotLottie or Lottie JSON with one click</li>
+            <li>Embed the result anywhere — websites, apps, documentation</li>
+          </ul>
+          <p class="step-text">
+            No need for After Effects, Figma plugins, or complex animation toolchains.
+            Go from whiteboard sketch to production Lottie animation in minutes.
+          </p>
+        </section>
+
+        <!-- Embedding Lottie -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">6</span>
+            <h2 class="step-title">Embedding Lottie on the Web</h2>
+          </div>
+          <p class="step-text">
+            The easiest way to add a Lottie animation to a website is with the
+            <code class="inline-code">dotlottie-wc</code> web component:
+          </p>
+          <CodeBlock code={embedExample} label="HTML embed" />
+          <p class="step-text">
+            For React applications, use the official <code class="inline-code">@lottiefiles/dotlottie-react</code> package:
+          </p>
+          <CodeBlock code={reactExample} label="React component" />
+          <p class="step-text">
+            Both approaches support autoplay, looping, speed control, and event callbacks
+            for building interactive experiences around your animations.
+          </p>
+        </section>
+      </div>
+      <RelatedGuides current="/guides/what-are-lottie-files" />
+    </div>
+  </main>
+
+  <Footer />
+</PageLayout>
+
+<style>
+  .guide {
+    background: var(--bg);
+    padding: 40px 0 80px;
+  }
+
+  .guide-container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  @media (min-width: 640px) {
+    .guide-container {
+      padding: 0 32px;
+    }
+  }
+
+  /* ── Header ── */
+  .guide-header {
+    margin-bottom: 56px;
+  }
+
+  .guide-back {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s;
+  }
+
+  .guide-back:hover {
+    color: var(--tx);
+  }
+
+  .guide-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.1;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .guide-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 12px 0 0;
+    line-height: 1.5;
+  }
+
+  /* ── Steps ── */
+  .guide-body {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent-text);
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .step-text {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .step-text :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-text :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+  }
+
+  /* ── Inline code ── */
+  .inline-code {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+
+  /* ── Lists ── */
+  .param-list {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .param-list :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .param-list :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+</style>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'What are Lottie Files? Lightweight Web Animations',
+    description:
+      'Learn about Lottie files, the lightweight animation format for web and mobile. Understand dotLottie, Lottie JSON, and how to create them with Excalimate.',
+    author: {
+      '@type': 'Organization',
+      name: 'Excalimate',
+      url: 'https://excalimate.com',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Excalimate',
+      url: 'https://excalimate.com',
+    },
+  })}
+/>

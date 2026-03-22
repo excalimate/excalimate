@@ -9,19 +9,103 @@
  * - For linear elements (arrow, line): position = element origin (x, y),
  *   and points are drawn relative to that origin
  */
-import type { LottieAnimation, LottieLayer, LottieShapeLayer } from './types';
-import { staticMulti } from './types';
-import { elementToLottieShapes } from './svgToLottie';
+import type {
+  LottieAnimation,
+  LottieFill,
+  LottieFont,
+  LottieImageAsset,
+  LottieImageLayer,
+  LottieLayer,
+  LottieShapeLayer,
+} from './types';
+import { staticMulti, staticVal } from './types';
+import { elementToLottiePngImageAsset, elementToLottieShapes, renderElementToSvg } from './svgToLottie';
 import { groupTracksByProperty, buildTransform, buildTrimPath } from './keyframeConverter';
 import { buildGroupLayers } from './groupHierarchy';
 import { buildCameraLayer } from './cameraComposition';
+import { hexToLottie } from './colorUtils';
 import type { AnimatableTarget } from '../../../types/excalidraw';
 import type { AnimationTrack } from '../../../types/animation';
+import type { LottieFontEmbeddingMode } from '../types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExcalElement = Record<string, any>;
 
 const CAMERA_FRAME_ID = '__camera_frame__';
+const EXCALIDRAW_VIRGIL_FONT_URL = 'https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/prod/fonts/Virgil/Virgil-Regular.woff2';
+
+type TextFontMeta = {
+  fName: string;
+  fFamily: string;
+  fStyle?: string;
+  fClass?: string;
+  fWeight?: string;
+  unitsPerEm: number;
+  ascender: number;
+  descender: number;
+  defaultLineHeight: number;
+  fontPath?: string;
+};
+
+const EXCALIDRAW_TEXT_FONTS: Record<number, TextFontMeta> = {
+  // Excalimate uses Excalifont as the handwritten/default face.
+  1: { fName: 'Virgil Regular', fFamily: 'Virgil', fStyle: 'Regular', unitsPerEm: 1000, ascender: 886, descender: -374, defaultLineHeight: 1.25, fontPath: EXCALIDRAW_VIRGIL_FONT_URL },
+  2: { fName: 'Helvetica', fFamily: 'Helvetica', unitsPerEm: 2048, ascender: 1577, descender: -471, defaultLineHeight: 1.15 },
+  3: { fName: 'Cascadia', fFamily: 'Cascadia', unitsPerEm: 2048, ascender: 1900, descender: -480, defaultLineHeight: 1.2 },
+  5: { fName: 'Virgil Regular', fFamily: 'Virgil', fStyle: 'Regular', unitsPerEm: 1000, ascender: 886, descender: -374, defaultLineHeight: 1.25, fontPath: EXCALIDRAW_VIRGIL_FONT_URL },
+  6: { fName: 'Nunito', fFamily: 'Nunito', unitsPerEm: 1000, ascender: 1011, descender: -353, defaultLineHeight: 1.35 },
+  7: { fName: 'Lilita One', fFamily: 'Lilita One', unitsPerEm: 1000, ascender: 923, descender: -220, defaultLineHeight: 1.15 },
+  8: { fName: 'Comic Shanns', fFamily: 'Comic Shanns', unitsPerEm: 1000, ascender: 750, descender: -250, defaultLineHeight: 1.25 },
+  9: { fName: 'Liberation Sans', fFamily: 'Liberation Sans', unitsPerEm: 2048, ascender: 1854, descender: -434, defaultLineHeight: 1.15 },
+};
+
+const fontDataUriCache = new Map<string, string>();
+
+function resolveTextFont(fontFamily: number | undefined): TextFontMeta {
+  return EXCALIDRAW_TEXT_FONTS[fontFamily ?? -1] ?? EXCALIDRAW_TEXT_FONTS[5];
+}
+
+function toLottieTextJustify(textAlign: string | undefined): number {
+  if (textAlign === 'right') return 1;
+  if (textAlign === 'center') return 2;
+  return 0;
+}
+
+function estimateTextBox(el: ExcalElement, sx: number, sy: number): { width: number; height: number } {
+  const width = Math.max(1, Math.abs((el.width ?? 0) * sx));
+  const lineCount = typeof el.text === 'string' ? Math.max(1, el.text.split('\n').length) : 1;
+  const scaledFontSize = Math.max(1, (el.fontSize ?? 20) * ((sx + sy) / 2));
+  const lineHeightRatio = typeof el.lineHeight === 'number' ? el.lineHeight : 1.25;
+  const fallbackHeight = scaledFontSize * lineHeightRatio * lineCount;
+  const height = Math.max(1, Math.abs((el.height ?? fallbackHeight / Math.max(sy, 0.0001)) * sy));
+  return { width, height };
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+async function resolveFontPath(
+  font: TextFontMeta,
+  embedFontsAsDataUri: boolean,
+): Promise<{ fPath?: string; origin?: number }> {
+  if (!font.fontPath) return {};
+  if (!embedFontsAsDataUri) {
+    return { fPath: font.fontPath, origin: 3 };
+  }
+  const cached = fontDataUriCache.get(font.fontPath);
+  if (cached) return { fPath: cached, origin: 3 };
+  const response = await fetch(font.fontPath);
+  if (!response.ok) {
+    throw new Error(`Failed to load font for Lottie export: ${font.fontPath}`);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const dataUri = `data:font/woff2;base64,${bytesToBase64(bytes)}`;
+  fontDataUriCache.set(font.fontPath, dataUri);
+  return { fPath: dataUri, origin: 3 };
+}
 
 export interface LottieExportOptions {
   elements: ExcalElement[];
@@ -35,6 +119,8 @@ export interface LottieExportOptions {
   cameraFrame: { x: number; y: number; width: number; height: number };
   width: number;
   height: number;
+  embedFontsAsDataUri?: boolean;
+  fontEmbeddingModes?: LottieFontEmbeddingMode[];
 }
 
 /**
@@ -60,7 +146,20 @@ function getElementPosition(el: ExcalElement): { x: number; y: number } {
  * Generate a complete Lottie animation JSON from Excalimate data.
  */
 export async function generateLottie(options: LottieExportOptions): Promise<LottieAnimation> {
-  const { elements, targets, tracks, files, fps, clipStart, clipEnd, cameraFrame, width, height } = options;
+  const {
+    elements,
+    targets,
+    tracks,
+    files,
+    fps,
+    clipStart,
+    clipEnd,
+    cameraFrame,
+    width,
+    height,
+    embedFontsAsDataUri = false,
+    fontEmbeddingModes = ['inline'],
+  } = options;
 
   const durationMs = clipEnd - clipStart;
   const totalFrames = Math.ceil((durationMs / 1000) * fps);
@@ -75,6 +174,11 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
   const sy = height / cameraFrame.height;
   const camLeft = cameraFrame.x - cameraFrame.width / 2;
   const camTop = cameraFrame.y - cameraFrame.height / 2;
+  const effectiveFontEmbeddingModes = new Set<LottieFontEmbeddingMode>(
+    fontEmbeddingModes.length > 0 ? fontEmbeddingModes : ['inline'],
+  );
+  const includeInlineTextFonts = effectiveFontEmbeddingModes.has('inline');
+  const renderTextAsGlyphShapes = effectiveFontEmbeddingModes.has('glyphs');
 
   /** Convert scene coordinate to Lottie composition coordinate */
   function toComp(sceneX: number, sceneY: number): { x: number; y: number } {
@@ -84,7 +188,6 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
     };
   }
 
-
   // Build group null layers first
   const { groupLayers, parentMap } = buildGroupLayers(
     targets, tracks, fps, clipStart, ip, op,
@@ -93,6 +196,8 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
 
   // Convert each element to a Lottie layer
   const elementLayers: LottieLayer[] = [];
+  const imageAssets: LottieImageAsset[] = [];
+  const usedFonts = new Map<string, LottieFont>();
   let layerIdx = 1;
 
   for (const el of elements) {
@@ -125,32 +230,143 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
     };
 
     if (elType === 'text') {
-      // Render text through SVG exporter too — captures exact font rendering
-      const shapeGroup = await elementToLottieShapes(el, files, sx, sy);
-      const transform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart);
-      transform.a = staticMulti([0, 0, 0]);
+      const text = typeof el.originalText === 'string' ? el.originalText : (el.text ?? '');
+      const font = resolveTextFont(el.fontFamily);
+      const scaledFontSize = Math.max(1, (el.fontSize ?? 20) * ((sx + sy) / 2));
+      const textColor = hexToLottie(el.strokeColor ?? '#1e1e1e');
+      const textBox = estimateTextBox(el, sx, sy);
+      if (includeInlineTextFonts) {
+        const fontPath = await resolveFontPath(font, embedFontsAsDataUri);
+        usedFonts.set(font.fName, {
+          fName: font.fName,
+          fFamily: font.fFamily,
+          fStyle: font.fStyle ?? 'Regular',
+          ...(font.fClass ? { fClass: font.fClass } : {}),
+          ...(font.fWeight ? { fWeight: font.fWeight } : {}),
+          ...fontPath,
+        });
+      }
 
-      const shapeLayer: LottieShapeLayer = {
-        ty: 4,
+      if (!renderTextAsGlyphShapes) {
+        const transform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, {
+          width: textBox.width,
+          height: textBox.height,
+        });
+        transform.a = staticMulti([textBox.width / 2, textBox.height / 2, 0]);
+        const textColorRgb = textColor.slice(0, 3);
+
+        const textLayer: LottieLayer = {
+          ty: 5,
+          nm: target?.label ?? el.id,
+          ind: layerIdx,
+          ip,
+          op,
+          st: 0,
+          ks: transform,
+          t: {
+            a: [],
+            d: {
+              k: [{
+                s: {
+                  s: scaledFontSize,
+                  f: font.fName,
+                  t: text,
+                  j: toLottieTextJustify(el.textAlign),
+                  fc: textColorRgb,
+                  sc: textColorRgb,
+                  sw: 0,
+                },
+                t: 0,
+              }],
+            },
+            m: { a: staticMulti([0, 0]) },
+            p: {},
+          },
+        };
+
+        const parentIdx = parentMap.get(el.id);
+        if (parentIdx !== undefined) textLayer.parent = parentIdx;
+
+        elementLayers.push(textLayer);
+        layerIdx++;
+        continue;
+      }
+
+      const glyphSvg = await renderElementToSvg(el, files);
+      const glyphShapeGroup = await elementToLottieShapes(el, files, sx, sy, glyphSvg);
+      const hasGlyphPathData = glyphShapeGroup.it.some(item => item.ty === 'sh');
+      const hasGlyphPaintStyle = glyphShapeGroup.it.some(item => item.ty === 'fl' || item.ty === 'st');
+      if (hasGlyphPathData && !hasGlyphPaintStyle) {
+        glyphShapeGroup.it.splice(glyphShapeGroup.it.length - 1, 0, {
+          ty: 'fl',
+          nm: 'Glyph Fill',
+          c: staticMulti(textColor),
+          o: staticVal(100),
+          r: 1,
+        } as LottieFill);
+      }
+      if (hasGlyphPathData) {
+        const shapeTransform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, {
+          width: textBox.width,
+          height: textBox.height,
+        });
+        shapeTransform.a = staticMulti([0, 0, 0]);
+        const glyphShapeLayer: LottieShapeLayer = {
+          ty: 4,
+          nm: target?.label ?? el.id,
+          ind: layerIdx,
+          ip,
+          op,
+          st: 0,
+          ks: shapeTransform,
+          shapes: [glyphShapeGroup],
+        };
+
+        const parentIdx = parentMap.get(el.id);
+        if (parentIdx !== undefined) glyphShapeLayer.parent = parentIdx;
+
+        elementLayers.push(glyphShapeLayer);
+        layerIdx++;
+        continue;
+      }
+
+      const glyphAsset = await elementToLottiePngImageAsset(el, files, sx, sy, glyphSvg);
+      const glyphAssetId = `glyph-${el.id}`;
+      imageAssets.push({
+        id: glyphAssetId,
+        w: Math.max(1, Math.round(glyphAsset.width)),
+        h: Math.max(1, Math.round(glyphAsset.height)),
+        u: '',
+        p: glyphAsset.dataUri,
+        e: 1,
+      });
+
+      const imageTransform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, {
+        width: glyphAsset.width,
+        height: glyphAsset.height,
+      });
+      imageTransform.a = staticMulti([glyphAsset.width / 2, glyphAsset.height / 2, 0]);
+      const glyphImageLayer: LottieImageLayer = {
+        ty: 2,
         nm: target?.label ?? el.id,
         ind: layerIdx,
         ip,
         op,
         st: 0,
-        ks: transform,
-        shapes: [shapeGroup],
+        ks: imageTransform,
+        refId: glyphAssetId,
       };
 
       const parentIdx = parentMap.get(el.id);
-      if (parentIdx !== undefined) shapeLayer.parent = parentIdx;
+      if (parentIdx !== undefined) glyphImageLayer.parent = parentIdx;
 
-      elementLayers.push(shapeLayer);
+      elementLayers.push(glyphImageLayer);
       layerIdx++;
       continue;
     }
 
-    // Render element through Excalidraw's SVG exporter to capture exact visual
-    // (roughjs hand-drawn strokes, arrowheads, text rendering)
+    // Render element through Excalidraw's SVG exporter to capture exact visual.
+    // This also powers glyph mode for text by converting text outlines into shapes.
     const shapeGroup = await elementToLottieShapes(el, files, sx, sy);
 
     // Add trim path for drawProgress animation
@@ -159,7 +375,12 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
       shapeGroup.it.splice(shapeGroup.it.length - 1, 0, trimPath);
     }
 
-    const transform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart);
+    const shapeWidth = Math.max(1, Math.abs((el.width ?? 0) * sx));
+    const shapeHeight = Math.max(1, Math.abs((el.height ?? 0) * sy));
+    const transform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, {
+      width: shapeWidth,
+      height: shapeHeight,
+    });
 
     // Set anchor point to [0,0] — shapes are drawn relative to anchor
     transform.a = staticMulti([0, 0, 0]);
@@ -214,7 +435,8 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
     ip,
     op,
     layers: allLayers,
-    assets: [],
+    assets: imageAssets.length > 0 ? imageAssets : undefined,
+    fonts: usedFonts.size > 0 ? { list: [...usedFonts.values()] } : undefined,
     nm: 'Excalimate Animation',
   };
 

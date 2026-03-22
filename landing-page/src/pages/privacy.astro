@@ -1,0 +1,263 @@
+---
+import PageLayout from '../layouts/PageLayout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+
+const title = 'Privacy Policy — Excalimate';
+const description = 'Learn how Excalimate handles analytics, data collection, and your privacy. We use anonymous analytics only with your consent.';
+const siteUrl = 'https://excalimate.com';
+---
+
+<PageLayout title={title} description={description} path="/privacy">
+  <Nav />
+
+  <main id="main" class="guide">
+    <div class="guide-container">
+      <header class="guide-header">
+        <a href="/" class="guide-back">← Back to home</a>
+        <h1 class="guide-title">Privacy Policy</h1>
+        <p class="guide-subtitle">How Excalimate handles your data</p>
+      </header>
+
+      <div class="guide-body">
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h2 class="step-title">What We Collect</h2>
+          </div>
+          <p class="step-text">
+            When you consent to analytics, we collect <strong>anonymous page-view data</strong> — which
+            pages are visited, how long visitors stay, and general usage patterns. We do <strong>not</strong>
+            collect any personally identifiable information (PII) such as names, email addresses, IP
+            addresses, or device fingerprints.
+          </p>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h2 class="step-title">Analytics Provider</h2>
+          </div>
+          <p class="step-text">
+            We use <a href="https://posthog.com" target="_blank" rel="noopener">PostHog</a>, an
+            open-source product analytics platform, to process anonymous usage data. PostHog is
+            configured with <code>autocapture</code> disabled and <code>person_profiles</code> set to
+            <code>identified_only</code> — meaning no individual user profiles are created for
+            anonymous visitors.
+          </p>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">3</span>
+            <h2 class="step-title">Your Consent</h2>
+          </div>
+          <p class="step-text">
+            Analytics scripts are <strong>never loaded</strong> unless you explicitly click
+            "Accept" on the consent banner. Your choice is stored in your browser's
+            <code>localStorage</code> under the key <code>excalimate-consent</code>. No cookies are
+            set by Excalimate.
+          </p>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">4</span>
+            <h2 class="step-title">How to Opt Out</h2>
+          </div>
+          <p class="step-text">
+            You can opt out of analytics at any time by clearing your browser's localStorage for this
+            site. Open your browser's developer tools, go to the <strong>Application</strong> (or
+            <strong>Storage</strong>) tab, find <code>localStorage</code> for
+            <code>excalimate.com</code>, and delete the <code>excalimate-consent</code> key. On your
+            next visit, the consent banner will appear again and you can click "Decline".
+          </p>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">5</span>
+            <h2 class="step-title">Third-Party Sharing</h2>
+          </div>
+          <p class="step-text">
+            We do <strong>not</strong> sell, rent, or share any data with third parties. Anonymous
+            analytics data is used solely to understand site usage and improve Excalimate.
+          </p>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">6</span>
+            <h2 class="step-title">The Excalimate Application</h2>
+          </div>
+          <p class="step-text">
+            The Excalimate application itself runs entirely in your browser. Your diagrams,
+            animations, and project data never leave your device unless you explicitly use the
+            share feature, which uses end-to-end encryption. This privacy policy applies only to
+            the <a href="https://excalimate.com">excalimate.com</a> marketing site.
+          </p>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">7</span>
+            <h2 class="step-title">Contact</h2>
+          </div>
+          <p class="step-text">
+            If you have questions about this privacy policy, please
+            <a href="https://github.com/excalimate/excalimate/discussions" target="_blank" rel="noopener">
+            open a discussion on GitHub</a>.
+          </p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Privacy Policy",
+    "description": description,
+    "url": `${siteUrl}/privacy`,
+    "inLanguage": "en",
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "Excalimate",
+      "url": siteUrl
+    }
+  })} />
+</PageLayout>
+
+<style>
+  .guide {
+    padding: 120px 0 80px;
+  }
+
+  .guide-container {
+    max-width: 860px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+
+  @media (min-width: 640px) {
+    .guide-container { padding-inline: 32px; }
+  }
+
+  @media (min-width: 1024px) {
+    .guide-container { padding-inline: 48px; }
+  }
+
+  .guide-header {
+    margin-bottom: 48px;
+  }
+
+  .guide-back {
+    display: inline-block;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    margin-bottom: 20px;
+    transition: color 0.2s ease;
+  }
+
+  .guide-back:hover {
+    color: var(--tx);
+  }
+
+  .guide-title {
+    font-family: var(--f-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    color: var(--tx);
+    line-height: 1.1;
+    margin: 0 0 12px;
+  }
+
+  .guide-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .guide-body {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 14px;
+    border: var(--border-w) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-family: var(--f-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .step-text {
+    font-family: var(--f-body);
+    font-size: 1rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .step-text a {
+    color: var(--p4);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 500;
+  }
+
+  .step-text a:hover {
+    color: var(--tx);
+  }
+
+  .step-text code {
+    font-size: 0.9em;
+    background: var(--bg-alt);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    color: var(--tx);
+  }
+
+  .step-text strong {
+    color: var(--tx);
+    font-weight: 600;
+  }
+</style>

@@ -13,6 +13,7 @@ import {
 import { extractTargets } from '../Canvas/extractTargets';
 import { computeFrameAtTime } from '../../core/engine/playbackSingleton';
 import { useUIStore } from '../../stores/uiStore';
+import { trackNewProject, trackSaveProject, trackLoadProject, trackImport } from '../../services/analytics/posthog';
 
 function resetTimeline() {
   useAnimationStore.getState().setTimeline({
@@ -41,6 +42,7 @@ export function useFileOperations() {
     useProjectStore.getState().setTargets([]);
     useProjectStore.getState().setCameraAspectRatio(aspectRatio);
     resetTimeline();
+    trackNewProject(aspectRatio);
   };
 
   const handleSave= async () => {
@@ -62,6 +64,7 @@ export function useFileOperations() {
         updatedAt: new Date().toISOString(),
       });
       useProjectStore.getState().markClean();
+      trackSaveProject();
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       window.alert(`Failed to save: ${e instanceof Error ? e.message : 'Unknown error'}`);
@@ -71,11 +74,13 @@ export function useFileOperations() {
   const handleImportFile = async (file: File) => {
     const scene = await parseExcalidrawFileBlob(file);
     importScene('Imported Animation', scene);
+    trackImport('file');
   };
 
   const handleImportUrl = async (url: string) => {
     const scene = await importFromUrl(url);
     importScene('Imported from URL', scene);
+    trackImport('url');
   };
 
   /** Load a .excanim project file (from drag & drop) */
@@ -93,6 +98,7 @@ export function useFileOperations() {
     }
     useUIStore.getState().setMode('animate');
     computeFrameAtTime(0);
+    trackLoadProject('file');
   };
 
   /** Load an MCP checkpoint file (from drag & drop) */
@@ -112,6 +118,7 @@ export function useFileOperations() {
     useAnimationStore.getState().setClipRange(checkpoint.clipStart, checkpoint.clipEnd);
     useUIStore.getState().setMode('animate');
     computeFrameAtTime(0);
+    trackLoadProject('checkpoint');
   };
 
   /** Load from an E2E encrypted share URL */
@@ -127,6 +134,7 @@ export function useFileOperations() {
     }
     useUIStore.getState().setMode('animate');
     computeFrameAtTime(0);
+    trackLoadProject('share_url');
   };
 
   return {

@@ -1,0 +1,44 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- Excalidraw-style keyframe animation timeline icon -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <!-- Main timeline bar -->
+    <path d="M12 62 C16 60, 40 61, 60 62 C80 63, 100 61, 108 62"
+      stroke="#1e1e1e" stroke-width="2.5" fill="none"/>
+    <!-- Track line 1 (top) -->
+    <path d="M12 38 C24 37, 56 39, 80 38 C96 37, 104 38, 108 38"
+      stroke="#1e1e1e" stroke-width="1.5" fill="none" opacity="0.25"/>
+    <!-- Track bar on track 1 -->
+    <path d="M28 32 C30 30, 52 31, 62 32 C64 34, 63 40, 62 42 C60 44, 36 43, 30 42 C28 40, 27 34, 28 32"
+      fill="#f08c00" opacity="0.35" stroke="#1e1e1e" stroke-width="1.5"/>
+    <!-- Track line 2 (bottom) -->
+    <path d="M12 86 C24 87, 56 85, 80 86 C96 87, 104 86, 108 86"
+      stroke="#1e1e1e" stroke-width="1.5" fill="none" opacity="0.25"/>
+    <!-- Track bar on track 2 -->
+    <path d="M50 80 C52 78, 74 79, 86 80 C88 82, 87 86, 86 88 C84 90, 56 89, 52 88 C50 86, 49 82, 50 80"
+      fill="#d0bfff" opacity="0.35" stroke="#1e1e1e" stroke-width="1.5"/>
+    <!-- Diamond keyframe 1 -->
+    <g transform="translate(32 58)">
+      <path d="M0 -9 C2 -10, 4 -9, 9 0 C10 2, 9 4, 0 9 C-2 10, -4 9, -9 0 C-10 -2, -9 -4, 0 -9"
+        fill="#f08c00" stroke="#1e1e1e" stroke-width="2"/>
+    </g>
+    <!-- Diamond keyframe 2 -->
+    <g transform="translate(60 58)">
+      <path d="M0 -9 C1.5 -10, 3.5 -9.5, 9 0 C10 1.5, 9.5 3.5, 0 9 C-1.5 10, -3.5 9.5, -9 0 C-10 -1.5, -9.5 -3.5, 0 -9"
+        fill="#ff6b6b" stroke="#1e1e1e" stroke-width="2"/>
+    </g>
+    <!-- Diamond keyframe 3 -->
+    <g transform="translate(86 58)">
+      <path d="M0 -9 C2 -10.5, 4 -9, 9 0 C10.5 2, 9 4, 0 9 C-2 10.5, -4 9, -9 0 C-10.5 -2, -9 -4, 0 -9"
+        fill="#d0bfff" stroke="#1e1e1e" stroke-width="2"/>
+    </g>
+    <!-- Playhead -->
+    <path d="M60 24 C58 22, 54 22, 52 24 C54 28, 58 30, 60 32 C62 30, 66 28, 68 24 C66 22, 62 22, 60 24"
+      fill="#ffa8a8" stroke="#1e1e1e" stroke-width="1.5"/>
+    <path d="M60 32 L60 96" stroke="#1e1e1e" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.5"/>
+    <!-- Tick marks -->
+    <path d="M32 56 L32 52" stroke="#1e1e1e" stroke-width="1.5" opacity="0.35"/>
+    <path d="M86 56 L86 52" stroke="#1e1e1e" stroke-width="1.5" opacity="0.35"/>
+  </g>
+</svg>

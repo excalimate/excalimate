@@ -1,0 +1,62 @@
+---
+import '../styles/global.css';
+import CookieConsent from '../components/CookieConsent.astro';
+import PostHog from '../components/PostHog.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  path?: string;
+}
+const {
+  title,
+  description,
+  path = '',
+} = Astro.props;
+
+const siteUrl = 'https://excalimate.com';
+const canonicalUrl = `${siteUrl}${path}`;
+const ogImage = `${siteUrl}/og-image.png`;
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>{title}</title>
+  <meta name="description" content={description}/>
+  <meta name="robots" content="index, follow"/>
+  <link rel="canonical" href={canonicalUrl}/>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article"/>
+  <meta property="og:url" content={canonicalUrl}/>
+  <meta property="og:title" content={title}/>
+  <meta property="og:description" content={description}/>
+  <meta property="og:image" content={ogImage}/>
+  <meta property="og:image:width" content="1200"/>
+  <meta property="og:image:height" content="630"/>
+  <meta property="og:site_name" content="Excalimate"/>
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content={title}/>
+  <meta name="twitter:description" content={description}/>
+  <meta name="twitter:image" content={ogImage}/>
+
+  <!-- Analytics (consent-gated) -->
+  <PostHog />
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div class="grain" aria-hidden="true"></div>
+  <slot/>
+  <CookieConsent />
+  <script>
+    if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+      posthog.capture('guide_viewed', { path: window.location.pathname });
+    }
+  </script>
+</body>
+</html>

@@ -22,6 +22,8 @@ export interface LottieAnimation {
   layers: LottieLayer[];
   /** Assets (precomps, images) */
   assets?: LottieAsset[];
+  /** Font definitions used by text layers */
+  fonts?: LottieFontList;
   /** Name */
   nm?: string;
 }
@@ -36,7 +38,42 @@ export interface LottiePrecompAsset {
   nm?: string;
 }
 
-export type LottieAsset = LottiePrecompAsset;
+export interface LottieImageAsset {
+  id: string;
+  w: number;
+  h: number;
+  /** Base path (empty when p is a data URI) */
+  u: string;
+  /** Filename or data URI */
+  p: string;
+  /** Embedded flag */
+  e: 1;
+}
+
+export type LottieAsset = LottiePrecompAsset | LottieImageAsset;
+
+export interface LottieFont {
+  /** Internal font name referenced by text styles */
+  fName: string;
+  /** Human-readable font family */
+  fFamily: string;
+  /** Font style (e.g. Regular, Bold) */
+  fStyle: string;
+  /** Optional CSS class name for this font */
+  fClass?: string;
+  /** Optional font weight */
+  fWeight?: string;
+  /** Font ascent metric */
+  ascent?: number;
+  /** Optional font source path or data URI */
+  fPath?: string;
+  /** Optional origin flag used by some players (0=local, 1=css URL, 3=font URL/data URI) */
+  origin?: number;
+}
+
+export interface LottieFontList {
+  list: LottieFont[];
+}
 
 // ── Layers ────────────────────────────────────────────────────
 
@@ -65,6 +102,12 @@ export interface LottieShapeLayer extends LottieLayerBase {
   shapes: LottieShapeItem[];
 }
 
+/** Image layer (ty: 2) */
+export interface LottieImageLayer extends LottieLayerBase {
+  ty: 2;
+  refId: string;
+}
+
 /** Text layer (ty: 5) */
 export interface LottieTextLayer extends LottieLayerBase {
   ty: 5;
@@ -84,7 +127,12 @@ export interface LottiePrecompLayer extends LottieLayerBase {
   h: number;
 }
 
-export type LottieLayer = LottieShapeLayer | LottieTextLayer | LottieNullLayer | LottiePrecompLayer;
+export type LottieLayer =
+  | LottieShapeLayer
+  | LottieImageLayer
+  | LottieTextLayer
+  | LottieNullLayer
+  | LottiePrecompLayer;
 
 // ── Transform ─────────────────────────────────────────────────
 
@@ -230,6 +278,8 @@ export type LottieShapeItem =
 // ── Text ──────────────────────────────────────────────────────
 
 export interface LottieTextData {
+  /** Text animator ranges (required by strict schema; empty when unused) */
+  a: Array<Record<string, unknown>>;
   d: {
     k: [{
       s: {
@@ -249,10 +299,18 @@ export interface LottieTextData {
         sw?: number;
         /** Line height */
         lh?: number;
+        /** Paragraph box position [x, y] */
+        ps?: [number, number];
+        /** Paragraph box size [width, height] */
+        sz?: [number, number];
       };
       t: number;
     }];
   };
+  /** Text alignment options (required by strict schema; empty when defaults are used) */
+  m: Record<string, unknown>;
+  /** Text follow-path options (required by strict schema; empty when unused) */
+  p: Record<string, unknown>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────

@@ -1,0 +1,32 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- Excalidraw-style whiteboard/canvas icon -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <!-- Canvas frame (slightly wobbly rectangle) -->
+    <path d="M16 22 C18 20, 42 19, 64 20 C86 21, 100 19, 104 22 C106 24, 105 48, 104 62 C103 76, 105 88, 104 92 C102 94, 80 95, 58 94 C36 93, 20 95, 16 92 C14 90, 15 68, 16 54 C17 40, 14 24, 16 22"
+      stroke="#1e1e1e" stroke-width="2.5" fill="#fff3bf" opacity="0.4"/>
+    <path d="M16 22 C18 20, 42 19, 64 20 C86 21, 100 19, 104 22 C106 24, 105 48, 104 62 C103 76, 105 88, 104 92 C102 94, 80 95, 58 94 C36 93, 20 95, 16 92 C14 90, 15 68, 16 54 C17 40, 14 24, 16 22"
+      stroke="#1e1e1e" stroke-width="2.5" fill="none"/>
+    <!-- Small rectangle shape inside -->
+    <path d="M32 42 C34 40, 48 41, 56 42 C58 44, 57 52, 56 56 C54 58, 40 57, 34 56 C32 54, 33 44, 32 42"
+      stroke="#1e1e1e" stroke-width="2" fill="#d0bfff" opacity="0.5"/>
+    <path d="M32 42 C34 40, 48 41, 56 42 C58 44, 57 52, 56 56 C54 58, 40 57, 34 56 C32 54, 33 44, 32 42"
+      stroke="#1e1e1e" stroke-width="2" fill="none"/>
+    <!-- Arrow connecting shapes -->
+    <path d="M58 50 C64 48, 70 50, 76 48" stroke="#1e1e1e" stroke-width="2" fill="none"/>
+    <path d="M72 44 L78 48 L72 52" stroke="#1e1e1e" stroke-width="2" fill="none"/>
+    <!-- Circle shape -->
+    <path d="M82 42 C88 38, 96 42, 96 50 C96 58, 88 62, 82 58 C76 54, 76 46, 82 42"
+      stroke="#1e1e1e" stroke-width="2" fill="#ffa8a8" opacity="0.4"/>
+    <path d="M82 42 C88 38, 96 42, 96 50 C96 58, 88 62, 82 58 C76 54, 76 46, 82 42"
+      stroke="#1e1e1e" stroke-width="2" fill="none"/>
+    <!-- Small dots/nodes -->
+    <circle cx="40" cy="74" r="3" fill="#1e1e1e" opacity="0.3"/>
+    <circle cx="60" cy="76" r="3" fill="#1e1e1e" opacity="0.3"/>
+    <circle cx="80" cy="73" r="3" fill="#1e1e1e" opacity="0.3"/>
+    <!-- Connecting line between dots -->
+    <path d="M43 74 C48 72, 54 76, 57 76" stroke="#1e1e1e" stroke-width="1.5" fill="none" opacity="0.3"/>
+    <path d="M63 76 C68 74, 74 73, 77 73" stroke="#1e1e1e" stroke-width="1.5" fill="none" opacity="0.3"/>
+  </g>
+</svg>

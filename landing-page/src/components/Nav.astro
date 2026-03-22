@@ -1,0 +1,423 @@
+---
+/**
+ * Nav.astro — Sticky glass-morphism navigation bar
+ * Uses CSS custom properties from global.css for theming.
+ */
+const links = [
+  { label: 'Features', href: '#features' },
+  { label: 'How It Works', href: '#how-it-works' },
+  { label: 'Open Source', href: '#open-source' },
+];
+---
+
+<nav class="nav" id="main-nav" aria-label="Main navigation">
+  <div class="nav-inner">
+    <!-- Logo -->
+    <a href="/" class="nav-logo" aria-label="Excalimate home">
+      <img src="/excalimate_logo.svg" alt="Excalimate" height="28" />
+    </a>
+
+    <!-- Desktop links -->
+    <ul class="nav-links" role="list">
+      {links.map((link) => (
+        <li>
+          <a href={link.href} class="nav-link">{link.label}</a>
+        </li>
+      ))}
+      <li>
+        <a
+          href="https://github.com/excalimate/excalimate"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub
+          <svg class="external-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M3.5 1.5H10.5V8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10.5 1.5L1.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </li>
+    </ul>
+
+    <!-- Right actions -->
+    <div class="nav-actions">
+      <!-- CTA button (desktop) -->
+      <a href="https://app.excalimate.com" class="nav-cta">
+        Open Excalimate
+      </a>
+
+      <!-- Hamburger (mobile) -->
+      <button
+        class="hamburger"
+        id="hamburger"
+        type="button"
+        aria-label="Open navigation menu"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+      >
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile overlay -->
+  <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
+    <div class="mobile-menu-inner">
+      <ul class="mobile-links" role="list">
+        {links.map((link) => (
+          <li>
+            <a href={link.href} class="mobile-link">{link.label}</a>
+          </li>
+        ))}
+        <li>
+          <a
+            href="https://github.com/excalimate/excalimate"
+            class="mobile-link"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub
+            <svg class="external-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M3.5 1.5H10.5V8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10.5 1.5L1.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </li>
+      </ul>
+      <a href="https://app.excalimate.com" class="mobile-cta btn btn-primary">
+        Open Excalimate
+      </a>
+    </div>
+  </div>
+</nav>
+
+<style>
+  /* ── Nav shell ──────────────────────────────────────────────────── */
+  .nav {
+    position: relative;
+    z-index: 100;
+    height: 64px;
+    width: 100%;
+    background: transparent;
+  }
+
+  .nav-inner {
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 20px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  @media (min-width: 640px) {
+    .nav-inner { padding-inline: 32px; }
+  }
+  @media (min-width: 1024px) {
+    .nav-inner { padding-inline: 48px; }
+  }
+
+  /* ── Logo ────────────────────────────────────────────────────────── */
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    text-decoration: none;
+  }
+
+  .nav-logo img {
+    height: 28px;
+    width: auto;
+  }
+
+  /* ── Desktop links ──────────────────────────────────────────────── */
+  .nav-links {
+    display: none;
+    align-items: center;
+    gap: 8px;
+  }
+
+  @media (min-width: 1024px) {
+    .nav-links { display: flex; }
+  }
+
+  .nav-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    font-family: var(--f-body);
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--tx2);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: color 0.2s ease;
+  }
+
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 2px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .nav-link:hover {
+    color: var(--tx);
+  }
+
+  .nav-link:hover::after {
+    transform: scaleX(1);
+  }
+
+  .external-icon {
+    display: inline-block;
+    margin-left: 2px;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+  }
+
+  .nav-link:hover .external-icon {
+    opacity: 1;
+  }
+
+  /* ── Right actions ──────────────────────────────────────────────── */
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── CTA button ─────────────────────────────────────────────────── */
+  .nav-cta {
+    display: none;
+    align-items: center;
+    padding: 8px 20px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--accent-text);
+    border: var(--border-w) solid var(--border-c);
+    font-family: var(--f-body);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    box-shadow: 3px 3px 0 var(--border-c);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .nav-cta:hover {
+    box-shadow: 4px 4px 0 var(--border-c);
+    transform: translate(-1px, -1px);
+  }
+  .nav-cta:active {
+    box-shadow: none;
+    transform: translate(2px, 2px);
+  }
+
+  @media (min-width: 1024px) {
+    .nav-cta { display: inline-flex; }
+  }
+
+  /* ── Hamburger ──────────────────────────────────────────────────── */
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    padding: 0;
+    color: var(--tx2);
+    transition: color 0.2s ease, background 0.2s ease;
+  }
+
+  .hamburger:hover {
+    color: var(--tx);
+    background: var(--surface-hover);
+  }
+
+  @media (min-width: 1024px) {
+    .hamburger { display: none; }
+  }
+
+  .hamburger-line {
+    display: block;
+    width: 18px;
+    height: 2px;
+    background: currentColor;
+    border-radius: 1px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+  }
+
+  .hamburger.open .hamburger-line:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+
+  .hamburger.open .hamburger-line:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  .hamburger.open .hamburger-line:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  /* ── Mobile overlay ─────────────────────────────────────────────── */
+  .mobile-menu {
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+    background: var(--bg);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-menu.open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .mobile-menu-inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: 80px 32px 48px;
+    transform: translateX(60px);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .mobile-menu.open .mobile-menu-inner {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .mobile-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 40px;
+  }
+
+  .mobile-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 4px;
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 28px;
+    color: var(--tx2);
+    text-decoration: none;
+    border-bottom: var(--border-w-sm) solid var(--border-c);
+    transition: color 0.2s ease;
+  }
+
+  .mobile-link:hover {
+    color: var(--tx);
+  }
+
+  .mobile-cta {
+    align-self: stretch;
+    text-align: center;
+    text-decoration: none;
+  }
+</style>
+
+<script>
+  function initNav() {
+    const hamburger = document.getElementById('hamburger');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    if (!hamburger || !mobileMenu) return;
+
+    // ── Mobile menu ───────────────────────────────────────────────
+    function openMenu() {
+      hamburger.classList.add('open');
+      hamburger.setAttribute('aria-expanded', 'true');
+      hamburger.setAttribute('aria-label', 'Close navigation menu');
+      mobileMenu.classList.add('open');
+      mobileMenu.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeMenu() {
+      hamburger.classList.remove('open');
+      hamburger.setAttribute('aria-expanded', 'false');
+      hamburger.setAttribute('aria-label', 'Open navigation menu');
+      mobileMenu.classList.remove('open');
+      mobileMenu.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    hamburger.addEventListener('click', () => {
+      const isOpen = hamburger.classList.contains('open');
+      isOpen ? closeMenu() : openMenu();
+    });
+
+    // Close on link click
+    mobileMenu.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', closeMenu);
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && hamburger.classList.contains('open')) {
+        closeMenu();
+        hamburger.focus();
+      }
+    });
+
+    // ── Close mobile menu on resize to desktop ────────────────────
+    const mq = window.matchMedia('(min-width: 1024px)');
+    mq.addEventListener('change', (e) => {
+      if (e.matches) closeMenu();
+    });
+  }
+
+  // Run on initial load and after Astro view transitions
+  initNav();
+  document.addEventListener('astro:after-swap', initNav);
+
+  // PostHog: track nav CTA click
+  document.querySelector('.nav-cta')?.addEventListener('click', () => {
+    if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+      posthog.capture('cta_clicked', { button_text: 'Open Excalimate', location: 'nav' });
+    }
+  });
+
+  // PostHog: track nav link clicks
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      const text = link.textContent?.trim() || '';
+      if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+        posthog.capture('nav_clicked', { link_text: text });
+      }
+    });
+  });
+</script>

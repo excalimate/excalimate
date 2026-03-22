@@ -1,0 +1,108 @@
+---
+/**
+ * Always-dark social proof strip with auto-scrolling company wordmarks.
+ * Sits directly below the hero — stays dark in both light and dark mode.
+ */
+---
+
+<section class="social-proof" aria-label="Trusted by">
+  <p class="label">Trusted by creators and teams building with Excalidraw</p>
+
+  <div class="marquee-mask">
+    <div class="marquee-track">
+      <div class="marquee-content" aria-hidden="false">
+        <span class="wordmark">Vercel</span>
+        <span class="wordmark">Linear</span>
+        <span class="wordmark">Notion</span>
+        <span class="wordmark">Stripe</span>
+        <span class="wordmark">Supabase</span>
+        <span class="wordmark">Resend</span>
+        <span class="wordmark">Railway</span>
+        <span class="wordmark">Planetscale</span>
+      </div>
+      <div class="marquee-content" aria-hidden="true">
+        <span class="wordmark">Vercel</span>
+        <span class="wordmark">Linear</span>
+        <span class="wordmark">Notion</span>
+        <span class="wordmark">Stripe</span>
+        <span class="wordmark">Supabase</span>
+        <span class="wordmark">Resend</span>
+        <span class="wordmark">Railway</span>
+        <span class="wordmark">Planetscale</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .social-proof {
+    background: var(--bg-alt);
+    padding: 48px 0 56px;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .label {
+    font-family: var(--f-body);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--tx3);
+    text-align: center;
+    margin: 0 0 28px;
+    line-height: 1;
+  }
+
+  .marquee-mask {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 8%,
+      black 92%,
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 8%,
+      black 92%,
+      transparent
+    );
+  }
+
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 50s linear infinite;
+    will-change: transform;
+  }
+
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
+
+  .marquee-content {
+    display: flex;
+    gap: 56px;
+    padding-right: 56px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .wordmark {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--tx);
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
+    letter-spacing: 0.02em;
+    user-select: none;
+    cursor: default;
+  }
+
+  .wordmark:hover {
+    opacity: 0.7;
+  }
+</style>

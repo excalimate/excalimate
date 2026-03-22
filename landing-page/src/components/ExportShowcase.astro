@@ -1,0 +1,165 @@
+---
+/**
+ * ExportShowcase — Export formats showcase grid.
+ * Displays supported export formats with colored cards and a hand-drawn annotation.
+ */
+
+const formats = [
+  { name: 'MP4', type: 'Video', detail: 'Universal video format', color: 'var(--accent)' },
+  { name: 'WebM', type: 'Video', detail: 'Web-optimized video', color: 'var(--accent-light)' },
+  { name: 'GIF', type: 'Image', detail: 'Animated GIF', color: 'var(--green)' },
+  { name: 'SVG', type: 'Vector', detail: 'Animated SVG', color: 'var(--violet)' },
+  {
+    name: 'dotLottie',
+    type: 'Animation',
+    detail: 'Up to 90% smaller than GIF',
+    color: 'var(--accent)',
+  },
+  {
+    name: 'Lottie JSON',
+    type: 'Animation',
+    detail: 'Industry-standard format',
+    color: 'var(--accent-light)',
+  },
+  { name: 'PNG', type: 'Image', detail: 'Frame export', color: 'var(--green)' },
+  { name: 'WebP', type: 'Image', detail: 'Next-gen format', color: 'var(--violet)' },
+];
+---
+
+<section id="export" class="section-light-alt export-showcase">
+  <div class="container">
+    <header class="es-header reveal">
+      <h2 class="es-title">Export in any format you need</h2>
+      <p class="es-subtitle">From vector to video — pick the perfect format for your use case.</p>
+    </header>
+
+    <div class="es-grid stagger">
+      {
+        formats.map((fmt) => (
+          <article class="es-card reveal">
+            <span class="es-name" style={`color: ${fmt.color}`}>
+              {fmt.name}
+            </span>
+            <span class="es-type" style={`color: ${fmt.color}`}>
+              {fmt.type}
+            </span>
+            <span class="es-detail">{fmt.detail}</span>
+          </article>
+        ))
+      }
+    </div>
+
+    <p class="es-annotation">tiny file sizes!</p>
+  </div>
+</section>
+
+<style>
+  /* ── Section ──────────────────────────────────────────────── */
+  .export-showcase {
+    padding: 120px 0;
+    background: var(--bg-alt);
+    color: var(--tx);
+  }
+
+  /* ── Header ───────────────────────────────────────────────── */
+  .es-header {
+    text-align: center;
+    margin-bottom: 72px;
+  }
+
+  .es-title {
+    font-family: var(--f-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    color: var(--tx);
+  }
+
+  .es-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    line-height: 1.65;
+    margin-top: 16px;
+    max-width: 520px;
+    margin-inline: auto;
+  }
+
+  /* ── Grid ──────────────────────────────────────────────────── */
+  .es-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  @media (min-width: 640px) {
+    .es-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .es-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* ── Card ──────────────────────────────────────────────────── */
+  .es-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: var(--card-bg);
+    border: var(--border-w-sm) solid var(--border-c);
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: var(--shadow-card);
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .es-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hover);
+  }
+  .es-card:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
+
+  .es-name {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  .es-type {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 6px;
+  }
+
+  .es-detail {
+    font-family: var(--f-body);
+    font-size: 13px;
+    color: var(--tx2);
+    line-height: 1.5;
+    margin-top: 10px;
+  }
+
+  /* ── Hand-drawn annotation ─────────────────────────────────── */
+  .es-annotation {
+    font-family: var(--f-sketch);
+    font-size: 22px;
+    color: var(--p4);
+    text-align: center;
+    margin-top: 32px;
+    transform: rotate(-3deg);
+  }
+</style>

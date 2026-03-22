@@ -29,7 +29,7 @@ function getCameraRect(
 
 /** Export as Lottie JSON (.json) */
 export async function exportLottieJSON(options: ExportOptions): Promise<void> {
-  const { fps = 30, onProgress } = options;
+  const { fps = 30, onProgress, lottieFontEmbeddingModes = ['inline'] } = options;
   onProgress?.(0.1);
 
   const project = useProjectStore.getState().project;
@@ -57,6 +57,8 @@ export async function exportLottieJSON(options: ExportOptions): Promise<void> {
     cameraFrame: camRect,
     width: res.width,
     height: res.height,
+    embedFontsAsDataUri: false,
+    fontEmbeddingModes: lottieFontEmbeddingModes,
   });
   onProgress?.(0.8);
 
@@ -68,7 +70,7 @@ export async function exportLottieJSON(options: ExportOptions): Promise<void> {
 
 /** Export as dotLottie (.lottie) */
 export async function exportDotLottie(options: ExportOptions): Promise<void> {
-  const { fps = 30, onProgress } = options;
+  const { fps = 30, onProgress, lottieFontEmbeddingModes = ['inline'] } = options;
   onProgress?.(0.1);
 
   const project = useProjectStore.getState().project;
@@ -96,6 +98,8 @@ export async function exportDotLottie(options: ExportOptions): Promise<void> {
     cameraFrame: camRect,
     width: res.width,
     height: res.height,
+    embedFontsAsDataUri: false,
+    fontEmbeddingModes: lottieFontEmbeddingModes,
   });
   onProgress?.(0.5);
 

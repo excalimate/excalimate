@@ -12,6 +12,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { useUIStore } from '../stores/uiStore';
 import { extractTargets } from '../components/Canvas/extractTargets';
 import { computeFrameAtTime } from '../core/engine/playbackSingleton';
+import { trackMcpAction } from '../services/analytics/posthog';
 
 const STORAGE_KEY = 'excalimate-mcp-url';
 
@@ -151,6 +152,7 @@ export function useMcpLive() {
         reconnectAttemptRef.current = 0;
         setStatus('connected');
         useUIStore.getState().setLiveMode(true);
+        trackMcpAction('connect');
 
         // Re-sync full state on every (re)connect to recover from missed SSE messages
         syncState(url);
@@ -221,6 +223,7 @@ export function useMcpLive() {
     reconnectAttemptRef.current = 0;
     useUIStore.getState().setLiveMode(false);
     setStatus('disconnected');
+    trackMcpAction('disconnect');
     if (import.meta.env.DEV) console.log('[MCP Live] Disconnected');
   }, []);
 

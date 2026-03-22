@@ -1,0 +1,18 @@
+{
+  "name": "excalimate-landing",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "astro build && wrangler versions upload"
+  },
+  "dependencies": {
+    "astro": "^5.7.10"
+  },
+  "devDependencies": {
+    "wrangler": "^4.76.0"
+  }
+}

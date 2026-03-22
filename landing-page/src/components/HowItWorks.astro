@@ -1,0 +1,182 @@
+---
+const steps = [
+  {
+    num: '1',
+    title: 'Draw your diagram',
+    desc: 'Use the full Excalidraw editor to sketch your diagram, flowchart, or wireframe.',
+    color: 'var(--p2)',
+  },
+  {
+    num: '2',
+    title: 'Set keyframes',
+    desc: 'Add animation keyframes — opacity, position, scale, rotation, and draw progress.',
+    color: 'var(--p3)',
+  },
+  {
+    num: '3',
+    title: 'Export & share',
+    desc: 'Export as MP4, WebM, GIF, animated SVG, or dotLottie. Share with encrypted links.',
+    color: 'var(--p5)',
+  },
+];
+---
+
+<section id="how-it-works" class="hiw">
+  <div class="container">
+    <header class="hiw-header reveal">
+      <h2 class="hiw-title">Three steps to animated diagrams</h2>
+      <p class="hiw-subtitle">From sketch to screen in under a minute.</p>
+    </header>
+
+    <div class="hiw-grid stagger">
+      {
+        steps.map((step, i) => (
+          <div class="hiw-card reveal">
+            <div class="hiw-num" style={`background: ${step.color}`}>
+              <span>{step.num}</span>
+            </div>
+            <div class="hiw-card-body">
+              <h3 class="hiw-card-title">{step.title}</h3>
+              <p class="hiw-card-desc">{step.desc}</p>
+            </div>
+            {i < steps.length - 1 && (
+              <svg
+                class="hiw-arrow"
+                width="32"
+                height="32"
+                viewBox="0 0 32 32"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 16 C12 14, 18 14, 22 16"
+                  stroke="var(--border-c)"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  fill="none"
+                />
+                <path
+                  d="M19 11 L24 16 L19 21"
+                  stroke="var(--border-c)"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  fill="none"
+                />
+              </svg>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .hiw {
+    padding: 120px 0;
+    background: var(--bg);
+  }
+
+  .hiw-header {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .hiw-title {
+    font-family: var(--f-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.15;
+  }
+
+  .hiw-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 16px 0 0;
+  }
+
+  .hiw-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  @media (min-width: 1024px) {
+    .hiw-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+  }
+
+  .hiw-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 28px 24px;
+    gap: 16px;
+  }
+
+  .hiw-num {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    border: var(--border-w) solid var(--border-c);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 2px 0 var(--border-c);
+  }
+
+  .hiw-num span {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--accent-text);
+    line-height: 1;
+  }
+
+  .hiw-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .hiw-card-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--tx);
+    line-height: 1.3;
+  }
+
+  .hiw-card-desc {
+    font-family: var(--f-body);
+    font-weight: 400;
+    font-size: 0.9rem;
+    color: var(--tx2);
+    line-height: 1.55;
+  }
+
+  /* Arrow between cards — desktop only */
+  .hiw-arrow {
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .hiw-arrow {
+      display: block;
+      position: absolute;
+      right: -28px;
+      top: 38px;
+      z-index: 2;
+    }
+  }
+</style>

@@ -8,6 +8,7 @@ import {
   exportKeyToString,
   generateEncryptionKey,
 } from '../../services/encryption';
+import { trackShare } from '../../services/analytics/posthog';
 
 const SHARE_API_URL = import.meta.env.VITE_SHARE_API_URL ?? 'https://share.excalimate.com';
 
@@ -57,6 +58,7 @@ export function useShareOperations() {
 
       const shareUrl = `${window.location.origin}${window.location.pathname}#share=${id},${keyStr}`;
       await navigator.clipboard.writeText(shareUrl);
+      trackShare();
       notifications.show({
         title: 'Share link copied',
         message: 'E2E encrypted — the server only stores an encrypted blob it cannot read.',

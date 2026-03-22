@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { Button, Modal, Progress, Text, Group, Stack, Alert, Tabs, SegmentedControl } from '@mantine/core';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Button, Modal, Progress, Text, Group, Stack, Alert, Tabs, SegmentedControl, Checkbox } from '@mantine/core';
 import { nprogress } from '@mantine/nprogress';
 import { notifications } from '@mantine/notifications';
 import {
@@ -7,10 +7,13 @@ import {
   IconCamera, IconFileCode, IconPackage,
 } from '@tabler/icons-react';
 import { exportAnimation } from '../../services/ExportService';
-import type { ExportFormat, ExportQuality } from '../../services/ExportService';
+import type { ExportFormat, ExportQuality, LottieFontEmbeddingMode } from '../../services/ExportService';
+import type { NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { useAnimationStore } from '../../stores/animationStore';
-import { useProjectStore } from '../../stores/projectStore';
+import type { AnimatableTarget } from '../../types/excalidraw';
+import { CAMERA_FRAME_TARGET_ID, useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
+import { trackExport } from '../../services/analytics/posthog';
 
 // ── Video export ─────────────────────────────────────────────────
 
@@ -34,6 +37,8 @@ const QUALITY_INFO: Record<ExportQuality, { label: string; desc: string }> = {
 
 type ImageFormat = 'png' | 'jpg' | 'svg';
 type ImageSource = 'raw' | 'animated' | 'camera';
+type ImageScope = 'canvas' | 'selected';
+type ImageBackground = 'include' | 'transparent';
 type ImageScale = 1 | 2 | 3 | 4;
 
 const IMAGE_FORMATS: { value: ImageFormat; label: string }[] = [
@@ -49,6 +54,52 @@ const IMAGE_SCALES: { value: string; label: string }[] = [
   { value: '4', label: '4x' },
 ];
 
+type ExportableElement = NonDeletedExcalidrawElement;
+
+function resolveSelectedExportElements(
+  elements: readonly ExportableElement[],
+  selectedTargetIds: readonly string[],
+  targets: readonly AnimatableTarget[],
+): ExportableElement[] {
+  if (selectedTargetIds.length === 0) return [];
+
+  const targetById = new Map<string, AnimatableTarget>();
+  for (const t of targets) targetById.set(t.id, t);
+
+  const selectedElementIdSet = new Set<string>();
+  for (const id of selectedTargetIds) {
+    if (id === CAMERA_FRAME_TARGET_ID) continue;
+    const target = targetById.get(id);
+    if (target?.type === 'group') {
+      for (const eid of target.elementIds) selectedElementIdSet.add(eid);
+    } else {
+      selectedElementIdSet.add(id);
+    }
+  }
+
+  if (selectedElementIdSet.size === 0) return [];
+
+  // Include bound labels so exporting a labeled shape keeps its text.
+  const elementById = new Map(elements.map((el) => [el.id, el]));
+  for (const selectedId of Array.from(selectedElementIdSet)) {
+    const selectedEl = elementById.get(selectedId) as
+      | (ExportableElement & { boundElements?: readonly { id: string; type: string }[] })
+      | undefined;
+    for (const bound of selectedEl?.boundElements ?? []) {
+      if (bound.type === 'text') selectedElementIdSet.add(bound.id);
+    }
+  }
+  for (const el of elements) {
+    const containerId = (el as { containerId?: string | null }).containerId;
+    if (containerId && selectedElementIdSet.has(containerId)) {
+      selectedElementIdSet.add(el.id);
+    }
+  }
+
+  // Keep original z-order.
+  return elements.filter((el) => selectedElementIdSet.has(el.id));
+}
+
 // ── General settings ─────────────────────────────────────────────
 
 type ExportTheme = 'light' | 'dark';
@@ -58,6 +109,8 @@ async function exportImage(
   imageFormat: ImageFormat,
   scale: ImageScale,
   exportTheme: ExportTheme,
+  scope: ImageScope,
+  background: ImageBackground,
 ): Promise<void> {
   const { getNonDeletedElements, exportToSvg } = await import('@excalidraw/excalidraw');
   const { applyAnimationToElements } = await import('../../core/engine/renderUtils');
@@ -66,20 +119,31 @@ async function exportImage(
   const project = useProjectStore.getState().project;
   if (!project?.scene) throw new Error('No scene to export');
 
-  const rawElements = getNonDeletedElements(project.scene.elements);
+  const rawElements = getNonDeletedElements(project.scene.elements) as ExportableElement[];
   const targets = useProjectStore.getState().targets;
+  const selectedTargetIds = useUIStore.getState().selectedElementIds;
   const frameState = (await import('../../stores/playbackStore')).usePlaybackStore.getState().frameState;
   const files = project.scene.files ?? {};
 
   // Choose elements based on source
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let elements: any[] = [...rawElements];
+  const effectiveScope: ImageScope = source === 'camera' ? 'canvas' : scope;
+  let elements = [...rawElements];
+
+  if (effectiveScope === 'selected') {
+    const selectedElements = resolveSelectedExportElements(rawElements, selectedTargetIds, targets);
+    if (selectedElements.length === 0) {
+      throw new Error('Select one or more elements before exporting selected elements.');
+    }
+    elements = selectedElements;
+  }
+
   if (source === 'animated' || source === 'camera') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    elements = applyAnimationToElements([...rawElements] as any, frameState, targets);
+    elements = applyAnimationToElements(elements, frameState, targets) as ExportableElement[];
   }
 
   const isDark = exportTheme === 'dark';
+  const effectiveBackground: ImageBackground = imageFormat === 'jpg' ? 'include' : background;
+  const includeBackground = effectiveBackground === 'include';
 
   // exportWithDarkMode applies a CSS invert filter to the ENTIRE SVG (including
   // background). So we pass the LIGHT-mode colors and let the filter invert them:
@@ -88,7 +152,7 @@ async function exportImage(
     elements,
     files,
     appState: {
-      exportBackground: true,
+      exportBackground: includeBackground,
       exportWithDarkMode: isDark,
       viewBackgroundColor: '#ffffff',
     },
@@ -158,8 +222,12 @@ async function exportImage(
   const img = new Image(outW, outH);
   await new Promise<void>((resolve, reject) => {
     img.onload = () => {
-      ctx.fillStyle = isDark ? '#121212' : '#ffffff';
-      ctx.fillRect(0, 0, outW, outH);
+      if (includeBackground) {
+        ctx.fillStyle = isDark ? '#121212' : '#ffffff';
+        ctx.fillRect(0, 0, outW, outH);
+      } else {
+        ctx.clearRect(0, 0, outW, outH);
+      }
       ctx.drawImage(img, 0, 0, outW, outH);
       URL.revokeObjectURL(url);
       resolve();
@@ -195,18 +263,22 @@ function downloadBlob(blob: Blob, filename: string) {
 
 export function ExportControls() {
   const mode = useUIStore((s) => s.mode);
+  const selectedElementIds = useUIStore((s) => s.selectedElementIds);
   const [showDialog, setShowDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<string | null>(null);
 
   // Video state
   const [format, setFormat] = useState<ExportFormat>('mp4');
   const [quality, setQuality] = useState<ExportQuality>('high');
+  const [lottieFontEmbeddingModes, setLottieFontEmbeddingModes] = useState<LottieFontEmbeddingMode[]>(['inline']);
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
 
   // Image state
   const [imageFormat, setImageFormat] = useState<ImageFormat>('png');
   const [imageSource, setImageSource] = useState<ImageSource>('raw');
+  const [imageScope, setImageScope] = useState<ImageScope>('canvas');
+  const [imageBackground, setImageBackground] = useState<ImageBackground>('include');
   const [imageScale, setImageScale] = useState<ImageScale>(2);
 
   // General
@@ -222,6 +294,8 @@ export function ExportControls() {
   };
 
   const handleVideoExport = async () => {
+    const isLottieFormat = format === 'lottie' || format === 'dotlottie';
+    trackExport(format);
     try {
       setExporting(true);
       setProgress(0);
@@ -230,6 +304,7 @@ export function ExportControls() {
         format,
         quality,
         theme: exportTheme,
+        lottieFontEmbeddingModes: isLottieFormat ? lottieFontEmbeddingModes : undefined,
         onProgress: (p) => {
           setProgress(p);
           nprogress.set(p * 100);
@@ -253,14 +328,18 @@ export function ExportControls() {
   };
 
   const handleImageExport = async () => {
+    const effectiveScope: ImageScope = imageSource === 'camera' ? 'canvas' : imageScope;
+    const effectiveBackground: ImageBackground = imageFormat === 'jpg' ? 'include' : imageBackground;
     try {
       setExporting(true);
       nprogress.start();
-      await exportImage(imageSource, imageFormat, imageScale, exportTheme);
+      await exportImage(imageSource, imageFormat, imageScale, exportTheme, effectiveScope, effectiveBackground);
       nprogress.complete();
+      const scopeLabel = effectiveScope === 'selected' ? 'selected elements' : 'whole canvas';
+      const backgroundLabel = effectiveBackground === 'transparent' ? 'transparent background' : 'with background';
       notifications.show({
         title: 'Image exported',
-        message: `${imageFormat.toUpperCase()} image at ${imageScale}x scale.`,
+        message: `${imageFormat.toUpperCase()} image (${scopeLabel}, ${backgroundLabel}) at ${imageScale}x scale.`,
         icon: <IconCheck size={16} />,
         color: 'green',
       });
@@ -274,6 +353,22 @@ export function ExportControls() {
   };
 
   const isAnimateMode = mode === 'animate';
+  const isLottieFormat = format === 'lottie' || format === 'dotlottie';
+  const hasLottieFontEmbeddingMode = lottieFontEmbeddingModes.length > 0;
+  const canExportSelected = selectedElementIds.length > 0 && imageSource !== 'camera';
+  const canExportTransparent = imageFormat !== 'jpg';
+
+  useEffect(() => {
+    if (!canExportSelected && imageScope === 'selected') {
+      setImageScope('canvas');
+    }
+  }, [canExportSelected, imageScope]);
+
+  useEffect(() => {
+    if (!canExportTransparent && imageBackground === 'transparent') {
+      setImageBackground('include');
+    }
+  }, [canExportTransparent, imageBackground]);
 
   return (
     <>
@@ -364,7 +459,43 @@ export function ExportControls() {
                     </div>
                   )}
 
-                  <Button fullWidth leftSection={<IconDownload size={16} />} onClick={handleVideoExport}>
+                  {isLottieFormat && (
+                    <div>
+                      <Text size="xs" fw={500} mb={8}>Text rendering mode</Text>
+                      <Checkbox.Group
+                        value={lottieFontEmbeddingModes}
+                        onChange={(value) => setLottieFontEmbeddingModes(value as LottieFontEmbeddingMode[])}
+                      >
+                        <Stack gap={6}>
+                          <Checkbox
+                            value="inline"
+                            label="Inline fonts in JSON (smaller files, depends on player font support)"
+                            size="xs"
+                          />
+                          <Checkbox
+                            value="glyphs"
+                            label="Glyph shapes (larger files, highest compatibility; falls back to embedded vector text)"
+                            size="xs"
+                          />
+                        </Stack>
+                      </Checkbox.Group>
+                      <Text size="xs" c="dimmed" mt={4}>
+                        You can select both options. When glyphs are enabled, text is exported as vector shapes.
+                      </Text>
+                      {!hasLottieFontEmbeddingMode && (
+                        <Text size="xs" c="red" mt={4}>
+                          Select at least one text rendering mode to export Lottie.
+                        </Text>
+                      )}
+                    </div>
+                  )}
+
+                  <Button
+                    fullWidth
+                    leftSection={<IconDownload size={16} />}
+                    onClick={handleVideoExport}
+                    disabled={isLottieFormat && !hasLottieFontEmbeddingMode}
+                  >
                     Export {FORMAT_INFO[format].label}
                   </Button>
                 </>
@@ -403,6 +534,28 @@ export function ExportControls() {
                 </div>
               )}
 
+              {/* Scope */}
+              <div>
+                <Text size="xs" fw={500} mb={8}>Scope</Text>
+                <SegmentedControl
+                  fullWidth
+                  size="xs"
+                  value={imageScope}
+                  onChange={(v) => setImageScope(v as ImageScope)}
+                  data={[
+                    { value: 'canvas', label: 'Whole canvas' },
+                    { value: 'selected', label: 'Selected elements', disabled: !canExportSelected },
+                  ]}
+                />
+                {!canExportSelected && (
+                  <Text size="xs" c="dimmed" mt={4}>
+                    {imageSource === 'camera'
+                      ? 'Selected-elements export is unavailable for Camera frame source.'
+                      : 'Select one or more elements to export only the selection.'}
+                  </Text>
+                )}
+              </div>
+
               {/* Format */}
               <div>
                 <Text size="xs" fw={500} mb={8}>Format</Text>
@@ -413,6 +566,26 @@ export function ExportControls() {
                   onChange={(v) => setImageFormat(v as ImageFormat)}
                   data={IMAGE_FORMATS}
                 />
+              </div>
+
+              {/* Background */}
+              <div>
+                <Text size="xs" fw={500} mb={8}>Background</Text>
+                <SegmentedControl
+                  fullWidth
+                  size="xs"
+                  value={imageBackground}
+                  onChange={(v) => setImageBackground(v as ImageBackground)}
+                  data={[
+                    { value: 'include', label: 'Include canvas background' },
+                    { value: 'transparent', label: 'No background', disabled: !canExportTransparent },
+                  ]}
+                />
+                {!canExportTransparent && (
+                  <Text size="xs" c="dimmed" mt={4}>
+                    JPG does not support transparency, so background is always included.
+                  </Text>
+                )}
               </div>
 
               {/* Scale (not for SVG) */}
