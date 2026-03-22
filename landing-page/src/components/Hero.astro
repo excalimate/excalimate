@@ -68,6 +68,7 @@ const features = [
         <div class="hero-animation-frame">
           <dotlottie-wc src="/hero.lottie" autoplay loop style="width:100%;height:100%"
           ></dotlottie-wc>
+          <span class="lottie-badge">Made with Excalimate</span>
         </div>
       </div>
     </div>
@@ -215,6 +216,19 @@ const features = [
     background: var(--bg-alt);
     border: var(--border-w) solid var(--border-c);
     box-shadow: var(--shadow-card);
+    position: relative;
+  }
+
+  .lottie-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 10px;
+    font-family: var(--f-sketch);
+    font-size: 12px;
+    color: var(--tx3);
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
   }
 
   /* ── Features strip ── */

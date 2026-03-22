@@ -30,6 +30,7 @@ interface SplitSection {
   imgSrc?: string;
   imgAlt?: string;
   lottieSrc?: string;
+  lottieScale?: number;
   annotation?: string;
   linkHref?: string;
   linkText?: string;
@@ -54,7 +55,8 @@ const sections: SplitSection[] = [
     ],
     visual: 'lottie',
     lottieSrc: '/lottie/feature-workflow.lottie',
-    annotation: 'this simple →',
+    lottieScale: 101,
+    annotation: undefined,
     frameBg: 'var(--surface)',
     frameBorder: 'var(--border-w) solid var(--border-c)',
     frameShadow: 'var(--shadow-frame)',
@@ -75,6 +77,7 @@ const sections: SplitSection[] = [
     ],
     visual: 'lottie',
     lottieSrc: '/lottie/feature-timeline.lottie',
+    lottieScale: 101,
     frameBg: 'var(--surface)',
     frameBorder: 'var(--border-w) solid var(--border-c)',
     frameShadow: 'var(--shadow-card)',
@@ -94,6 +97,7 @@ const sections: SplitSection[] = [
     ],
     visual: 'lottie',
     lottieSrc: '/lottie/feature-camera.lottie',
+    lottieScale: 101,
     annotation: undefined,
     frameBg: 'var(--surface)',
     frameBorder: 'var(--border-w) solid var(--border-c)',
@@ -177,7 +181,9 @@ const sections: SplitSection[] = [
               ))}
             </ul>
             {s.linkHref && (
-              <a href={s.linkHref} class="btn btn-secondary split-link">{s.linkText}</a>
+              <a href={s.linkHref} class="btn btn-secondary split-link">
+                {s.linkText}
+              </a>
             )}
           </div>
 
@@ -188,8 +194,13 @@ const sections: SplitSection[] = [
                 class="visual-frame"
                 style={`background:${s.frameBg};border:${s.frameBorder};box-shadow:${s.frameShadow}`}
               >
-                <dotlottie-wc src={s.lottieSrc} autoplay loop style="width:100%;height:100%" />
-                {s.annotation && <span class="annotation">{s.annotation}</span>}
+                <dotlottie-wc
+                  src={s.lottieSrc}
+                  autoplay
+                  loop
+                  style={`width:${s.lottieScale || 100}%;height:${s.lottieScale || 100}%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)`}
+                />
+                <span class="lottie-badge">Made with Excalimate</span>
               </div>
             ) : s.visual === 'image' ? (
               <div
@@ -247,7 +258,7 @@ const sections: SplitSection[] = [
     display: grid;
     grid-template-columns: 1fr;
     gap: 40px;
-    align-items: stretch;
+    align-items: center;
   }
 
   @media (min-width: 1024px) {
@@ -398,8 +409,8 @@ const sections: SplitSection[] = [
     position: relative;
     border-radius: 8px;
     overflow: hidden;
-    flex: 1;
-    min-height: 280px;
+    aspect-ratio: 16 / 9;
+    width: 100%;
   }
 
   .visual-frame img {
@@ -407,6 +418,18 @@ const sections: SplitSection[] = [
     width: 100%;
     aspect-ratio: 4 / 3;
     object-fit: cover;
+  }
+
+  .lottie-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 10px;
+    font-family: var(--f-sketch);
+    font-size: 12px;
+    color: var(--tx3);
+    opacity: 0.45;
+    pointer-events: none;
+    user-select: none;
   }
 
   /* ── Annotation ── */
