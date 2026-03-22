@@ -1,0 +1,152 @@
+---
+interface Props {
+  features: Array<{
+    feature: string;
+    excalimate: string;
+    competitor: string;
+  }>;
+  competitorName: string;
+}
+
+const { features, competitorName } = Astro.props;
+
+function cellType(value: string): 'yes' | 'no' | 'partial' | 'text' {
+  const v = value.toLowerCase().trim();
+  if (v === 'yes') return 'yes';
+  if (v === 'no') return 'no';
+  if (v === 'partial') return 'partial';
+  return 'text';
+}
+---
+
+<div class="comparison-table-wrap">
+  <table class="comparison-table">
+    <thead>
+      <tr>
+        <th class="col-feature">Feature</th>
+        <th class="col-tool">Excalimate</th>
+        <th class="col-tool">{competitorName}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {features.map((row, i) => {
+        const exType = cellType(row.excalimate);
+        const compType = cellType(row.competitor);
+        return (
+          <tr class={i % 2 === 1 ? 'alt' : ''}>
+            <td class="cell-feature">{row.feature}</td>
+            <td class={`cell-value cell-${exType}`}>
+              {exType === 'yes' && <span class="icon-check" aria-label="Yes">✓</span>}
+              {exType === 'no' && <span class="icon-cross" aria-label="No">✗</span>}
+              {exType === 'partial' && <span class="icon-partial" aria-label="Partial">◐</span>}
+              {exType === 'text' && <span>{row.excalimate}</span>}
+            </td>
+            <td class={`cell-value cell-${compType}`}>
+              {compType === 'yes' && <span class="icon-check" aria-label="Yes">✓</span>}
+              {compType === 'no' && <span class="icon-cross" aria-label="No">✗</span>}
+              {compType === 'partial' && <span class="icon-partial" aria-label="Partial">◐</span>}
+              {compType === 'text' && <span>{row.competitor}</span>}
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .comparison-table-wrap {
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    margin: 40px 0;
+  }
+
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--f-body);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  thead tr {
+    background: var(--tx);
+    color: var(--bg);
+  }
+
+  th {
+    padding: 14px 16px;
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-align: left;
+    letter-spacing: 0.02em;
+  }
+
+  .col-feature {
+    width: 50%;
+  }
+
+  .col-tool {
+    width: 25%;
+    text-align: center;
+  }
+
+  td {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  tr.alt {
+    background: var(--bg-alt);
+  }
+
+  .cell-feature {
+    font-weight: 500;
+    color: var(--tx);
+  }
+
+  .cell-value {
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .icon-check {
+    color: var(--p5);
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+  .icon-cross {
+    color: var(--p3);
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+  .icon-partial {
+    color: var(--p4);
+    font-size: 1.1rem;
+  }
+
+  .cell-text span {
+    font-size: 0.85rem;
+    color: var(--tx2);
+  }
+
+  @media (max-width: 540px) {
+    th, td {
+      padding: 10px 10px;
+      font-size: 0.82rem;
+    }
+
+    .col-feature {
+      width: 44%;
+    }
+
+    .col-tool {
+      width: 28%;
+    }
+  }
+</style>

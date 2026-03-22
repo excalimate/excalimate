@@ -13,7 +13,12 @@ function getCorsOrigin() {
 
   // No CORS origin configured: allow local dev + production domains
   if (!raw || !raw.trim()) {
-    return ['http://localhost:5173', 'https://excalimate.com', 'https://www.excalimate.com'];
+    return [
+      'http://localhost:5173',
+      'https://app.excalimate.com',
+      'https://excalimate.com',
+      'https://www.excalimate.com',
+    ];
   }
 
   const origins = raw
@@ -22,7 +27,12 @@ function getCorsOrigin() {
     .filter((o) => o.length > 0);
 
   if (origins.length === 0) {
-    return ['http://localhost:5173', 'https://excalimate.com', 'https://www.excalimate.com'];
+    return [
+      'http://localhost:5173',
+      'https://app.excalimate.com',
+      'https://excalimate.com',
+      'https://www.excalimate.com',
+    ];
   }
 
   if (origins.length === 1) {

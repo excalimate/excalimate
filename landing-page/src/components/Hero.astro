@@ -66,12 +66,8 @@ const features = [
       <!-- Right: animation -->
       <div class="hero-visual hero-s4">
         <div class="hero-animation-frame">
-          <!-- Replace src with your .lottie file when ready -->
-          <img
-            src="/images/hero-demo.png"
-            alt="Animated diagram created with Excalimate"
-            loading="eager"
-          />
+          <dotlottie-wc src="/hero.lottie" autoplay loop style="width:100%;height:100%"
+          ></dotlottie-wc>
         </div>
       </div>
     </div>
@@ -216,18 +212,9 @@ const features = [
     aspect-ratio: 1 / 1;
     border-radius: var(--radius);
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     background: var(--bg-alt);
     border: var(--border-w) solid var(--border-c);
     box-shadow: var(--shadow-card);
-  }
-
-  .hero-animation-frame img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
   }
 
   /* ── Features strip ── */
@@ -316,3 +303,14 @@ const features = [
     }
   }
 </style>
+
+<script>
+  document.querySelectorAll('.hero .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const text = btn.textContent?.trim() || '';
+      if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+        posthog.capture('cta_clicked', { button_text: text, location: 'hero' });
+      }
+    });
+  });
+</script>

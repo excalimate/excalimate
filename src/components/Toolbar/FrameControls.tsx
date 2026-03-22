@@ -3,6 +3,7 @@ import { IconAspectRatio, IconMaximize } from '@tabler/icons-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { getExportResolution } from '../../stores/projectStore';
 import type { AspectRatio } from '../../stores/projectStore';
+import { trackCameraAction } from '../../services/analytics/posthog';
 
 const RATIOS: AspectRatio[] = ['16:9', '4:3', '1:1', '3:2'];
 
@@ -16,7 +17,7 @@ export function FrameControls() {
       <select
         className="text-[10px] bg-surface border border-border rounded px-1 py-0.5 text-text cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent/50"
         value={aspectRatio}
-        onChange={(e) => useProjectStore.getState().setCameraAspectRatio(e.target.value as AspectRatio)}
+        onChange={(e) => { const r = e.target.value as AspectRatio; useProjectStore.getState().setCameraAspectRatio(r); trackCameraAction('change_aspect_ratio', r); }}
         title={`Camera frame: ${res.width}×${res.height} export`}
       >
         {RATIOS.map((r) => {
@@ -25,7 +26,7 @@ export function FrameControls() {
         })}
       </select>
       <Tooltip label="Fit camera frame to scene">
-        <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => useProjectStore.getState().fitFrameToScene()}>
+        <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => { useProjectStore.getState().fitFrameToScene(); trackCameraAction('fit_to_scene'); }}>
           <IconMaximize size={16} />
         </ActionIcon>
       </Tooltip>

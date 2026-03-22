@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * MCP tool: share_project
  *
@@ -44,7 +43,7 @@ export function registerShareTools(
     'share_project',
     'Create an E2E encrypted share URL for the current project. Uploads to the Excalimate cloud share service so links persist permanently (30 days). The encryption key is in the URL hash fragment (never sent to any server). Returns the shareable URL.',
     {
-      baseUrl: z.string().optional().describe('Base URL for the share link (default: https://excalimate.com)'),
+      baseUrl: z.string().optional().describe('Base URL for the share link (default: https://app.excalimate.com)'),
       shareApi: z.string().optional().describe('Share service API URL (default: https://share.excalimate.com)'),
     },
     async ({ baseUrl, shareApi }) => {
@@ -80,7 +79,7 @@ export function registerShareTools(
 
         const { id } = await response.json() as { id: string };
 
-        const appBase = baseUrl ?? 'https://excalimate.com';
+        const appBase = baseUrl ?? 'https://app.excalimate.com';
         const fullUrl = `${appBase}/#share=${id},${keyBase64url}`;
 
         return {

@@ -1,0 +1,120 @@
+---
+interface Props {
+  code: string;
+  label?: string;
+}
+const { code, label } = Astro.props;
+const id = `cb-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<div class="codeblock">
+  {label && <div class="codeblock-label">{label}</div>}
+  <div class="codeblock-body">
+    <pre id={id}><code>{code}</code></pre>
+    <button class="codeblock-copy" data-target={id} aria-label="Copy to clipboard" type="button">
+      <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2"/>
+        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+      </svg>
+      <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<style>
+  .codeblock {
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    background: var(--bg-alt);
+  }
+
+  .codeblock-label {
+    padding: 6px 14px;
+    font-family: var(--f-body);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--tx3);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .codeblock-body {
+    position: relative;
+  }
+
+  pre {
+    margin: 0;
+    padding: 16px;
+    padding-right: 48px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--tx);
+    tab-size: 2;
+  }
+
+  code {
+    font-family: inherit;
+  }
+
+  .codeblock-copy {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    color: var(--tx3);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    cursor: pointer;
+  }
+
+  .codeblock-copy:hover {
+    color: var(--tx);
+    border-color: var(--border-strong);
+    background: var(--surface);
+  }
+
+  .codeblock-copy.copied {
+    color: var(--green);
+    border-color: var(--green);
+  }
+</style>
+
+<script>
+  document.querySelectorAll('.codeblock-copy').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const targetId = btn.getAttribute('data-target');
+      if (!targetId) return;
+      const pre = document.getElementById(targetId);
+      if (!pre) return;
+
+      const text = pre.textContent || '';
+      await navigator.clipboard.writeText(text);
+
+      const iconCopy = btn.querySelector('.icon-copy') as HTMLElement;
+      const iconCheck = btn.querySelector('.icon-check') as HTMLElement;
+      if (iconCopy) iconCopy.style.display = 'none';
+      if (iconCheck) iconCheck.style.display = 'block';
+      btn.classList.add('copied');
+
+      setTimeout(() => {
+        if (iconCopy) iconCopy.style.display = 'block';
+        if (iconCheck) iconCheck.style.display = 'none';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  });
+</script>

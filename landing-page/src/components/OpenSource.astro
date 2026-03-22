@@ -79,7 +79,7 @@
 
 <style>
   .oss {
-    background: var(--bg);
+    background: var(--bg-alt);
     padding: 120px 0;
   }
 
@@ -167,3 +167,11 @@
     margin-top: 48px;
   }
 </style>
+
+<script>
+  document.querySelector('.oss-cta .btn')?.addEventListener('click', () => {
+    if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+      posthog.capture('cta_clicked', { button_text: 'Star us on GitHub', location: 'open_source' });
+    }
+  });
+</script>

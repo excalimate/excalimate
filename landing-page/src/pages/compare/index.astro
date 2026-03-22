@@ -1,0 +1,200 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+
+const title = 'Comparisons — Excalimate';
+const description = 'See how Excalimate compares to Excalidraw, After Effects, Canva, and PowerPoint for creating animated diagrams.';
+
+const comparisons = [
+  {
+    title: 'Excalimate vs Excalidraw',
+    description: 'How Excalimate extends Excalidraw with keyframe animation, timeline, camera controls, and AI tools.',
+    href: '/compare/excalimate-vs-excalidraw',
+  },
+  {
+    title: 'Excalimate vs After Effects',
+    description: 'Diagram animation compared — speed, learning curve, price, and capabilities.',
+    href: '/compare/excalimate-vs-after-effects',
+  },
+  {
+    title: 'Excalimate vs Canva',
+    description: 'Keyframe animation control vs general graphic design for animated diagrams.',
+    href: '/compare/excalimate-vs-canva',
+  },
+  {
+    title: 'Excalimate vs PowerPoint',
+    description: 'Why keyframe animation produces better diagram animations than slide transitions.',
+    href: '/compare/excalimate-vs-powerpoint',
+  },
+];
+---
+
+<PageLayout title={title} description={description} path="/compare">
+  <Nav />
+
+  <main id="main" class="compare-index">
+    <div class="container">
+      <header class="compare-header">
+        <a href="/" class="compare-back">← Back to home</a>
+        <h1 class="compare-title">Comparisons</h1>
+        <p class="compare-subtitle">
+          See how Excalimate stacks up against other tools for diagram animation.
+        </p>
+      </header>
+
+      <div class="compare-grid">
+        {comparisons.map((c) => (
+          <a href={c.href} class="compare-card">
+            <div class="compare-card-vs">
+              <img src="/excalimate_logo.svg" alt="" height="20" aria-hidden="true" />
+              <span class="vs-label">vs</span>
+              <span class="vs-name">{c.title.replace('Excalimate vs ', '')}</span>
+            </div>
+            <p class="compare-card-desc">{c.description}</p>
+            <span class="compare-card-arrow" aria-hidden="true">→</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</PageLayout>
+
+<style>
+  .compare-index {
+    background: var(--bg);
+    padding: 40px 0 120px;
+  }
+
+  .compare-header {
+    margin-bottom: 56px;
+  }
+
+  .compare-back {
+    display: inline-flex;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s;
+  }
+  .compare-back:hover { color: var(--tx); }
+
+  .compare-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.1;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .compare-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 12px 0 0;
+    max-width: 480px;
+    line-height: 1.55;
+  }
+
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  @media (min-width: 768px) {
+    .compare-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .compare-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    text-decoration: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
+  }
+
+  .compare-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .compare-card:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
+
+  .compare-card-vs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .vs-label {
+    font-family: var(--f-sketch);
+    font-size: 1.1rem;
+    color: var(--p3);
+  }
+
+  .vs-name {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--tx);
+  }
+
+  .compare-card-desc {
+    font-family: var(--f-body);
+    font-size: 0.9rem;
+    color: var(--tx2);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .compare-card-arrow {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    font-size: 1.1rem;
+    color: var(--tx3);
+    transition: transform 0.15s;
+  }
+
+  .compare-card:hover .compare-card-arrow {
+    transform: translateX(4px);
+  }
+</style>
+
+<script>
+  if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+    posthog.capture('page_viewed', { page: 'comparisons_index' });
+  }
+</script>
+
+<script type="application/ld+json" set:html={JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Excalimate Comparisons",
+  "description": description,
+  "url": "https://excalimate.com/compare",
+  "hasPart": comparisons.map((c) => ({
+    "@type": "WebPage",
+    "name": c.title,
+    "description": c.description,
+    "url": `https://excalimate.com${c.href}`,
+  })),
+})} />

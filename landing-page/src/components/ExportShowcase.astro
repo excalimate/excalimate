@@ -5,14 +5,24 @@
  */
 
 const formats = [
-  { name: "MP4", type: "Video", detail: "Universal video format", color: "var(--accent)" },
-  { name: "WebM", type: "Video", detail: "Web-optimized video", color: "var(--accent-light)" },
-  { name: "GIF", type: "Image", detail: "Animated GIF", color: "var(--green)" },
-  { name: "SVG", type: "Vector", detail: "Animated SVG", color: "var(--violet)" },
-  { name: "dotLottie", type: "Animation", detail: "Up to 90% smaller than GIF", color: "var(--accent)" },
-  { name: "Lottie JSON", type: "Animation", detail: "Industry-standard format", color: "var(--accent-light)" },
-  { name: "PNG", type: "Image", detail: "Frame export", color: "var(--green)" },
-  { name: "WebP", type: "Image", detail: "Next-gen format", color: "var(--violet)" },
+  { name: 'MP4', type: 'Video', detail: 'Universal video format', color: 'var(--accent)' },
+  { name: 'WebM', type: 'Video', detail: 'Web-optimized video', color: 'var(--accent-light)' },
+  { name: 'GIF', type: 'Image', detail: 'Animated GIF', color: 'var(--green)' },
+  { name: 'SVG', type: 'Vector', detail: 'Animated SVG', color: 'var(--violet)' },
+  {
+    name: 'dotLottie',
+    type: 'Animation',
+    detail: 'Up to 90% smaller than GIF',
+    color: 'var(--accent)',
+  },
+  {
+    name: 'Lottie JSON',
+    type: 'Animation',
+    detail: 'Industry-standard format',
+    color: 'var(--accent-light)',
+  },
+  { name: 'PNG', type: 'Image', detail: 'Frame export', color: 'var(--green)' },
+  { name: 'WebP', type: 'Image', detail: 'Next-gen format', color: 'var(--violet)' },
 ];
 ---
 
@@ -20,19 +30,23 @@ const formats = [
   <div class="container">
     <header class="es-header reveal">
       <h2 class="es-title">Export in any format you need</h2>
-      <p class="es-subtitle">
-        From vector to video — pick the perfect format for your use case.
-      </p>
+      <p class="es-subtitle">From vector to video — pick the perfect format for your use case.</p>
     </header>
 
     <div class="es-grid stagger">
-      {formats.map((fmt) => (
-        <article class="es-card reveal">
-          <span class="es-name" style={`color: ${fmt.color}`}>{fmt.name}</span>
-          <span class="es-type" style={`color: ${fmt.color}`}>{fmt.type}</span>
-          <span class="es-detail">{fmt.detail}</span>
-        </article>
-      ))}
+      {
+        formats.map((fmt) => (
+          <article class="es-card reveal">
+            <span class="es-name" style={`color: ${fmt.color}`}>
+              {fmt.name}
+            </span>
+            <span class="es-type" style={`color: ${fmt.color}`}>
+              {fmt.type}
+            </span>
+            <span class="es-detail">{fmt.detail}</span>
+          </article>
+        ))
+      }
     </div>
 
     <p class="es-annotation">tiny file sizes!</p>
@@ -43,7 +57,7 @@ const formats = [
   /* ── Section ──────────────────────────────────────────────── */
   .export-showcase {
     padding: 120px 0;
-    background: var(--bg);
+    background: var(--bg-alt);
     color: var(--tx);
   }
 
@@ -102,7 +116,9 @@ const formats = [
     border-radius: 8px;
     padding: 24px;
     box-shadow: var(--shadow-card);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   .es-card:hover {
@@ -140,8 +156,8 @@ const formats = [
   /* ── Hand-drawn annotation ─────────────────────────────────── */
   .es-annotation {
     font-family: var(--f-sketch);
-    font-size: 15px;
-    color: var(--yellow);
+    font-size: 22px;
+    color: var(--p4);
     text-align: center;
     margin-top: 32px;
     transform: rotate(-3deg);

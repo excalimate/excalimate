@@ -6,6 +6,7 @@ import { useUIStore } from '../stores/uiStore';
 import { usePlaybackStore } from '../stores/playbackStore';
 import { useProjectStore } from '../stores/projectStore';
 import { getPlaybackController, computeFrameAtTime } from '../core/engine/playbackSingleton';
+import { trackGroupAction } from '../services/analytics/posthog';
 
 const FRAME_DURATION = 1000 / 60;
 
@@ -113,6 +114,7 @@ export function useAppHotkeys() {
       const selectedIds = useUIStore.getState().selectedElementIds;
       if (selectedIds.length >= 2) {
         useProjectStore.getState().groupElements(selectedIds);
+        trackGroupAction('group', selectedIds.length);
       }
     }],
     ['mod+shift+G', () => {
@@ -124,6 +126,7 @@ export function useAppHotkeys() {
         if (target) {
           useProjectStore.getState().ungroupTarget(target.id);
           useUIStore.getState().clearSelection();
+          trackGroupAction('ungroup');
         }
       }
     }],

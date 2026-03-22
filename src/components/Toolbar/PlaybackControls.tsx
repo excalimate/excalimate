@@ -3,6 +3,7 @@ import { IconPlayerSkipBack, IconPlayerPlay, IconPlayerPause, IconPlayerStop, Ic
 import { usePlaybackStore } from '../../stores/playbackStore';
 import { getPlaybackController, computeFrameAtTime } from '../../core/engine/playbackSingleton';
 import { formatTime } from '../../core/utils/math';
+import { trackPlayback } from '../../services/analytics/posthog';
 
 export function PlaybackControls() {
   const currentTime = usePlaybackStore((s) => s.currentTime);
@@ -19,12 +20,12 @@ export function PlaybackControls() {
         </ActionIcon>
       </Tooltip>
       <Tooltip label={isPlaying ? 'Pause' : 'Play'}>
-        <ActionIcon variant={isPlaying ? 'light' : 'subtle'} color={isPlaying ? 'indigo' : 'gray'} size="sm" onClick={() => controller.togglePlayPause()}>
+        <ActionIcon variant={isPlaying ? 'light' : 'subtle'} color={isPlaying ? 'indigo' : 'gray'} size="sm" onClick={() => { trackPlayback(isPlaying ? 'pause' : 'play'); controller.togglePlayPause(); }}>
           {isPlaying ? <IconPlayerPause size={16} /> : <IconPlayerPlay size={16} />}
         </ActionIcon>
       </Tooltip>
       <Tooltip label="Stop">
-        <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => controller.stop()}>
+        <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => { trackPlayback('stop'); controller.stop(); }}>
           <IconPlayerStop size={16} />
         </ActionIcon>
       </Tooltip>

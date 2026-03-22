@@ -403,4 +403,21 @@ const links = [
   // Run on initial load and after Astro view transitions
   initNav();
   document.addEventListener('astro:after-swap', initNav);
+
+  // PostHog: track nav CTA click
+  document.querySelector('.nav-cta')?.addEventListener('click', () => {
+    if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+      posthog.capture('cta_clicked', { button_text: 'Open Excalimate', location: 'nav' });
+    }
+  });
+
+  // PostHog: track nav link clicks
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      const text = link.textContent?.trim() || '';
+      if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+        posthog.capture('nav_clicked', { link_text: text });
+      }
+    });
+  });
 </script>

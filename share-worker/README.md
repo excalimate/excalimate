@@ -6,7 +6,7 @@ Lightweight Cloudflare Worker + R2 for E2E encrypted animation sharing.
 
 1. Client encrypts project data with AES-256-GCM (key never leaves the browser)
 2. Encrypted blob is uploaded to `POST /share` → stored in R2
-3. Client builds URL: `https://excalimate.com/#share=<id>,<key>` (key in hash, never sent to server)
+3. Client builds URL: `https://app.excalimate.com/#share=<id>,<key>` (key in hash, never sent to server)
 4. Recipient opens URL → blob fetched from `GET /share/<id>` → decrypted client-side
 
 The server **only stores opaque encrypted blobs**. It cannot read, index, or analyze the content.
@@ -63,4 +63,4 @@ Environment variables in `wrangler.jsonc`:
 |----------|---------|-------------|
 | `MAX_SHARE_SIZE_MB` | `10` | Maximum upload size in MB |
 | `SHARE_TTL_DAYS` | `30` | Days before shares expire |
-| `ALLOWED_ORIGINS` | `https://excalimate.com,...` | Comma-separated CORS origins |
+| `ALLOWED_ORIGINS` | `https://app.excalimate.com,...` | Comma-separated CORS origins |

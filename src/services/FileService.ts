@@ -176,7 +176,7 @@ export interface SharedAnimationData {
 
 /**
  * Load a shared animation from an E2E encrypted share URL.
- * Format: https://excalimate.com/#share=ID,KEY
+ * Format: https://app.excalimate.com/#share=ID,KEY
  */
 export async function loadShareUrl(shareUrl: string): Promise<SharedAnimationData> {
   // Lazy import to avoid pulling crypto into the main bundle

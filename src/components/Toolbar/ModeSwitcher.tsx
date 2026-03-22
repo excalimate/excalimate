@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FloatingIndicator, UnstyledButton } from '@mantine/core';
 import { IconPencil, IconMovie } from '@tabler/icons-react';
 import { useUIStore } from '../../stores/uiStore';
+import { trackModeSwitch } from '../../services/analytics/posthog';
 import './ModeSwitcher.css';
 
 export function ModeSwitcher() {
@@ -25,7 +26,7 @@ export function ModeSwitcher() {
         ref={setEditRef}
         className="mode-switcher__button"
         data-active={mode === 'edit' || undefined}
-        onClick={() => setMode('edit')}
+        onClick={() => { setMode('edit'); trackModeSwitch('edit'); }}
       >
         <IconPencil size={12} />
         Edit
@@ -34,7 +35,7 @@ export function ModeSwitcher() {
         ref={setAnimateRef}
         className="mode-switcher__button"
         data-active={mode === 'animate' || undefined}
-        onClick={() => setMode('animate')}
+        onClick={() => { setMode('animate'); trackModeSwitch('animate'); }}
       >
         <IconMovie size={12} />
         Animate

@@ -16,7 +16,7 @@
 
 <style>
   .final-cta {
-    background: var(--bg-alt);
+    background: var(--bg);
     padding: 120px 0;
   }
 
@@ -75,3 +75,14 @@
     }
   }
 </style>
+
+<script>
+  document.querySelectorAll('.final-cta .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const text = btn.textContent?.trim() || '';
+      if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+        posthog.capture('cta_clicked', { button_text: text, location: 'final_cta' });
+      }
+    });
+  });
+</script>

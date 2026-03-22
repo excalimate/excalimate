@@ -2,9 +2,9 @@
 
 Excalimate MCP server for creating Excalidraw designs and animating them with keyframes. Designed for AI agent integration (Claude Desktop, Copilot CLI, etc.).
 
-**Pair with [excalimate.com](https://excalimate.com) for real-time live preview** — the AI creates and animates, you watch it happen in your browser.
+**Pair with [app.excalimate.com](https://app.excalimate.com) for real-time live preview** — the AI creates and animates, you watch it happen in your browser.
 
-## Getting Started with excalimate.com
+## Getting Started with app.excalimate.com
 
 The fastest way to use Excalimate with AI is to combine the deployed web app with this npm package. No cloning, no building — just install and go.
 
@@ -31,7 +31,7 @@ excalimate-mcp
 
 ### Step 2: Open the web app
 
-Go to [excalimate.com](https://excalimate.com) in your browser and click **📡 Live** in the toolbar. The app connects to `localhost:3001` automatically.
+Go to [app.excalimate.com](https://app.excalimate.com) in your browser and click **📡 Live** in the toolbar. The app connects to `localhost:3001` automatically.
 
 You can configure the MCP server URL in **File → Preferences**. The app persists this setting in localStorage, shows connection progress (progress bar + notifications), provides smart error dialogs, and warns about HTTPS→HTTP mixed-content connections.
 
@@ -45,7 +45,7 @@ Point your AI tool to `http://localhost:3001/mcp` as an MCP server. Then ask it 
 
 - **23 tools** for scene creation, animation, camera control, export, checkpointing, and sharing
 - **Dual transport**: stdio (Claude Desktop) + Streamable HTTP (cloud deployment)
-- **Live preview**: Real-time updates in [excalimate.com](https://excalimate.com) via SSE
+- **Live preview**: Real-time updates in [app.excalimate.com](https://app.excalimate.com) via SSE
 - **Sequence reveal**: Staggered element reveal animations in one tool call
 - **Camera animation**: Pan/zoom keyframes for cinematic effects
 - **Checkpoint persistence**: Save/load complete scene + animation state
@@ -63,7 +63,7 @@ npx @excalimate/mcp-server
 npx @excalimate/mcp-server -p 4000
 ```
 
-Open [excalimate.com](https://excalimate.com) and click **📡 Live**, then configure your AI tool below.
+Open [app.excalimate.com](https://app.excalimate.com) and click **📡 Live**, then configure your AI tool below.
 
 ### Configure your AI tool
 
@@ -85,7 +85,7 @@ Add to your VS Code MCP config (`.vscode/mcp.json` or user-level `mcp.json`):
 }
 ```
 
-Start the MCP server first (`npx @excalimate/mcp-server`), open [excalimate.com](https://excalimate.com), click **📡 Live**, then ask Copilot to create a diagram. You'll see it appear in real-time.
+Start the MCP server first (`npx @excalimate/mcp-server`), open [app.excalimate.com](https://app.excalimate.com), click **📡 Live**, then ask Copilot to create a diagram. You'll see it appear in real-time.
 
 **stdio mode (no live preview):**
 
@@ -119,7 +119,7 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
-Claude Desktop uses stdio transport, so there's no live preview. The AI creates scenes and animations, then use `save_checkpoint` to save state and load it in [excalimate.com](https://excalimate.com) via the **MCP** button in the toolbar.
+Claude Desktop uses stdio transport, so there's no live preview. The AI creates scenes and animations, then use `save_checkpoint` to save state and load it in [app.excalimate.com](https://app.excalimate.com) via the **MCP** button in the toolbar.
 
 </details>
 
@@ -133,7 +133,7 @@ npx @excalimate/mcp-server &
 claude mcp add excalimate http://localhost:3001/mcp
 ```
 
-Open [excalimate.com](https://excalimate.com) and click **📡 Live** — you'll see the AI's changes in real-time.
+Open [app.excalimate.com](https://app.excalimate.com) and click **📡 Live** — you'll see the AI's changes in real-time.
 
 </details>
 
@@ -146,7 +146,7 @@ In Cursor settings, go to **MCP Servers** and add:
 - **Type:** `http`
 - **URL:** `http://localhost:3001/mcp`
 
-Start the MCP server (`npx @excalimate/mcp-server`), open [excalimate.com](https://excalimate.com), click **📡 Live**, then use Cursor's agent to create diagrams with live preview.
+Start the MCP server (`npx @excalimate/mcp-server`), open [app.excalimate.com](https://app.excalimate.com), click **📡 Live**, then use Cursor's agent to create diagrams with live preview.
 
 </details>
 
@@ -165,7 +165,7 @@ Add to your Windsurf MCP config:
 }
 ```
 
-Start the MCP server, open [excalimate.com](https://excalimate.com), click **📡 Live**, and use Cascade to create animated diagrams in real-time.
+Start the MCP server, open [app.excalimate.com](https://app.excalimate.com), click **📡 Live**, and use Cascade to create animated diagrams in real-time.
 
 </details>
 
@@ -178,7 +178,7 @@ Point your MCP client to:
 http://localhost:3001/mcp
 ```
 
-Start the server with `npx @excalimate/mcp-server`, open [excalimate.com](https://excalimate.com), and click **📡 Live**. Any tool that supports Streamable HTTP MCP transport will work with live preview.
+Start the server with `npx @excalimate/mcp-server`, open [app.excalimate.com](https://app.excalimate.com), and click **📡 Live**. Any tool that supports Streamable HTTP MCP transport will work with live preview.
 
 </details>
 
@@ -241,7 +241,7 @@ node dist/index.js --stdio  # stdio mode
 |------|-------------|
 | `share_project` | Create E2E encrypted share URL for the current project |
 
-`share_project` accepts `{ baseUrl?: string }` and defaults to `https://excalimate.com`, returning URLs like `https://excalimate.com/#share=ID,KEY`.
+`share_project` accepts `{ baseUrl?: string }` and defaults to `https://app.excalimate.com`, returning URLs like `https://app.excalimate.com/#share=ID,KEY`.
 
 ### Checkpoint Tools
 | Tool | Description |
@@ -264,5 +264,5 @@ node dist/index.js --stdio  # stdio mode
    }
 4. set_clip_range {0, 5000}    → Set 5-second export window
 5. save_checkpoint {id: "demo"} → Save for web app preview
-   or share_project {baseUrl: "https://excalimate.com"} → Generate E2E encrypted share URL
+   or share_project {baseUrl: "https://app.excalimate.com"} → Generate E2E encrypted share URL
 ```

@@ -1,0 +1,374 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import Callout from '../../components/Callout.astro';
+import RelatedGuides from '../../components/RelatedGuides.astro';
+
+const title = 'Accessibility in Animations: Best Practices — Excalimate';
+const description = 'Learn how to create accessible animations. Best practices for prefers-reduced-motion, timing, contrast, and making animated content inclusive.';
+
+const reducedMotionCSS = `@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}`;
+
+const reducedMotionJS = `const prefersReduced =
+  window.matchMedia('(prefers-reduced-motion: reduce)');
+
+if (prefersReduced.matches) {
+  // Skip animation — show final state immediately
+  element.style.opacity = 1;
+} else {
+  // Play animation normally
+  playAnimation();
+}`;
+---
+
+<PageLayout title={title} description={description} path="/guides/accessibility-in-animations">
+  <Nav />
+
+  <main id="main" class="guide">
+    <div class="guide-container">
+      <header class="guide-header">
+        <a href="/guides" class="guide-back">← Back to guides</a>
+        <h1 class="guide-title">Accessibility in Animations</h1>
+        <p class="guide-subtitle">{description}</p>
+      </header>
+
+      <div class="guide-body">
+        <!-- Why Accessibility Matters -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h2 class="step-title">Why Accessibility Matters</h2>
+          </div>
+          <p class="step-text">
+            Animations can enhance understanding and engagement — but they can also cause
+            <strong>seizures</strong>, <strong>nausea</strong>, and <strong>disorientation</strong>
+            for people with vestibular disorders, photosensitive epilepsy, or cognitive disabilities.
+            Designing with accessibility in mind ensures your animated content works for everyone.
+          </p>
+          <Callout type="warning">
+            Flashing content that exceeds <strong>3 flashes per second</strong> can trigger
+            seizures in people with photosensitive epilepsy. This is both a safety concern and a
+            WCAG 2.1 Level A requirement (Success Criterion 2.3.1).
+          </Callout>
+        </section>
+
+        <!-- prefers-reduced-motion -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h2 class="step-title">The prefers-reduced-motion Media Query</h2>
+          </div>
+          <p class="step-text">
+            Modern operating systems let users request reduced motion. You can detect this
+            preference with the <code class="inline-code">prefers-reduced-motion</code> CSS media
+            query and adjust or disable animations accordingly.
+          </p>
+          <CodeBlock code={reducedMotionCSS} label="CSS" />
+          <p class="step-text">
+            In JavaScript, you can check the same preference programmatically:
+          </p>
+          <CodeBlock code={reducedMotionJS} label="JavaScript" />
+          <Callout type="tip">
+            Test your animations with reduced motion enabled. On macOS, go to
+            <strong>System Settings → Accessibility → Display → Reduce motion</strong>. On Windows,
+            go to <strong>Settings → Accessibility → Visual effects → Animation effects</strong>.
+          </Callout>
+        </section>
+
+        <!-- WCAG Guidelines -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">3</span>
+            <h2 class="step-title">WCAG Guidelines for Animation</h2>
+          </div>
+          <p class="step-text">
+            The Web Content Accessibility Guidelines (WCAG) 2.1 include specific criteria
+            for motion and animation:
+          </p>
+          <ul class="step-list">
+            <li><strong>2.3.1 Three Flashes or Below (Level A)</strong> — Content must not flash more than 3 times per second</li>
+            <li><strong>2.3.2 Three Flashes (Level AAA)</strong> — Content must not contain anything that flashes</li>
+            <li><strong>2.2.2 Pause, Stop, Hide (Level A)</strong> — Auto-playing animations must have controls to pause, stop, or hide them</li>
+            <li><strong>2.3.3 Animation from Interactions (Level AAA)</strong> — Motion triggered by interaction must be disableable</li>
+          </ul>
+        </section>
+
+        <!-- Timing Best Practices -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">4</span>
+            <h2 class="step-title">Timing Best Practices</h2>
+          </div>
+          <p class="step-text">
+            Getting animation timing right is crucial for both usability and accessibility:
+          </p>
+          <ul class="step-list">
+            <li><strong>Not too fast</strong> — Transitions under 100ms feel instant and are hard to follow. Aim for 200–500ms for UI transitions.</li>
+            <li><strong>Not too slow</strong> — Animations over 1 second feel sluggish and can cause frustration. Keep total sequences under 5 seconds.</li>
+            <li><strong>Use easing</strong> — Ease-out curves feel natural. Avoid jarring linear motion for large movements.</li>
+            <li><strong>Stagger reveals</strong> — When showing multiple elements, add 200–400ms between each to reduce cognitive load.</li>
+            <li><strong>Provide pause controls</strong> — Always let users pause or scrub through longer animations.</li>
+          </ul>
+        </section>
+
+        <!-- Static Fallbacks -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">5</span>
+            <h2 class="step-title">Providing Static Alternatives</h2>
+          </div>
+          <p class="step-text">
+            Not everyone can consume animated content. Provide alternatives for those who
+            need them:
+          </p>
+          <ul class="step-list">
+            <li><strong>Export a static PNG or SVG</strong> — Show the final frame as a fallback image</li>
+            <li><strong>Add descriptive alt text</strong> — Describe what the animation shows, not how it moves</li>
+            <li><strong>Include a text summary</strong> — For complex animated sequences, add a written description alongside the animation</li>
+            <li><strong>Use progressive enhancement</strong> — Start with the static version, add animation as an enhancement</li>
+          </ul>
+        </section>
+
+        <!-- Color Contrast in Animation -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">6</span>
+            <h2 class="step-title">Color Contrast in Animated Elements</h2>
+          </div>
+          <p class="step-text">
+            During animations, elements often change opacity or color. Ensure contrast remains
+            sufficient throughout the entire animation:
+          </p>
+          <ul class="step-list">
+            <li><strong>Avoid low-opacity text</strong> — Text fading in should reach full contrast quickly (within 200ms)</li>
+            <li><strong>Maintain 4.5:1 ratio</strong> — WCAG AA requires a 4.5:1 contrast ratio for normal text at all visible stages</li>
+            <li><strong>Don't animate color alone</strong> — If color changes convey meaning, add a secondary indicator (shape, icon, or label)</li>
+          </ul>
+        </section>
+
+        <!-- Cognitive Load -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">7</span>
+            <h2 class="step-title">Cognitive Load Considerations</h2>
+          </div>
+          <p class="step-text">
+            Animations affect cognitive processing. Keep these principles in mind:
+          </p>
+          <ul class="step-list">
+            <li><strong>One thing at a time</strong> — Animate elements sequentially rather than all at once</li>
+            <li><strong>Meaningful motion</strong> — Every animation should serve a purpose (direct attention, show relationships, indicate state)</li>
+            <li><strong>Consistent patterns</strong> — Use the same animation style for similar actions throughout your project</li>
+            <li><strong>Avoid decorative loops</strong> — Infinitely looping animations can be distracting and anxiety-inducing</li>
+          </ul>
+        </section>
+
+        <!-- Excalimate Support -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">8</span>
+            <h2 class="step-title">How Excalimate Helps</h2>
+          </div>
+          <p class="step-text">
+            Excalimate is designed with accessible animation in mind:
+          </p>
+          <ul class="step-list">
+            <li><strong>Timeline controls</strong> — Play, pause, and scrub through animations at any point</li>
+            <li><strong>Multiple export formats</strong> — Export static PNG/SVG alongside animated MP4/GIF for fallbacks</li>
+            <li><strong>Configurable timing</strong> — Fine-tune duration and easing per element to meet accessibility guidelines</li>
+            <li><strong>No auto-play</strong> — Exported animations don't auto-play in the editor, reducing surprise motion</li>
+          </ul>
+        </section>
+      </div>
+      <RelatedGuides current="/guides/accessibility-in-animations" />
+    </div>
+  </main>
+
+  <Footer />
+</PageLayout>
+
+<style>
+  .guide {
+    background: var(--bg);
+    padding: 40px 0 80px;
+  }
+
+  .guide-container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  @media (min-width: 640px) {
+    .guide-container {
+      padding: 0 32px;
+    }
+  }
+
+  /* ── Header ── */
+  .guide-header {
+    margin-bottom: 56px;
+  }
+
+  .guide-back {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s;
+  }
+
+  .guide-back:hover {
+    color: var(--tx);
+  }
+
+  .guide-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.1;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .guide-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 12px 0 0;
+    line-height: 1.5;
+  }
+
+  /* ── Steps ── */
+  .guide-body {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent-text);
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .step-text {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .step-text :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-text :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+  }
+
+  /* ── Inline code ── */
+  .inline-code {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+
+  /* ── Step list ── */
+  .step-list {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+    padding-left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .step-list :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-list :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+</style>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'Accessibility in Animations: Best Practices',
+    description,
+    author: { '@type': 'Organization', name: 'Excalimate' },
+    publisher: { '@type': 'Organization', name: 'Excalimate' },
+  })}
+/>

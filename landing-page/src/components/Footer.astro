@@ -28,6 +28,8 @@ const columns: FooterColumn[] = [
     heading: 'Resources',
     links: [
       { label: 'Documentation', href: 'https://github.com/excalimate/excalimate#readme' },
+      { label: 'Guides', href: '/guides' },
+      { label: 'Comparisons', href: '/compare' },
       { label: 'GitHub', href: 'https://github.com/excalimate/excalimate' },
       { label: 'Changelog', href: 'https://github.com/excalimate/excalimate/blob/main/CHANGELOG.md' },
     ],
@@ -42,6 +44,8 @@ const columns: FooterColumn[] = [
   {
     heading: 'Legal',
     links: [
+      { label: 'Privacy', href: '/privacy' },
+      { label: 'Cookie Settings', href: '#manage-consent' },
       { label: 'License (MIT)', href: 'https://github.com/excalimate/excalimate/blob/main/LICENSE' },
       { label: 'Security', href: 'https://github.com/excalimate/excalimate/blob/main/SECURITY.md' },
     ],
@@ -99,7 +103,7 @@ const columns: FooterColumn[] = [
 <style>
   /* ── Footer shell ───────────────────────────────────────────────── */
   .footer {
-    background: var(--bg);
+    background: var(--bg-alt);
     padding: 72px 0 36px;
   }
 
@@ -238,3 +242,14 @@ const columns: FooterColumn[] = [
     line-height: 1;
   }
 </style>
+
+<script>
+  document.querySelectorAll('.footer-link[target="_blank"]').forEach(link => {
+    link.addEventListener('click', () => {
+      const text = link.textContent?.trim() || '';
+      if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+        posthog.capture('external_link_clicked', { link_text: text, href: link.getAttribute('href') });
+      }
+    });
+  });
+</script>

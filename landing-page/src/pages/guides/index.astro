@@ -1,0 +1,301 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+
+const title = 'Guides — Excalimate';
+const description = 'Step-by-step guides for using Excalimate: MCP server setup, creating designs with AI, animating diagrams, and exporting animations.';
+
+const guides = [
+  {
+    title: 'MCP Server Setup',
+    description: 'Connect your AI coding assistant to Excalimate. Step-by-step configuration for VS Code, Cursor, Claude Desktop, Claude Code, and Windsurf.',
+    href: '/guides/mcp-setup',
+    num: '1',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'Creating Designs with AI',
+    description: 'Use the MCP server to create diagrams, flowcharts, and designs through natural language prompts. Learn element types, styling, and iterative refinement.',
+    href: '/guides/creating-designs',
+    num: '2',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'Animating Your Designs',
+    description: 'Add keyframe animations to your diagrams — opacity, position, scale, rotation, and draw progress. Master easing, sequences, and camera transitions.',
+    href: '/guides/animating-designs',
+    num: '3',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'Animated Designs in One Shot',
+    description: 'Build complete animated diagrams with a single AI prompt using the create_animated_scene tool. Elements, keyframes, camera, and export — all at once.',
+    href: '/guides/animated-designs',
+    num: '4',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'Accessibility in Animations',
+    description: 'Best practices for prefers-reduced-motion, timing, contrast, and making animated content inclusive for all users.',
+    href: '/guides/accessibility-in-animations',
+    num: '5',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'Accessibility in Design',
+    description: 'Color contrast, alt text, screen reader support, and inclusive visual communication in diagrams.',
+    href: '/guides/accessibility-in-design',
+    num: '6',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'Excalidraw Libraries',
+    description: 'Discover premade shapes, icons, and diagram components. Learn how to use and create Excalidraw libraries.',
+    href: '/guides/excalidraw-libraries',
+    num: '7',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'How to Use Groups',
+    description: 'Group elements for easier animation and organization. Animate grouped elements as a single unit.',
+    href: '/guides/how-to-use-groups',
+    num: '8',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'What is Keyframe Animation?',
+    description: 'Learn what keyframe animation is, how it works, and how to create keyframe animations for diagrams and designs.',
+    href: '/guides/what-is-keyframe-animation',
+    num: '9',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'What is Excalidraw?',
+    description: 'Discover the free open-source virtual whiteboard and how Excalimate extends it with animation capabilities.',
+    href: '/guides/what-is-excalidraw',
+    num: '10',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'What are Lottie Files?',
+    description: 'Learn about Lottie and dotLottie — the lightweight animation formats for web and mobile.',
+    href: '/guides/what-are-lottie-files',
+    num: '11',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'How to Export Animations',
+    description: 'Complete guide to exporting as MP4, WebM, GIF, animated SVG, dotLottie, Lottie JSON, PNG, and WebP.',
+    href: '/guides/export-animations',
+    num: '12',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'Why Animate Diagrams?',
+    description: 'Benefits of animated diagrams for presentations, documentation, education, and engagement.',
+    href: '/guides/why-animate-diagrams',
+    num: '13',
+    color: 'var(--p2)',
+  },
+  {
+    title: 'Enhance Presentations',
+    description: 'Use Excalimate animations in PowerPoint, Google Slides, and Keynote for more engaging presentations.',
+    href: '/guides/enhance-presentations',
+    num: '14',
+    color: 'var(--p2)',
+  },
+];
+---
+
+<PageLayout title={title} description={description} path="/guides">
+  <Nav />
+
+  <main id="main" class="guides-index">
+    <div class="container">
+      <header class="guides-header reveal">
+        <a href="/" class="guides-back">← Back to home</a>
+        <h1 class="guides-title">Guides</h1>
+        <p class="guides-subtitle">
+          Everything you need to go from zero to animated diagrams with Excalimate and AI.
+        </p>
+      </header>
+
+      <div class="guides-grid stagger">
+        {guides.map((guide) => (
+          <a href={guide.href} class="guide-card reveal">
+            <div class="guide-card-num" style={`background: ${guide.color}`}>
+              <span>{guide.num}</span>
+            </div>
+            <div class="guide-card-body">
+              <h2 class="guide-card-title">{guide.title}</h2>
+              <p class="guide-card-desc">{guide.description}</p>
+            </div>
+            <span class="guide-card-arrow" aria-hidden="true">→</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</PageLayout>
+
+<style>
+  .guides-index {
+    background: var(--bg);
+    padding: 40px 0 120px;
+  }
+
+  .guides-header {
+    margin-bottom: 56px;
+  }
+
+  .guides-back {
+    display: inline-flex;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s;
+  }
+  .guides-back:hover { color: var(--tx); }
+
+  .guides-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.1;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .guides-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 12px 0 0;
+    max-width: 520px;
+    line-height: 1.55;
+  }
+
+  .guides-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  @media (min-width: 768px) {
+    .guides-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .guide-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px;
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    text-decoration: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .guide-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .guide-card:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
+
+  .guide-card-num {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .guide-card-num span {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--accent-text);
+    line-height: 1;
+  }
+
+  .guide-card-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .guide-card-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .guide-card-desc {
+    font-family: var(--f-body);
+    font-size: 0.9rem;
+    color: var(--tx2);
+    margin: 6px 0 0;
+    line-height: 1.55;
+  }
+
+  .guide-card-arrow {
+    flex-shrink: 0;
+    font-size: 1.25rem;
+    color: var(--tx3);
+    transition: transform 0.15s ease;
+  }
+
+  .guide-card:hover .guide-card-arrow {
+    transform: translateX(4px);
+  }
+
+  @media (max-width: 639px) {
+    .guide-card {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .guide-card-arrow { display: none; }
+  }
+</style>
+
+<script>
+  const io = new IntersectionObserver(
+    (es) => { for (const e of es) if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } },
+    { threshold: 0.07, rootMargin: '0px 0px -50px 0px' }
+  );
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+</script>
+
+<script type="application/ld+json" set:html={JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Excalimate Guides",
+  "description": description,
+  "url": "https://excalimate.com/guides",
+  "hasPart": guides.map((g) => ({
+    "@type": "HowTo",
+    "name": g.title,
+    "description": g.description,
+    "url": `https://excalimate.com${g.href}`,
+  })),
+})} />

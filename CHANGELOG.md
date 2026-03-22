@@ -18,12 +18,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Group selections expand to member elements and preserve bound text labels in selected-only exports
 - Image export background mode (`Include canvas background` or `No background`) for PNG/SVG
   - JPG exports automatically include background because JPG does not support transparency
+- Lottie text rendering mode selection in the export dialog (`Inline fonts`, `Glyph shapes`, or both)
+  - Inline mode keeps native Lottie text layers with font metadata
+  - Glyph mode converts text to vector shapes for maximum cross-player compatibility
+- Consent-based analytics with PostHog
+  - Cookie consent banner with compact view and detailed preferences modal
+  - Three consent categories: Necessary (always on), Preferences (toggleable), Analytics (toggleable)
+  - PostHog only captures events when analytics consent is granted (`opt_out_capturing_by_default`)
+  - Consent state persisted in localStorage with versioning for migrations
+  - Cookie Settings accessible from File menu to manage preferences at any time
+  - Privacy Policy page on the landing page at `/privacy`
+  - Utility functions `canStorePreferences()`, `storePreference()`, `readPreference()` for consent-aware preference storage
+- Comprehensive event tracking across the app
+  - File operations: project created/saved/loaded, Excalidraw import
+  - Export: format tracked on each export
+  - Animation: keyframe add/move/delete, track toggle/remove, sequence create/update/delete
+  - Playback: play/pause/stop actions
+  - Mode switching, camera changes, theme toggles, panel toggles
+  - MCP connect/disconnect, project sharing, element grouping
+  - All tracking consent-gated and PII-free
 
 ### Changed
-- N/A
+- Optimized glyph export fallback path to reuse a single SVG render per text element before PNG raster fallback
+- Updated app-facing URLs in docs/share defaults to `https://app.excalimate.com` while keeping landing and share service domains unchanged
 
 ### Fixed
-- N/A
+- Lottie glyph text mode no longer exports invisible text when path glyph extraction is unavailable
+  - Falls back to embedded PNG image layers for text to preserve visibility across players
+- Lottie glyph path exports now inject fill paint when SVG glyph paths do not carry inline fill/stroke attributes
+- Lottie exports now preserve scale-origin behavior by compensating scale keyframes for Lottie center-anchored layer transforms
 
 ## [0.3.0] - 2026-03-22
 

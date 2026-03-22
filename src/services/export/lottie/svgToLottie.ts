@@ -24,6 +24,93 @@ async function getExportToSvg() {
   return _exportToSvg;
 }
 
+export async function renderElementToSvg(
+  el: ExcalElement,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  files: Record<string, any>,
+): Promise<SVGSVGElement> {
+  const exportToSvg = await getExportToSvg();
+  return exportToSvg({
+    elements: [el],
+    files: files ?? {},
+    appState: {
+      exportBackground: false,
+      viewBackgroundColor: 'transparent',
+    },
+    exportPadding: 0,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+}
+
+export interface LottieImageDataAsset {
+  dataUri: string;
+  width: number;
+  height: number;
+}
+
+function getSvgDimensions(
+  svg: SVGSVGElement,
+  el: ExcalElement,
+  sx: number,
+  sy: number,
+): { width: number; height: number } {
+  const vb = svg.viewBox?.baseVal;
+  const baseWidth = Math.max(1, vb?.width ?? Math.abs(el.width ?? 1));
+  const baseHeight = Math.max(1, vb?.height ?? Math.abs(el.height ?? 1));
+  const width = Math.max(1, baseWidth * sx);
+  const height = Math.max(1, baseHeight * sy);
+  return { width, height };
+}
+
+function loadImageFromUrl(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to decode fallback image for Lottie export'));
+    img.src = src;
+  });
+}
+
+export async function elementToLottiePngImageAsset(
+  el: ExcalElement,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  files: Record<string, any>,
+  sx: number,
+  sy: number,
+  sourceSvg?: SVGSVGElement,
+): Promise<LottieImageDataAsset> {
+  const svg = sourceSvg ?? await renderElementToSvg(el, files);
+  const { width, height } = getSvgDimensions(svg, el, sx, sy);
+  const outWidth = Math.max(1, Math.round(width));
+  const outHeight = Math.max(1, Math.round(height));
+  const svgForRaster = svg.cloneNode(true) as SVGSVGElement;
+  svgForRaster.setAttribute('width', String(outWidth));
+  svgForRaster.setAttribute('height', String(outHeight));
+  const serializedSvg = new XMLSerializer().serializeToString(svgForRaster);
+  const svgBlob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl = URL.createObjectURL(svgBlob);
+
+  try {
+    const image = await loadImageFromUrl(svgUrl);
+    const canvas = document.createElement('canvas');
+    canvas.width = outWidth;
+    canvas.height = outHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Failed to create canvas context for Lottie glyph export');
+    }
+    ctx.clearRect(0, 0, outWidth, outHeight);
+    ctx.drawImage(image, 0, 0, outWidth, outHeight);
+    return {
+      dataUri: canvas.toDataURL('image/png'),
+      width: outWidth,
+      height: outHeight,
+    };
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
 /**
  * Render a single Excalidraw element to SVG, then extract paths as Lottie shapes.
  * The element is exported in isolation so we get only its paths.
@@ -34,19 +121,9 @@ export async function elementToLottieShapes(
   files: Record<string, any>,
   sx: number,
   sy: number,
+  sourceSvg?: SVGSVGElement,
 ): Promise<LottieShapeGroup> {
-  const exportToSvg = await getExportToSvg();
-
-  const svg = await exportToSvg({
-    elements: [el],
-    files: files ?? {},
-    appState: {
-      exportBackground: false,
-      viewBackgroundColor: 'transparent',
-    },
-    exportPadding: 0,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
+  const svg = sourceSvg ?? await renderElementToSvg(el, files);
 
   const vb = svg.viewBox?.baseVal;
 

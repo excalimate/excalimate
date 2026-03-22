@@ -1,22 +1,22 @@
 ---
 const steps = [
   {
-    num: "1",
-    title: "Draw your diagram",
-    desc: "Use the full Excalidraw editor to sketch your diagram, flowchart, or wireframe.",
+    num: '1',
+    title: 'Draw your diagram',
+    desc: 'Use the full Excalidraw editor to sketch your diagram, flowchart, or wireframe.',
     color: 'var(--p2)',
   },
   {
-    num: "2",
-    title: "Set keyframes",
-    desc: "Add animation keyframes — opacity, position, scale, rotation, and draw progress.",
+    num: '2',
+    title: 'Set keyframes',
+    desc: 'Add animation keyframes — opacity, position, scale, rotation, and draw progress.',
     color: 'var(--p3)',
   },
   {
-    num: "3",
-    title: "Export & share",
-    desc: "Export as MP4, WebM, GIF, animated SVG, or dotLottie. Share with encrypted links.",
-    color: 'var(--p4)',
+    num: '3',
+    title: 'Export & share',
+    desc: 'Export as MP4, WebM, GIF, animated SVG, or dotLottie. Share with encrypted links.',
+    color: 'var(--p5)',
   },
 ];
 ---
@@ -29,23 +29,45 @@ const steps = [
     </header>
 
     <div class="hiw-grid stagger">
-      {steps.map((step, i) => (
-        <div class="hiw-card reveal">
-          <div class="hiw-num" style={`background: ${step.color}`}>
-            <span>{step.num}</span>
+      {
+        steps.map((step, i) => (
+          <div class="hiw-card reveal">
+            <div class="hiw-num" style={`background: ${step.color}`}>
+              <span>{step.num}</span>
+            </div>
+            <div class="hiw-card-body">
+              <h3 class="hiw-card-title">{step.title}</h3>
+              <p class="hiw-card-desc">{step.desc}</p>
+            </div>
+            {i < steps.length - 1 && (
+              <svg
+                class="hiw-arrow"
+                width="32"
+                height="32"
+                viewBox="0 0 32 32"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 16 C12 14, 18 14, 22 16"
+                  stroke="var(--border-c)"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  fill="none"
+                />
+                <path
+                  d="M19 11 L24 16 L19 21"
+                  stroke="var(--border-c)"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  fill="none"
+                />
+              </svg>
+            )}
           </div>
-          <div class="hiw-card-body">
-            <h3 class="hiw-card-title">{step.title}</h3>
-            <p class="hiw-card-desc">{step.desc}</p>
-          </div>
-          {i < steps.length - 1 && (
-            <svg class="hiw-arrow" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <path d="M8 16 C12 14, 18 14, 22 16" stroke="var(--border-c)" stroke-width="2" stroke-linecap="round" fill="none"/>
-              <path d="M19 11 L24 16 L19 21" stroke="var(--border-c)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            </svg>
-          )}
-        </div>
-      ))}
+        ))
+      }
     </div>
   </div>
 </section>
@@ -53,7 +75,7 @@ const steps = [
 <style>
   .hiw {
     padding: 120px 0;
-    background: var(--bg-alt);
+    background: var(--bg);
   }
 
   .hiw-header {

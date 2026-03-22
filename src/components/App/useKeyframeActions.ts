@@ -8,6 +8,7 @@ import { useUndoRedoStore } from '../../stores/undoRedoStore';
 import { usePlaybackStore } from '../../stores/playbackStore';
 import { PROPERTY_DEFAULTS } from '../../types/animation';
 import type { AnimatableProperty, Keyframe } from '../../types/animation';
+import { trackKeyframeAction, trackTrackAction } from '../../services/analytics/posthog';
 
 const LIVE_MODE_MSG_ID = 'live-mode-readonly';
 
@@ -59,29 +60,34 @@ export function useKeyframeActions(): {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     useAnimationStore.getState().addKeyframe(trackId, time, value);
+    trackKeyframeAction('add');
   }, []);
 
   const handleMoveKeyframe = useCallback((trackId: string, kfId: string, newTime: number) => {
     if (guardLiveMode()) return;
     useAnimationStore.getState().moveKeyframe(trackId, kfId, newTime);
+    trackKeyframeAction('move');
   }, []);
 
   const handleRemoveKeyframe = useCallback((trackId: string, kfId: string) => {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     useAnimationStore.getState().removeKeyframe(trackId, kfId);
+    trackKeyframeAction('delete');
   }, []);
 
   const handleToggleTrackEnabled = useCallback((trackId: string) => {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     useAnimationStore.getState().toggleTrackEnabled(trackId);
+    trackTrackAction('toggle');
   }, []);
 
   const handleRemoveTrack = useCallback((trackId: string) => {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     useAnimationStore.getState().removeTrack(trackId);
+    trackTrackAction('remove');
   }, []);
 
   const handleUpdateKeyframe = useCallback((...args: [string, string, Partial<Pick<Keyframe, 'time' | 'value' | 'easing'>>]) => {

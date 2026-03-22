@@ -1,0 +1,194 @@
+---
+interface Guide {
+  title: string;
+  description: string;
+  href: string;
+}
+
+interface Props {
+  current: string;
+}
+
+const allGuides: Guide[] = [
+  { title: 'MCP Server Setup', description: 'Connect your AI coding assistant to Excalimate.', href: '/guides/mcp-setup' },
+  { title: 'Creating Designs', description: 'Create diagrams and designs through the MCP server.', href: '/guides/creating-designs' },
+  { title: 'Animating Designs', description: 'Add keyframe animations, easing, and camera transitions.', href: '/guides/animating-designs' },
+  { title: 'Animated Designs in One Shot', description: 'Build animated diagrams with a single AI prompt.', href: '/guides/animated-designs' },
+  { title: 'What is Keyframe Animation?', description: 'Learn how keyframe animation works.', href: '/guides/what-is-keyframe-animation' },
+  { title: 'What is Excalidraw?', description: 'The open-source whiteboard behind Excalimate.', href: '/guides/what-is-excalidraw' },
+  { title: 'What are Lottie Files?', description: 'Lightweight animation format for web and mobile.', href: '/guides/what-are-lottie-files' },
+  { title: 'Export Animations', description: 'Export as MP4, GIF, SVG, Lottie, and more.', href: '/guides/export-animations' },
+  { title: 'Why Animate Diagrams?', description: 'Benefits of animated visuals.', href: '/guides/why-animate-diagrams' },
+  { title: 'Enhance Presentations', description: 'Use animations in PowerPoint, Keynote, and Slides.', href: '/guides/enhance-presentations' },
+  { title: 'Excalimate vs Excalidraw', description: 'Excalidraw + animation + AI.', href: '/compare/excalimate-vs-excalidraw' },
+  { title: 'Excalimate vs After Effects', description: 'Diagram animation compared.', href: '/compare/excalimate-vs-after-effects' },
+  { title: 'Excalimate vs Canva', description: 'Keyframe control vs general design.', href: '/compare/excalimate-vs-canva' },
+  { title: 'Excalimate vs PowerPoint', description: 'Keyframes vs slide transitions.', href: '/compare/excalimate-vs-powerpoint' },
+  { title: 'Accessibility in Animations', description: 'Inclusive animation best practices.', href: '/guides/accessibility-in-animations' },
+  { title: 'Accessibility in Design', description: 'Contrast, alt text, and inclusive design.', href: '/guides/accessibility-in-design' },
+  { title: 'Excalidraw Libraries', description: 'Premade shapes and diagram components.', href: '/guides/excalidraw-libraries' },
+  { title: 'How to Use Groups', description: 'Group elements for easier animation.', href: '/guides/how-to-use-groups' },
+];
+
+const { current } = Astro.props;
+const related = allGuides.filter((g) => g.href !== current);
+const carouselId = `rel-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<aside class="related" aria-label="Related guides">
+  <div class="related-header">
+    <h2 class="related-title">You might also like</h2>
+    <div class="related-arrows">
+      <button class="arrow-btn arrow-left" data-carousel={carouselId} data-dir="-1" aria-label="Scroll left" type="button">←</button>
+      <button class="arrow-btn arrow-right" data-carousel={carouselId} data-dir="1" aria-label="Scroll right" type="button">→</button>
+    </div>
+  </div>
+  <div class="related-track-wrap">
+    <div class="related-track" id={carouselId}>
+    {related.map((guide) => (
+      <a href={guide.href} class="related-card">
+        <span class="related-card-title">{guide.title}</span>
+        <span class="related-card-desc">{guide.description}</span>
+      </a>
+    ))}
+    </div>
+  </div>
+</aside>
+
+<style>
+  .related {
+    margin-top: 64px;
+    padding-top: 40px;
+    border-top: 1px solid var(--border);
+  }
+
+  .related-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .related-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .related-arrows {
+    display: flex;
+    gap: 8px;
+  }
+
+  .arrow-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    border: var(--border-w-sm) solid var(--border-c);
+    background: var(--card-bg);
+    color: var(--tx);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+    box-shadow: 2px 2px 0 var(--border-c);
+  }
+
+  .arrow-btn:hover {
+    background: var(--surface-hover);
+  }
+
+  .arrow-btn:active {
+    box-shadow: none;
+    transform: translate(1px, 1px);
+  }
+
+  .related-track-wrap {
+    --fade-left: 0px;
+    --fade-right: 24px;
+    -webkit-mask-image: linear-gradient(to right, transparent, black var(--fade-left), black calc(100% - var(--fade-right)), transparent);
+    mask-image: linear-gradient(to right, transparent, black var(--fade-left), black calc(100% - var(--fade-right)), transparent);
+  }
+
+  .related-track {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 4px 0 8px;
+  }
+
+  .related-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .related-card {
+    flex: 0 0 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px;
+    background: var(--card-bg);
+    border: var(--border-w-sm) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: 3px 3px 0 var(--border-c);
+    text-decoration: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .related-card:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--border-c);
+  }
+
+  .related-card:active {
+    transform: translate(1px, 1px);
+    box-shadow: none;
+  }
+
+  .related-card-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--tx);
+    line-height: 1.3;
+  }
+
+  .related-card-desc {
+    font-family: var(--f-body);
+    font-size: 0.75rem;
+    color: var(--tx2);
+    line-height: 1.45;
+  }
+</style>
+
+<script>
+  function updateFades(track: HTMLElement) {
+    const wrap = track.parentElement;
+    if (!wrap) return;
+    const atStart = track.scrollLeft < 2;
+    const atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 2;
+    wrap.style.setProperty('--fade-left', atStart ? '0px' : '24px');
+    wrap.style.setProperty('--fade-right', atEnd ? '0px' : '24px');
+  }
+
+  document.querySelectorAll('.related-track').forEach((track) => {
+    updateFades(track as HTMLElement);
+    track.addEventListener('scroll', () => updateFades(track as HTMLElement), { passive: true });
+  });
+
+  document.querySelectorAll('.arrow-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-carousel');
+      const dir = Number(btn.getAttribute('data-dir'));
+      const track = document.getElementById(id!);
+      if (track) track.scrollBy({ left: dir * 250, behavior: 'smooth' });
+    });
+  });
+</script>

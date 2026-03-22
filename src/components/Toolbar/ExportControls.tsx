@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Button, Modal, Progress, Text, Group, Stack, Alert, Tabs, SegmentedControl } from '@mantine/core';
+import { Button, Modal, Progress, Text, Group, Stack, Alert, Tabs, SegmentedControl, Checkbox } from '@mantine/core';
 import { nprogress } from '@mantine/nprogress';
 import { notifications } from '@mantine/notifications';
 import {
@@ -7,12 +7,13 @@ import {
   IconCamera, IconFileCode, IconPackage,
 } from '@tabler/icons-react';
 import { exportAnimation } from '../../services/ExportService';
-import type { ExportFormat, ExportQuality } from '../../services/ExportService';
+import type { ExportFormat, ExportQuality, LottieFontEmbeddingMode } from '../../services/ExportService';
 import type { NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { useAnimationStore } from '../../stores/animationStore';
 import type { AnimatableTarget } from '../../types/excalidraw';
 import { CAMERA_FRAME_TARGET_ID, useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
+import { trackExport } from '../../services/analytics/posthog';
 
 // ── Video export ─────────────────────────────────────────────────
 
@@ -269,6 +270,7 @@ export function ExportControls() {
   // Video state
   const [format, setFormat] = useState<ExportFormat>('mp4');
   const [quality, setQuality] = useState<ExportQuality>('high');
+  const [lottieFontEmbeddingModes, setLottieFontEmbeddingModes] = useState<LottieFontEmbeddingMode[]>(['inline']);
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -292,6 +294,8 @@ export function ExportControls() {
   };
 
   const handleVideoExport = async () => {
+    const isLottieFormat = format === 'lottie' || format === 'dotlottie';
+    trackExport(format);
     try {
       setExporting(true);
       setProgress(0);
@@ -300,6 +304,7 @@ export function ExportControls() {
         format,
         quality,
         theme: exportTheme,
+        lottieFontEmbeddingModes: isLottieFormat ? lottieFontEmbeddingModes : undefined,
         onProgress: (p) => {
           setProgress(p);
           nprogress.set(p * 100);
@@ -348,6 +353,8 @@ export function ExportControls() {
   };
 
   const isAnimateMode = mode === 'animate';
+  const isLottieFormat = format === 'lottie' || format === 'dotlottie';
+  const hasLottieFontEmbeddingMode = lottieFontEmbeddingModes.length > 0;
   const canExportSelected = selectedElementIds.length > 0 && imageSource !== 'camera';
   const canExportTransparent = imageFormat !== 'jpg';
 
@@ -452,7 +459,43 @@ export function ExportControls() {
                     </div>
                   )}
 
-                  <Button fullWidth leftSection={<IconDownload size={16} />} onClick={handleVideoExport}>
+                  {isLottieFormat && (
+                    <div>
+                      <Text size="xs" fw={500} mb={8}>Text rendering mode</Text>
+                      <Checkbox.Group
+                        value={lottieFontEmbeddingModes}
+                        onChange={(value) => setLottieFontEmbeddingModes(value as LottieFontEmbeddingMode[])}
+                      >
+                        <Stack gap={6}>
+                          <Checkbox
+                            value="inline"
+                            label="Inline fonts in JSON (smaller files, depends on player font support)"
+                            size="xs"
+                          />
+                          <Checkbox
+                            value="glyphs"
+                            label="Glyph shapes (larger files, highest compatibility; falls back to embedded vector text)"
+                            size="xs"
+                          />
+                        </Stack>
+                      </Checkbox.Group>
+                      <Text size="xs" c="dimmed" mt={4}>
+                        You can select both options. When glyphs are enabled, text is exported as vector shapes.
+                      </Text>
+                      {!hasLottieFontEmbeddingMode && (
+                        <Text size="xs" c="red" mt={4}>
+                          Select at least one text rendering mode to export Lottie.
+                        </Text>
+                      )}
+                    </div>
+                  )}
+
+                  <Button
+                    fullWidth
+                    leftSection={<IconDownload size={16} />}
+                    onClick={handleVideoExport}
+                    disabled={isLottieFormat && !hasLottieFontEmbeddingMode}
+                  >
                     Export {FORMAT_INFO[format].label}
                   </Button>
                 </>

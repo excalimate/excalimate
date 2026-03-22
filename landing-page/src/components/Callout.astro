@@ -1,0 +1,61 @@
+---
+interface Props {
+  type?: 'info' | 'tip' | 'warning';
+}
+const { type = 'info' } = Astro.props;
+
+const colors = {
+  info: { border: 'var(--p2)', bg: 'color-mix(in srgb, var(--p2) 8%, var(--bg))' },
+  tip: { border: 'var(--p5)', bg: 'color-mix(in srgb, var(--p5) 8%, var(--bg))' },
+  warning: { border: 'var(--p3)', bg: 'color-mix(in srgb, var(--p3) 8%, var(--bg))' },
+};
+const labels = { info: 'Note', tip: 'Tip', warning: 'Warning' };
+const c = colors[type];
+---
+
+<aside class="callout" style={`border-left-color: ${c.border}; background: ${c.bg}`} role="note">
+  <span class="callout-label" style={`color: ${c.border}`}>{labels[type]}</span>
+  <div class="callout-body"><slot /></div>
+</aside>
+
+<style>
+  .callout {
+    border: var(--border-w-sm) solid var(--border-c);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    box-shadow: 2px 2px 0 var(--border-c);
+  }
+
+  .callout-label {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .callout-body {
+    font-family: var(--f-body);
+    font-size: 0.9rem;
+    color: var(--tx2);
+    line-height: 1.65;
+  }
+
+  .callout-body :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .callout-body :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+</style>

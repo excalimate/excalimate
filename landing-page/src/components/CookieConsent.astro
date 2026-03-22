@@ -1,0 +1,386 @@
+---
+/**
+ * CookieConsent.astro — Fixed-bottom consent bar + modal preferences dialog.
+ * Uses localStorage (not cookies) since this is a static site.
+ * Three categories: Necessary (always on), Preferences (toggleable), Analytics (toggleable).
+ * PostHog JS is only loaded after the user grants analytics consent.
+ */
+---
+
+<!-- Compact banner (bottom bar) -->
+<div class="consent-bar" id="consent-bar" role="dialog" aria-label="Cookie consent">
+  <div class="consent-inner container">
+    <p class="consent-text">
+      We use <strong>anonymous analytics</strong> to improve our site. <a href="/privacy"
+        >Privacy Policy</a
+      >
+    </p>
+    <div class="consent-actions">
+      <button id="consent-manage" class="btn btn-secondary btn-sm">Manage</button>
+      <button id="consent-reject" class="btn btn-secondary">Decline</button>
+      <button id="consent-accept" class="btn btn-primary">Accept All</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preferences modal -->
+<div class="consent-overlay" id="consent-overlay">
+  <div class="consent-modal" role="dialog" aria-label="Cookie preferences" aria-modal="true">
+    <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+    <h3 class="modal-title">Cookie Preferences</h3>
+    <p class="modal-subtitle">Manage your cookie preferences. You can update these at any time.</p>
+
+    <div class="prefs-list">
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-name">Necessary</span>
+          <span class="pref-desc">Essential for the site to function. Cannot be disabled.</span>
+        </div>
+        <input type="checkbox" checked disabled class="pref-check" />
+      </div>
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-name">Preferences</span>
+          <span class="pref-desc"
+            >Remembers your settings, theme, and other choices across sessions.</span
+          >
+        </div>
+        <input type="checkbox" id="preferences-check" class="pref-check" />
+      </div>
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-name">Analytics</span>
+          <span class="pref-desc"
+            >Anonymous usage statistics via PostHog. No personal data collected.</span
+          >
+        </div>
+        <input type="checkbox" id="analytics-check" class="pref-check" />
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="modal-reject" class="btn btn-secondary">Reject All</button>
+      <button id="modal-save" class="btn btn-secondary">Save Preferences</button>
+      <button id="modal-accept" class="btn btn-primary">Accept All</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* ── Banner ── */
+  .consent-bar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: var(--bg);
+    border-top: var(--border-w) solid var(--border-c);
+    box-shadow: 0 0 0 var(--border-c);
+    padding: 14px 0;
+  }
+
+  .consent-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+
+  @media (min-width: 640px) {
+    .consent-inner {
+      padding-inline: 32px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .consent-inner {
+      padding-inline: 48px;
+    }
+  }
+
+  .consent-text {
+    font-family: var(--f-body);
+    font-size: 0.88rem;
+    color: var(--tx2);
+    margin: 0;
+    line-height: 1.5;
+    flex: 1;
+  }
+
+  .consent-text a {
+    color: var(--p4);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .consent-text a:hover {
+    color: var(--tx);
+  }
+
+  .consent-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .btn-sm {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  @media (max-width: 639px) {
+    .consent-inner {
+      flex-wrap: wrap;
+    }
+    .consent-text {
+      width: 100%;
+    }
+    .consent-actions {
+      width: 100%;
+    }
+    .consent-actions .btn {
+      flex: 1;
+    }
+  }
+
+  /* ── Overlay ── */
+  .consent-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(0, 0, 0, 0.4);
+    align-items: center;
+    justify-content: center;
+  }
+
+  .consent-overlay.open {
+    display: flex;
+  }
+
+  /* ── Modal card ── */
+  .consent-modal {
+    background: var(--bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: 8px 8px 0 var(--border-c);
+    max-width: 480px;
+    width: calc(100% - 40px);
+    padding: 28px;
+    position: relative;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 20px;
+    color: var(--tx3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+  }
+
+  .modal-close:hover {
+    color: var(--tx);
+  }
+
+  .modal-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--tx);
+    margin: 0 0 6px;
+  }
+
+  .modal-subtitle {
+    font-family: var(--f-body);
+    font-size: 0.85rem;
+    color: var(--tx2);
+    margin: 0 0 20px;
+    line-height: 1.5;
+  }
+
+  /* ── Category rows ── */
+  .prefs-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pref-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pref-row:last-child {
+    border-bottom: none;
+  }
+
+  .pref-info {
+    flex: 1;
+  }
+
+  .pref-name {
+    font-family: var(--f-body);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--tx);
+    display: block;
+  }
+
+  .pref-desc {
+    font-family: var(--f-body);
+    font-size: 0.8rem;
+    color: var(--tx2);
+    display: block;
+    margin-top: 2px;
+    line-height: 1.45;
+  }
+
+  .pref-check {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    margin-top: 2px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .pref-check:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  /* ── Modal actions ── */
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+
+  .modal-actions .btn {
+    font-size: 13px;
+    padding: 10px 18px;
+  }
+</style>
+
+<script>
+  const CONSENT_KEY = 'excalimate-consent';
+  const bar = document.getElementById('consent-bar')!;
+  const overlay = document.getElementById('consent-overlay')!;
+  const analyticsCheck = document.getElementById('analytics-check') as HTMLInputElement;
+  const preferencesCheck = document.getElementById('preferences-check') as HTMLInputElement;
+  const stored = localStorage.getItem(CONSENT_KEY);
+
+  function showBar() {
+    bar.style.display = 'block';
+  }
+  function hideBar() {
+    bar.style.display = 'none';
+  }
+  function openModal() {
+    // Sync checkboxes with stored consent state
+    try {
+      const raw = localStorage.getItem(CONSENT_KEY);
+      if (raw) {
+        const current = JSON.parse(raw);
+        analyticsCheck.checked = !!current.analytics;
+        preferencesCheck.checked = !!current.preferences;
+      } else {
+        analyticsCheck.checked = false;
+        preferencesCheck.checked = false;
+      }
+    } catch {
+      analyticsCheck.checked = false;
+      preferencesCheck.checked = false;
+    }
+    overlay.classList.add('open');
+  }
+  function closeModal() {
+    overlay.classList.remove('open');
+  }
+
+  function saveAndClose(analytics: boolean, preferences: boolean) {
+    localStorage.setItem(CONSENT_KEY, JSON.stringify({ analytics, preferences, ts: Date.now() }));
+    if (typeof (window as any).posthog !== 'undefined') {
+      (window as any).posthog.capture('consent_decision', { analytics: analytics, preferences: preferences, action: 'save' });
+    }
+    hideBar();
+    closeModal();
+    // PostHog is already loaded (opted-out) via PostHog.astro — just toggle capturing
+    if (typeof (window as any).posthog !== 'undefined') {
+      if (analytics) {
+        (window as any).posthog.opt_in_capturing();
+      } else {
+        (window as any).posthog.opt_out_capturing();
+      }
+    }
+  }
+
+  if (!stored) showBar();
+
+  // Compact banner buttons
+  document.getElementById('consent-manage')!.addEventListener('click', openModal);
+  document
+    .getElementById('consent-accept')!
+    .addEventListener('click', () => saveAndClose(true, true));
+  document
+    .getElementById('consent-reject')!
+    .addEventListener('click', () => saveAndClose(false, false));
+
+  // Modal buttons
+  document.getElementById('modal-close')!.addEventListener('click', closeModal);
+  document
+    .getElementById('modal-accept')!
+    .addEventListener('click', () => saveAndClose(true, true));
+  document
+    .getElementById('modal-reject')!
+    .addEventListener('click', () => saveAndClose(false, false));
+  document
+    .getElementById('modal-save')!
+    .addEventListener('click', () =>
+      saveAndClose(analyticsCheck.checked, preferencesCheck.checked),
+    );
+
+  // Close overlay on backdrop click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeModal();
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+  });
+
+  // Footer "Cookie Settings" link — open modal directly, no banner
+  document.querySelectorAll('a[href="#manage-consent"]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal();
+    });
+  });
+
+  // Utility for other scripts to check preference consent
+  (window as any).excalimateCanStorePreferences = function () {
+    try {
+      const raw = localStorage.getItem(CONSENT_KEY);
+      if (!raw) return false;
+      return JSON.parse(raw).preferences === true;
+    } catch {
+      return false;
+    }
+  };
+</script>

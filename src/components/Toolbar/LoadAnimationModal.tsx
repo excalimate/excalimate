@@ -117,7 +117,7 @@ export function LoadAnimationModal({
           </Text>
           <Group gap="xs" align="flex-end">
             <TextInput
-              placeholder="https://excalimate.com/#share=ID,KEY"
+              placeholder="https://app.excalimate.com/#share=ID,KEY"
               value={url}
               onChange={(e) => setUrl(e.currentTarget.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleUrlLoad(); }}

@@ -1,11 +1,13 @@
 export type ExportFormat = 'mp4' | 'webm' | 'gif' | 'svg' | 'lottie' | 'dotlottie';
 export type ExportQuality = 'low' | 'medium' | 'high' | 'very-high';
+export type LottieFontEmbeddingMode = 'inline' | 'glyphs';
 
 export interface ExportOptions {
   format: ExportFormat;
   quality?: ExportQuality;
   fps?: number;
   theme?: 'light' | 'dark';
+  lottieFontEmbeddingModes?: LottieFontEmbeddingMode[];
   onProgress?: (progress: number) => void;
 }
 

@@ -47,16 +47,25 @@ ul,ol{list-style:none}
   src: url('/fonts/InterVariable-Italic.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Virgil';
-  src: url('https://unpkg.com/@excalidraw/excalidraw@0.18.0/dist/prod/Virgil-Regular.woff2') format('woff2');
+  font-family: 'Excalifont';
+  font-style: normal;
   font-weight: 400;
   font-display: swap;
+  src: url('/fonts/Excalifont-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Virgil';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/prod/fonts/Virgil/Virgil-Regular.woff2') format('woff2');
 }
 
 :root {
   --f-display: 'BricolageGrotesqueVariable', 'Bricolage Grotesque', system-ui, sans-serif;
   --f-body: 'InterVariable', 'Inter', system-ui, -apple-system, sans-serif;
-  --f-sketch: 'Virgil', 'Caveat', cursive;
+  --f-sketch: 'Excalifont', cursive;
 }
 
 
@@ -77,7 +86,7 @@ ul,ol{list-style:none}
 
 /* ── Design Tokens ──────────────────────────────────────────────── */
 :root {
-  --bg:#f7f7f8;--bg-alt:#efefef;--bg-raised:#ffffff;
+  --bg:#f7f7f8;--bg-alt:#f3f3f3;--bg-raised:#ffffff;
   --surface:#ffffff;--surface-hover:#f4f4f5;
   --border:rgba(0,0,0,.08);--border-strong:rgba(0,0,0,.14);
   --tx:#111115;--tx2:#4a4a55;--tx3:#656570;

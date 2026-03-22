@@ -1,0 +1,230 @@
+---
+import PageLayout from './PageLayout.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+  competitor: string;
+  competitorTagline: string;
+  excalimateTagline: string;
+  verdict: string;
+}
+
+const {
+  title,
+  description,
+  path,
+  competitor,
+  competitorTagline,
+  excalimateTagline,
+  verdict,
+} = Astro.props;
+
+const siteUrl = 'https://excalimate.com';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: title,
+  description,
+  url: `${siteUrl}${path}`,
+  about: [
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Excalimate',
+      url: siteUrl,
+      applicationCategory: 'DesignApplication',
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: competitor,
+    },
+  ],
+};
+---
+
+<PageLayout title={title} description={description} path={path}>
+  <Nav />
+
+  <main id="main" class="comparison">
+    <div class="comparison-container">
+      <header class="comparison-header">
+        <a href="/guides" class="guide-back">← Back to guides</a>
+        <h1 class="guide-title">Excalimate vs {competitor}</h1>
+        <p class="comparison-subtitle">{description}</p>
+      </header>
+
+      <div class="versus-cards">
+        <div class="versus-card">
+          <img src="/excalimate_logo.svg" alt="Excalimate logo" height="24" width="24" />
+          <h2>Excalimate</h2>
+          <p>{excalimateTagline}</p>
+        </div>
+        <span class="versus-divider">vs</span>
+        <div class="versus-card">
+          <h2>{competitor}</h2>
+          <p>{competitorTagline}</p>
+        </div>
+      </div>
+
+      <slot name="table" />
+
+      <slot />
+
+      <section class="verdict">
+        <h2>The Verdict</h2>
+        <p class="verdict-text">{verdict}</p>
+        <a href="https://app.excalimate.com" class="btn btn-primary btn-lg">Open Excalimate</a>
+      </section>
+
+      <slot name="related" />
+    </div>
+  </main>
+
+  <Footer />
+
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+</PageLayout>
+
+<style>
+  /* Main container */
+  .comparison {
+    background: var(--bg);
+    padding: 40px 0 80px;
+  }
+
+  .comparison-container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* Header */
+  .comparison-header {
+    margin-bottom: 48px;
+  }
+
+  .comparison-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    line-height: 1.65;
+    margin-top: 12px;
+  }
+
+  /* Versus cards */
+  .versus-cards {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 8px;
+  }
+
+  .versus-card {
+    flex: 1;
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 24px;
+    background: var(--card-bg);
+  }
+
+  .versus-card img {
+    margin-bottom: 10px;
+  }
+
+  .versus-card h2 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--tx);
+    margin: 0 0 8px;
+  }
+
+  .versus-card p {
+    font-family: var(--f-body);
+    font-size: 0.9rem;
+    color: var(--tx2);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .versus-divider {
+    font-family: var(--f-sketch);
+    font-size: 1.4rem;
+    color: var(--p3);
+    flex-shrink: 0;
+    user-select: none;
+  }
+
+  /* Verdict */
+  .verdict {
+    text-align: center;
+    padding: 48px 0 0;
+    margin-top: 48px;
+    border-top: var(--border-w) solid var(--border-c);
+  }
+
+  .verdict h2 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(1.4rem, 3.5vw, 1.8rem);
+    color: var(--tx);
+    margin: 0 0 16px;
+  }
+
+  .verdict-text {
+    font-family: var(--f-body);
+    font-size: 1.05rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    max-width: 560px;
+    margin: 0 auto 28px;
+  }
+
+  /* Back link — matches guide-back from global */
+  .guide-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--f-body);
+    font-size: 0.85rem;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 20px;
+    transition: color 0.15s;
+  }
+
+  .guide-back:hover {
+    color: var(--tx);
+  }
+
+  /* Title — matches guide-title from global */
+  .guide-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    color: var(--tx);
+    line-height: 1.15;
+    margin: 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .versus-cards {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .versus-divider {
+      margin: -4px 0;
+    }
+
+    .comparison-container {
+      padding: 0 16px;
+    }
+  }
+</style>

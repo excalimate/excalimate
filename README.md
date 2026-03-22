@@ -12,7 +12,7 @@
   [![license](https://img.shields.io/github/license/excalimate/excalimate?style=flat-square)](LICENSE)
   [![GitHub stars](https://img.shields.io/github/stars/excalimate/excalimate?style=flat-square)](https://github.com/excalimate/excalimate)
 
-  [Website](https://excalimate.com) · [MCP Server Docs](mcp-server/README.md) · [Report Bug](https://github.com/excalimate/excalimate/issues)
+  [App](https://app.excalimate.com) · [Landing Page](https://excalimate.com) · [MCP Server Docs](mcp-server/README.md) · [Report Bug](https://github.com/excalimate/excalimate/issues)
 
 </div>
 
@@ -48,7 +48,7 @@ https://github.com/user-attachments/assets/77e87c62-0ff4-4a56-aee6-50553b94798c
 npx @excalimate/mcp-server
 ```
 
-Open [excalimate.com](https://excalimate.com), click the **Live** button, and point your AI tool to `http://localhost:3001/mcp`.
+Open [app.excalimate.com](https://app.excalimate.com), click the **Live** button, and point your AI tool to `http://localhost:3001/mcp`.
 
 ### Local development
 
@@ -60,7 +60,7 @@ npm run dev
 
 ## AI Integration (MCP Server)
 
-The MCP server lets AI agents (Copilot, Claude, Cursor, Windsurf) create and animate diagrams for you. Start the server, connect your AI tool, and watch diagrams appear live in [excalimate.com](https://excalimate.com).
+The MCP server lets AI agents (Copilot, Claude, Cursor, Windsurf) create and animate diagrams for you. Start the server, connect your AI tool, and watch diagrams appear live in [app.excalimate.com](https://app.excalimate.com).
 
 ```bash
 npx @excalimate/mcp-server              # default port 3001
@@ -102,7 +102,7 @@ Add to `claude_desktop_config.json`:
 ```
 
 > [!NOTE]
-> Claude Desktop uses stdio transport — no live preview. Use `save_checkpoint` or `share_project` to view results in [excalimate.com](https://excalimate.com).
+> Claude Desktop uses stdio transport — no live preview. Use `save_checkpoint` or `share_project` to view results in [app.excalimate.com](https://app.excalimate.com).
 
 </details>
 

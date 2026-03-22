@@ -65,6 +65,14 @@ jobs:
         working-directory: mcp-server
         run: npm ci && npx tsc
 
+      - name: Install landing page dependencies
+        working-directory: landing-page
+        run: npm ci
+
+      - name: Build landing page
+        working-directory: landing-page
+        run: npx astro build
+
       - name: Upload web app artifact
         uses: actions/upload-artifact@v4
         with:
@@ -76,3 +84,9 @@ jobs:
         with:
           name: mcp-server-dist
           path: mcp-server/dist/
+
+      - name: Upload landing page artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: landing-page-dist
+          path: landing-page/dist/

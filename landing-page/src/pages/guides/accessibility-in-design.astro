@@ -1,0 +1,362 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import Callout from '../../components/Callout.astro';
+import RelatedGuides from '../../components/RelatedGuides.astro';
+
+const title = 'Accessibility in Design: Creating Inclusive Diagrams — Excalimate';
+const description = 'Best practices for creating accessible diagrams and designs. Color contrast, alt text, screen reader support, and inclusive visual communication.';
+
+const contrastExample = `/* WCAG AA — minimum contrast ratios */
+Normal text (< 18pt):       4.5 : 1
+Large text  (≥ 18pt bold):  3.0 : 1
+
+/* WCAG AAA — enhanced contrast ratios */
+Normal text:                7.0 : 1
+Large text:                 4.5 : 1`;
+
+const altTextExample = `<!-- Bad: describes the visual, not the content -->
+<img alt="Diagram with boxes and arrows" />
+
+<!-- Good: describes what the diagram communicates -->
+<img alt="Architecture diagram showing user
+requests flowing from Client through API Gateway
+to the Database, with caching at the gateway layer" />`;
+---
+
+<PageLayout title={title} description={description} path="/guides/accessibility-in-design">
+  <Nav />
+
+  <main id="main" class="guide">
+    <div class="guide-container">
+      <header class="guide-header">
+        <a href="/guides" class="guide-back">← Back to guides</a>
+        <h1 class="guide-title">Accessibility in Design</h1>
+        <p class="guide-subtitle">Creating inclusive diagrams that work for everyone</p>
+      </header>
+
+      <div class="guide-body">
+        <!-- Why Design Accessibility Matters -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h2 class="step-title">Why Design Accessibility Matters</h2>
+          </div>
+          <p class="step-text">
+            Diagrams communicate visually — but not all users experience visuals the same way.
+            Approximately <strong>1 in 12 men</strong> and <strong>1 in 200 women</strong> have
+            some form of color vision deficiency. Many more rely on screen readers, magnification,
+            or high-contrast modes. Accessible design ensures your diagrams communicate effectively
+            to the widest possible audience.
+          </p>
+        </section>
+
+        <!-- Color Contrast -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h2 class="step-title">Color Contrast</h2>
+          </div>
+          <p class="step-text">
+            Sufficient contrast between text and background is fundamental. WCAG defines minimum
+            contrast ratios for different text sizes:
+          </p>
+          <CodeBlock code={contrastExample} label="WCAG Contrast Ratios" />
+          <Callout type="info">
+            WCAG 2.1 defines contrast as the ratio of relative luminance between the lighter and
+            darker colors. Use tools like the <strong>WebAIM Contrast Checker</strong> or browser
+            DevTools to verify your ratios meet AA (4.5:1) or AAA (7:1) standards.
+          </Callout>
+        </section>
+
+        <!-- Don't Rely on Color Alone -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">3</span>
+            <h2 class="step-title">Don't Rely Solely on Color</h2>
+          </div>
+          <p class="step-text">
+            Color should never be the only way to convey meaning. Users with color vision
+            deficiencies may not distinguish between red and green, or blue and purple.
+          </p>
+          <ul class="step-list">
+            <li><strong>Add labels</strong> — Put text labels on color-coded elements ("Error", "Success", "Warning")</li>
+            <li><strong>Use patterns</strong> — Combine color with stripes, dots, or hatching for fill differentiation</li>
+            <li><strong>Use shapes</strong> — Different shapes (circle, diamond, square) reinforce meaning beyond color</li>
+            <li><strong>Add icons</strong> — A checkmark or exclamation mark adds redundant meaning</li>
+          </ul>
+          <Callout type="tip">
+            Test your diagrams in grayscale. If you can still understand the meaning without color,
+            your design is more accessible. Most operating systems have a grayscale or color
+            blindness simulation mode.
+          </Callout>
+        </section>
+
+        <!-- Text Readability -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">4</span>
+            <h2 class="step-title">Text Readability</h2>
+          </div>
+          <p class="step-text">
+            Readable text is crucial in diagrams, where labels often appear small or inside shapes:
+          </p>
+          <ul class="step-list">
+            <li><strong>Minimum font size</strong> — Aim for at least 14px equivalent in exported images. Smaller text is hard to read on screens.</li>
+            <li><strong>Line height</strong> — Use at least 1.5x line spacing for multi-line text in diagram boxes</li>
+            <li><strong>Font choice</strong> — Sans-serif fonts are generally more readable in diagrams. Excalimate's hand-drawn font is legible and approachable.</li>
+            <li><strong>Avoid all-caps</strong> — Sentence case is easier to read for most users, especially those with dyslexia</li>
+          </ul>
+        </section>
+
+        <!-- Alt Text for Exported Images -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">5</span>
+            <h2 class="step-title">Alt Text for Exported Images</h2>
+          </div>
+          <p class="step-text">
+            When you export your diagrams as images, always provide meaningful alt text that
+            describes <strong>what the diagram communicates</strong>, not how it looks:
+          </p>
+          <CodeBlock code={altTextExample} label="HTML" />
+          <p class="step-text">
+            For complex diagrams, consider providing a longer description in a
+            <code class="inline-code">figcaption</code> or a linked text alternative that walks
+            through the diagram step by step.
+          </p>
+        </section>
+
+        <!-- Semantic Structure -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">6</span>
+            <h2 class="step-title">Semantic Structure</h2>
+          </div>
+          <p class="step-text">
+            When embedding diagrams in web pages, use semantic HTML to provide context:
+          </p>
+          <ul class="step-list">
+            <li><strong>Use <code class="inline-code">&lt;figure&gt;</code> and <code class="inline-code">&lt;figcaption&gt;</code></strong> — Wrap diagrams in semantic containers</li>
+            <li><strong>Heading hierarchy</strong> — Give each diagram section a proper heading level</li>
+            <li><strong>ARIA labels</strong> — Use <code class="inline-code">aria-label</code> or <code class="inline-code">aria-describedby</code> for interactive diagrams</li>
+          </ul>
+        </section>
+
+        <!-- Cognitive Accessibility -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">7</span>
+            <h2 class="step-title">Cognitive Accessibility</h2>
+          </div>
+          <p class="step-text">
+            Diagrams should be easy to understand regardless of cognitive ability:
+          </p>
+          <ul class="step-list">
+            <li><strong>Keep it simple</strong> — Avoid cramming too many elements into one diagram. Split complex systems into multiple views.</li>
+            <li><strong>Clear labels</strong> — Use plain language. Avoid jargon-only labels without explanation.</li>
+            <li><strong>Consistent patterns</strong> — Use the same shapes, colors, and layout conventions throughout your diagrams</li>
+            <li><strong>Visual hierarchy</strong> — Guide the eye with size, position, and weight. The most important elements should be the most prominent.</li>
+            <li><strong>Whitespace</strong> — Give elements room to breathe. Cramped diagrams are harder to parse.</li>
+          </ul>
+        </section>
+
+        <!-- Excalimate's Hand-Drawn Style -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">8</span>
+            <h2 class="step-title">How Excalimate's Style Helps</h2>
+          </div>
+          <p class="step-text">
+            Excalimate's hand-drawn aesthetic isn't just visual — it has accessibility benefits:
+          </p>
+          <ul class="step-list">
+            <li><strong>Less intimidating</strong> — Hand-drawn diagrams feel approachable and informal, reducing anxiety for non-technical audiences</li>
+            <li><strong>Organic shapes</strong> — Slightly imperfect lines are easier to distinguish from each other than pixel-perfect geometry</li>
+            <li><strong>Reduced cognitive load</strong> — The sketch style signals "this is a draft" which reduces the pressure to understand everything at once</li>
+          </ul>
+        </section>
+      </div>
+      <RelatedGuides current="/guides/accessibility-in-design" />
+    </div>
+  </main>
+
+  <Footer />
+</PageLayout>
+
+<style>
+  .guide {
+    background: var(--bg);
+    padding: 40px 0 80px;
+  }
+
+  .guide-container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  @media (min-width: 640px) {
+    .guide-container {
+      padding: 0 32px;
+    }
+  }
+
+  /* ── Header ── */
+  .guide-header {
+    margin-bottom: 56px;
+  }
+
+  .guide-back {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s;
+  }
+
+  .guide-back:hover {
+    color: var(--tx);
+  }
+
+  .guide-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.1;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .guide-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 12px 0 0;
+    line-height: 1.5;
+  }
+
+  /* ── Steps ── */
+  .guide-body {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent-text);
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .step-text {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .step-text :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-text :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+  }
+
+  /* ── Inline code ── */
+  .inline-code {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+
+  /* ── Step list ── */
+  .step-list {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+    padding-left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .step-list :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-list :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+</style>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'Accessibility in Design: Creating Inclusive Diagrams',
+    description,
+    author: { '@type': 'Organization', name: 'Excalimate' },
+    publisher: { '@type': 'Organization', name: 'Excalimate' },
+  })}
+/>

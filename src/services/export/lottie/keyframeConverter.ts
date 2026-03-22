@@ -52,6 +52,11 @@ interface TracksByProperty {
   drawProgress: Keyframe[];
 }
 
+interface ScaleOriginCompensation {
+  width: number;
+  height: number;
+}
+
 /** Group tracks for a target by property. */
 export function groupTracksByProperty(
   tracks: AnimationTrack[],
@@ -88,9 +93,13 @@ export function buildTransform(
   props: TracksByProperty,
   fps: number,
   clipStart: number,
+  scaleOriginCompensation?: ScaleOriginCompensation,
 ): LottieTransform {
   // Position: base + translateX/Y keyframes
-  const positionAnimated = props.translateX.length > 0 || props.translateY.length > 0;
+  const includeScaleOriginCompensation = Boolean(scaleOriginCompensation);
+  const positionAnimated = props.translateX.length > 0 ||
+    props.translateY.length > 0 ||
+    (includeScaleOriginCompensation && (props.scaleX.length > 0 || props.scaleY.length > 0));
   let p: LottieMultiValue;
 
   if (positionAnimated) {
@@ -99,21 +108,43 @@ export function buildTransform(
     const times = new Set<number>();
     for (const kf of props.translateX) times.add(kf.time);
     for (const kf of props.translateY) times.add(kf.time);
+    if (includeScaleOriginCompensation) {
+      for (const kf of props.scaleX) times.add(kf.time);
+      for (const kf of props.scaleY) times.add(kf.time);
+    }
     const sortedTimes = [...times].sort((a, b) => a - b);
 
     const xMap = new Map(props.translateX.map(kf => [kf.time, kf]));
     const yMap = new Map(props.translateY.map(kf => [kf.time, kf]));
+    const sxMap = includeScaleOriginCompensation ? new Map(props.scaleX.map(kf => [kf.time, kf])) : null;
+    const syMap = includeScaleOriginCompensation ? new Map(props.scaleY.map(kf => [kf.time, kf])) : null;
+    let currentTx = 0;
+    let currentTy = 0;
+    let currentSx = 1;
+    let currentSy = 1;
 
     const keyframes: LottieKeyframe[] = sortedTimes.map(t => {
-      const xKf = xMap.get(t);
-      const yKf = yMap.get(t);
-      const tx = xKf?.value ?? 0;
-      const ty = yKf?.value ?? 0;
+      const xKf = xMap.get(t) ?? null;
+      const yKf = yMap.get(t) ?? null;
+      const sxKf = sxMap?.get(t) ?? null;
+      const syKf = syMap?.get(t) ?? null;
+      if (xKf) currentTx = xKf.value;
+      if (yKf) currentTy = yKf.value;
+      if (sxKf) currentSx = sxKf.value;
+      if (syKf) currentSy = syKf.value;
+
+      let px = baseX + currentTx;
+      let py = baseY + currentTy;
+      if (scaleOriginCompensation) {
+        // Runtime scaling is top-left-based; convert it to center-based Lottie layer space.
+        px += ((currentSx - 1) * scaleOriginCompensation.width) / 2;
+        py += ((currentSy - 1) * scaleOriginCompensation.height) / 2;
+      }
       // Use easing from whichever keyframe exists at this time
-      const easing = getEasing(xKf?.easing ?? yKf?.easing ?? 'linear');
+      const easing = getEasing(xKf?.easing ?? yKf?.easing ?? sxKf?.easing ?? syKf?.easing ?? 'linear');
       return {
         t: msToFrame(t, fps, clipStart),
-        s: [baseX + tx, baseY + ty, 0],
+        s: [px, py, 0],
         i: easing.i,
         o: easing.o,
       };

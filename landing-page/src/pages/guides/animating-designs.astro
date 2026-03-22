@@ -1,0 +1,454 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import RelatedGuides from '../../components/RelatedGuides.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import Callout from '../../components/Callout.astro';
+
+const title = 'Animating Designs with MCP — Excalimate';
+const description = 'Learn how to add keyframe animations to your Excalidraw diagrams using the Excalimate MCP server and AI assistants.';
+---
+
+<PageLayout title={title} description={description} path="/guides/animating-designs">
+  <Nav />
+
+  <main id="main" class="guide">
+    <div class="guide-container">
+      <!-- Header -->
+      <header class="guide-header">
+        <a href="/guides" class="guide-back">← Back to guides</a>
+        <h1 class="guide-title">Animating Designs with MCP</h1>
+        <p class="guide-subtitle">Add keyframe animations to your Excalidraw diagrams using AI assistants and the Excalimate MCP server.</p>
+      </header>
+
+      <div class="guide-body">
+        <!-- Introduction -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h2 class="step-title">Introduction</h2>
+          </div>
+          <p class="step-text">
+            With your diagram created, it's time to bring it to life. Excalimate supports 7 animatable properties per element, a visual timeline, and camera animations — all controllable through MCP tools.
+          </p>
+        </section>
+
+        <!-- Animatable Properties -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h2 class="step-title">Animatable Properties</h2>
+          </div>
+          <p class="step-text">
+            Every element in your scene can be animated with the following properties:
+          </p>
+          <ul class="step-list">
+            <li><strong>opacity</strong> — Fade elements in/out (0 to 1)</li>
+            <li><strong>translateX / translateY</strong> — Move elements horizontally/vertically</li>
+            <li><strong>scaleX / scaleY</strong> — Grow or shrink elements</li>
+            <li><strong>rotation</strong> — Rotate elements (in radians)</li>
+            <li><strong>drawProgress</strong> — Progressively draw strokes (0 = invisible, 1 = fully drawn). Great for arrows and lines.</li>
+          </ul>
+          <Callout type="tip">
+            The <code>drawProgress</code> property is unique to Excalimate — it makes arrows and shapes appear as if they're being hand-drawn in real-time.
+          </Callout>
+        </section>
+
+        <!-- Adding Keyframes -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">3</span>
+            <h2 class="step-title">Adding Keyframes</h2>
+          </div>
+          <p class="step-text">
+            Keyframes define property values at specific points in time. Excalimate interpolates between them to produce smooth transitions. You describe what you want, and the AI places the right keyframes for you.
+          </p>
+          <CodeBlock label="Prompt" code="Fade in the Research box over 500ms, then draw the arrow to Design over the next 800ms." />
+          <CodeBlock label="What the AI does" code={`add_keyframes_batch([
+  { targetId: "research", property: "opacity",
+    time: 0, value: 0 },
+  { targetId: "research", property: "opacity",
+    time: 500, value: 1, easing: "easeOut" },
+  { targetId: "arrow-1", property: "drawProgress",
+    time: 500, value: 0 },
+  { targetId: "arrow-1", property: "drawProgress",
+    time: 1300, value: 1, easing: "easeInOut" },
+])`} />
+        </section>
+
+        <!-- Easing Functions -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">4</span>
+            <h2 class="step-title">Easing Functions</h2>
+          </div>
+          <p class="step-text">
+            Easings control the acceleration curve between keyframes. Excalimate supports a variety of easing functions:
+          </p>
+          <ul class="step-list">
+            <li><strong>linear</strong> — Constant speed, no acceleration</li>
+            <li><strong>easeIn</strong> — Starts slow, accelerates</li>
+            <li><strong>easeOut</strong> — Starts fast, decelerates</li>
+            <li><strong>easeInOut</strong> — Slow start and end, fast middle</li>
+            <li><strong>easeInCubic</strong> — Stronger ease-in curve</li>
+            <li><strong>easeOutCubic</strong> — Stronger ease-out curve</li>
+            <li><strong>easeOutBack</strong> — Overshoots then settles (bouncy)</li>
+            <li><strong>easeOutElastic</strong> — Spring-like oscillation</li>
+            <li><strong>easeOutBounce</strong> — Bounces at the end</li>
+            <li><strong>step</strong> — Instant jump, no interpolation</li>
+          </ul>
+          <Callout type="info">
+            Use <code>easeOutBack</code> for a satisfying pop-in effect — the element slightly overshoots then settles.
+          </Callout>
+        </section>
+
+        <!-- Reveal Sequences -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">5</span>
+            <h2 class="step-title">Reveal Sequences</h2>
+          </div>
+          <p class="step-text">
+            The <code class="inline-code">create_sequence</code> tool is a shortcut to reveal elements one after another — no need to manually place individual keyframes for each element.
+          </p>
+          <CodeBlock label="Prompt" code="Reveal all three boxes one after another with a 300ms delay between each." />
+          <CodeBlock label="What the AI does" code={`create_sequence({
+  elementIds: ["research", "design", "build"],
+  delay: 300,
+  duration: 500,
+  property: "opacity"
+})`} />
+        </section>
+
+        <!-- Camera Animations -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">6</span>
+            <h2 class="step-title">Camera Animations</h2>
+          </div>
+          <p class="step-text">
+            Camera keyframes let you pan and zoom the viewport over time — perfect for guiding the viewer's attention through a complex diagram.
+          </p>
+          <CodeBlock label="Prompt" code="Start zoomed in on the Research box, then zoom out to show the full diagram." />
+          <CodeBlock label="What the AI does" code={`// Frame the camera on the Research box
+set_camera_frame({
+  x: 200, y: 150, width: 400, aspectRatio: "16:9"
+})
+
+// Zoom out to show everything at 2 seconds
+add_camera_keyframes_batch([
+  { property: "translateX", time: 2000, value: 600, easing: "easeInOut" },
+  { property: "translateY", time: 2000, value: 400, easing: "easeInOut" },
+  { property: "scaleX",     time: 2000, value: 0.5, easing: "easeInOut" },
+  { property: "scaleY",     time: 2000, value: 0.5, easing: "easeInOut" },
+])`} />
+        </section>
+
+        <!-- Setting the Clip Range -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">7</span>
+            <h2 class="step-title">Setting the Clip Range</h2>
+          </div>
+          <p class="step-text">
+            The <code class="inline-code">set_clip_range</code> tool defines the time window that gets exported. Only the portion of your animation within this range will appear in the final output.
+          </p>
+          <CodeBlock label="Example" code={`set_clip_range({ start: 0, end: 3500 })`} />
+          <Callout type="warning">
+            Always set the clip range before exporting. If your animation runs from 0 to 3000ms, set <code>set_clip_range(0, 3500)</code> to include a brief pause at the end.
+          </Callout>
+        </section>
+
+        <!-- Tips -->
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">8</span>
+            <h2 class="step-title">Tips</h2>
+          </div>
+          <ul class="step-list">
+            <li>Use <code class="inline-code">create_animated_scene</code> for new projects — it creates elements + animations in one call.</li>
+            <li>Preview in Excalimate before exporting — use the live preview connection.</li>
+            <li>Use <code class="inline-code">save_checkpoint</code> before experimenting with timing.</li>
+            <li>The timeline in Excalimate shows all keyframes visually — useful for fine-tuning.</li>
+          </ul>
+        </section>
+
+        <!-- Navigation -->
+        <div class="guide-done">
+          <div class="guide-nav-links">
+            <a href="/guides/creating-designs" class="btn btn-secondary">← Creating designs</a>
+            <a href="/guides/animated-designs" class="btn btn-secondary">Next: Full animated designs →</a>
+          </div>
+        </div>
+      </div>
+          <RelatedGuides current="/guides/animating-designs" />
+    </div>
+
+  </main>
+
+  <Footer />
+</PageLayout>
+
+<style>
+  .guide {
+    background: var(--bg);
+    padding: 40px 0 80px;
+  }
+
+  .guide-container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  @media (min-width: 640px) {
+    .guide-container {
+      padding: 0 32px;
+    }
+  }
+
+  /* ── Header ── */
+  .guide-header {
+    margin-bottom: 56px;
+  }
+
+  .guide-back {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s;
+  }
+
+  .guide-back:hover {
+    color: var(--tx);
+  }
+
+  .guide-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.1;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .guide-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 12px 0 0;
+    line-height: 1.5;
+  }
+
+  /* ── Steps ── */
+  .guide-body {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent-text);
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .step-text {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .step-text :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-text :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+  }
+
+  /* ── Inline code ── */
+
+  .inline-code {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+
+  /* ── Step list ── */
+  .step-list {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+    padding-left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .step-list :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-list :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  }
+
+  /* ── Tool sections ── */
+  .tool-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .tool-name {
+    font-family: var(--f-body);
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  /* ── Done / Navigation ── */
+  .guide-done {
+    text-align: center;
+    padding: 32px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .guide-nav-links {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .btn-secondary {
+    background: var(--bg-alt);
+    color: var(--tx);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+  }
+
+  .btn-secondary:hover {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+</style>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: 'How to animate Excalidraw designs with Excalimate MCP',
+    description:
+      'Learn how to add keyframe animations to your Excalidraw diagrams using the Excalimate MCP server and AI assistants.',
+    step: [
+      {
+        '@type': 'HowToStep',
+        name: 'Learn animatable properties',
+        text: 'Understand the 7 animatable properties: opacity, translateX, translateY, scaleX, scaleY, rotation, and drawProgress.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Add keyframes',
+        text: 'Define property values at specific times using add_keyframes_batch. The system interpolates between them for smooth transitions.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Choose easing functions',
+        text: 'Select easing functions like easeOut, easeInOut, easeOutBack, or easeOutElastic to control the acceleration curve between keyframes.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Create reveal sequences',
+        text: 'Use create_sequence to reveal elements one after another with configurable delay and duration.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Animate the camera',
+        text: 'Use set_camera_frame and add_camera_keyframes_batch to pan and zoom the viewport over time.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Set the clip range',
+        text: 'Define the export time window with set_clip_range to control which portion of your animation gets exported.',
+      },
+    ],
+  })}
+/>
+</script>
