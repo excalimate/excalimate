@@ -15,5 +15,9 @@ export async function exportAnimation(options: ExportOptions): Promise<void> {
       return (await import('./export/exportGIF')).exportGIF(options);
     case 'svg':
       return (await import('./export/exportSVG')).exportAnimatedSVG(options);
+    case 'lottie':
+      return (await import('./export/lottie/exportLottie')).exportLottieJSON(options);
+    case 'dotlottie':
+      return (await import('./export/lottie/exportLottie')).exportDotLottie(options);
   }
 }

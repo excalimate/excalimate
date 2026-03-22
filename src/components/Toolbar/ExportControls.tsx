@@ -4,7 +4,7 @@ import { nprogress } from '@mantine/nprogress';
 import { notifications } from '@mantine/notifications';
 import {
   IconMovie, IconVideo, IconPhoto, IconSvg, IconDownload, IconCheck, IconX,
-  IconCamera,
+  IconCamera, IconFileCode, IconPackage,
 } from '@tabler/icons-react';
 import { exportAnimation } from '../../services/ExportService';
 import type { ExportFormat, ExportQuality } from '../../services/ExportService';
@@ -19,6 +19,8 @@ const FORMAT_INFO: Record<ExportFormat, { label: string; desc: string; icon: Rea
   webm: { label: 'WebM', desc: 'VP9 — smaller files, web-optimized', icon: <IconVideo size={16} /> },
   gif: { label: 'GIF', desc: 'Animated image, works everywhere', icon: <IconPhoto size={16} /> },
   svg: { label: 'SVG', desc: 'Animated vector, infinite resolution', icon: <IconSvg size={16} /> },
+  lottie: { label: 'Lottie', desc: 'JSON animation — web, iOS, Android', icon: <IconFileCode size={16} /> },
+  dotlottie: { label: 'dotLottie', desc: 'Optimized Lottie container (.lottie)', icon: <IconPackage size={16} /> },
 };
 
 const QUALITY_INFO: Record<ExportQuality, { label: string; desc: string }> = {
@@ -336,7 +338,7 @@ export function ExportControls() {
                     </div>
                   </div>
 
-                  {format !== 'svg' && (
+                  {format !== 'svg' && format !== 'lottie' && format !== 'dotlottie' && (
                     <div>
                       <Text size="xs" fw={500} mb={8}>Quality</Text>
                       <div className="grid grid-cols-4 gap-1">

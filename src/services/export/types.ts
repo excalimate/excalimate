@@ -1,4 +1,4 @@
-export type ExportFormat = 'mp4' | 'webm' | 'gif' | 'svg';
+export type ExportFormat = 'mp4' | 'webm' | 'gif' | 'svg' | 'lottie' | 'dotlottie';
 export type ExportQuality = 'low' | 'medium' | 'high' | 'very-high';
 
 export interface ExportOptions {
