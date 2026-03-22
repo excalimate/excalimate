@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- N/A
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+## [0.4.0] - 2026-03-22
+
+### Added
 - Lottie JSON (`.json`) and dotLottie (`.lottie`) export formats
   - SVG-based shape rendering captures exact Excalidraw visual style (roughjs hand-drawn strokes, arrowheads, fills)
   - Full keyframe animation support (opacity, translate, scale, rotation, draw progress)
