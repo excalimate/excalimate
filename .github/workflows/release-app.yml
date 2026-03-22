@@ -1,4 +1,4 @@
-name: Release Web App
+name: Release Web App (manual)
 
 on:
   push:
