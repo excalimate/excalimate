@@ -1,6 +1,6 @@
 {
   "name": "@excalimate/mcp-server",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "license": "MIT",
   "description": "Excalimate MCP server for creating Excalidraw designs and animating them with keyframes",
   "keywords": [

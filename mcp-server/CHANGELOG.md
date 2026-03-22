@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- N/A
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+## [0.4.0] - 2026-03-22
+
+### Added
 - `create_animated_scene` composite tool — create elements + keyframes + sequences + camera + clip in one call
 - Batched state mutations via `addKeyframesBatchToState` — eliminates per-keyframe overhead
 - SSE track-level delta broadcasting — only changed tracks/elements sent, not full state
@@ -27,6 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - N/A
 
-## [0.3.5] - 2025-12-15
+## [0.3.5] - 2026-03-16
 
 - Initial public release

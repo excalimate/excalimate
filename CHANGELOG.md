@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- N/A
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+## [0.3.0] - 2026-03-22
+
+### Added
 - New Project modal with name and aspect ratio selection
 - Onboarding overlay with hand-drawn Excalidraw-style arrows and hints
 - MCP Setup Guide page accessible from the welcome overlay
@@ -32,6 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Elements no longer disappear during MCP live preview in edit mode
 - Removed opacity clamping in animation preview
 
-## [0.2.0] - 2025-12-01
+## [0.2.0] - 2026-03-16
 
 - Initial public release
