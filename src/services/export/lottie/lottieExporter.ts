@@ -11,8 +11,7 @@
  */
 import type { LottieAnimation, LottieLayer, LottieShapeLayer } from './types';
 import { staticMulti } from './types';
-import { buildRectShapes, buildEllipseShapes, buildDiamondShapes, buildPathShapes } from './shapeBuilders';
-import { buildTextLayer } from './textLayer';
+import { elementToLottieShapes } from './svgToLottie';
 import { groupTracksByProperty, buildTransform, buildTrimPath } from './keyframeConverter';
 import { buildGroupLayers } from './groupHierarchy';
 import { buildCameraLayer } from './cameraComposition';
@@ -28,12 +27,12 @@ export interface LottieExportOptions {
   elements: ExcalElement[];
   targets: AnimatableTarget[];
   tracks: AnimationTrack[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  files: Record<string, any>;
   fps: number;
   clipStart: number;
   clipEnd: number;
-  /** Camera frame definition from projectStore */
   cameraFrame: { x: number; y: number; width: number; height: number };
-  /** Output resolution (pixels) */
   width: number;
   height: number;
 }
@@ -60,8 +59,8 @@ function getElementPosition(el: ExcalElement): { x: number; y: number } {
 /**
  * Generate a complete Lottie animation JSON from Excalimate data.
  */
-export function generateLottie(options: LottieExportOptions): LottieAnimation {
-  const { elements, targets, tracks, fps, clipStart, clipEnd, cameraFrame, width, height } = options;
+export async function generateLottie(options: LottieExportOptions): Promise<LottieAnimation> {
+  const { elements, targets, tracks, files, fps, clipStart, clipEnd, cameraFrame, width, height } = options;
 
   const durationMs = clipEnd - clipStart;
   const totalFrames = Math.ceil((durationMs / 1000) * fps);
@@ -126,36 +125,33 @@ export function generateLottie(options: LottieExportOptions): LottieAnimation {
     };
 
     if (elType === 'text') {
-      const textLayer = buildTextLayer(el, layerIdx, ip, op);
-      textLayer.ks = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart);
+      // Render text through SVG exporter too — captures exact font rendering
+      const shapeGroup = await elementToLottieShapes(el, files, sx, sy);
+      const transform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart);
+      transform.a = staticMulti([0, 0, 0]);
+
+      const shapeLayer: LottieShapeLayer = {
+        ty: 4,
+        nm: target?.label ?? el.id,
+        ind: layerIdx,
+        ip,
+        op,
+        st: 0,
+        ks: transform,
+        shapes: [shapeGroup],
+      };
 
       const parentIdx = parentMap.get(el.id);
-      if (parentIdx !== undefined) textLayer.parent = parentIdx;
+      if (parentIdx !== undefined) shapeLayer.parent = parentIdx;
 
-      elementLayers.push(textLayer);
+      elementLayers.push(shapeLayer);
       layerIdx++;
       continue;
     }
 
-    // Shape layer — pass scale factors so shapes are sized to composition units
-    let shapeGroup;
-    switch (elType) {
-      case 'rectangle':
-        shapeGroup = buildRectShapes(el, sx, sy);
-        break;
-      case 'ellipse':
-        shapeGroup = buildEllipseShapes(el, sx, sy);
-        break;
-      case 'diamond':
-        shapeGroup = buildDiamondShapes(el, sx, sy);
-        break;
-      case 'arrow':
-      case 'line':
-        shapeGroup = buildPathShapes(el, sx, sy);
-        break;
-      default:
-        shapeGroup = buildRectShapes(el, sx, sy);
-    }
+    // Render element through Excalidraw's SVG exporter to capture exact visual
+    // (roughjs hand-drawn strokes, arrowheads, text rendering)
+    const shapeGroup = await elementToLottieShapes(el, files, sx, sy);
 
     // Add trim path for drawProgress animation
     const trimPath = buildTrimPath(scaledProps, fps, clipStart);

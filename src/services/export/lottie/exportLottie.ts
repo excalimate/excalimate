@@ -45,11 +45,12 @@ export async function exportLottieJSON(options: ExportOptions): Promise<void> {
 
   const camRect = getCameraRect(cameraFrame);
 
-  const lottie = generateLottie({
+  const lottie = await generateLottie({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     elements: elements as any[],
     targets,
     tracks: timeline.tracks,
+    files: project.scene.files ?? {},
     fps,
     clipStart,
     clipEnd,
@@ -83,11 +84,12 @@ export async function exportDotLottie(options: ExportOptions): Promise<void> {
 
   const camRect = getCameraRect(cameraFrame);
 
-  const lottie = generateLottie({
+  const lottie = await generateLottie({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     elements: elements as any[],
     targets,
     tracks: timeline.tracks,
+    files: project.scene.files ?? {},
     fps,
     clipStart,
     clipEnd,
@@ -97,7 +99,7 @@ export async function exportDotLottie(options: ExportOptions): Promise<void> {
   });
   onProgress?.(0.5);
 
-  // Dynamically import dotlottie-js to keep it out of the main bundle
+  // Dynamically import dotlottie-jsto keep it out of the main bundle
   const { DotLottie } = await import('@dotlottie/dotlottie-js');
 
   const dotLottie = new DotLottie();
