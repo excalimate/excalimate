@@ -30,7 +30,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "bench": "tsx bench/run.ts",
+    "bench:json": "tsx bench/run.ts --json"
   },
   "publishConfig": {
     "access": "public",
