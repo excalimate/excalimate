@@ -1,37 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Box, Group, Stack, Text, Button, Switch, Anchor, Divider, Modal } from '@mantine/core';
 import { IconShieldCheck, IconSettings, IconLock, IconAdjustments, IconChartBar } from '@tabler/icons-react';
 import { useConsentStore } from '../stores/consentStore';
 import { CONSENT_KEY, type StoredConsent } from '../services/analytics/consent';
 
 function readStoredConsent(): { analytics: boolean; preferences: boolean } {
+  const fallback = { analytics: false, preferences: false };
+  const raw = localStorage.getItem(CONSENT_KEY);
+  if (!raw) return fallback;
+
   try {
-    const raw = localStorage.getItem(CONSENT_KEY);
-    if (raw) {
-      const parsed: StoredConsent = JSON.parse(raw);
-      return { analytics: !!parsed.state?.analytics, preferences: !!parsed.state?.preferences };
-    }
-  } catch {}
-  return { analytics: false, preferences: false };
+    const parsed: StoredConsent = JSON.parse(raw);
+    return { analytics: !!parsed.state?.analytics, preferences: !!parsed.state?.preferences };
+  } catch {
+    return fallback;
+  }
 }
 
 export function ConsentBanner() {
   const { showBanner, showModal, acceptAll, rejectAll, saveConsent, openSettings } = useConsentStore();
-  const [analyticsOn, setAnalyticsOn] = useState(false);
-  const [preferencesOn, setPreferencesOn] = useState(false);
-
-  // Sync switches with stored state whenever modal opens
-  useEffect(() => {
-    if (showModal) {
-      const stored = readStoredConsent();
-      setAnalyticsOn(stored.analytics);
-      setPreferencesOn(stored.preferences);
-    }
-  }, [showModal]);
+  const [analyticsOn, setAnalyticsOn] = useState(() => readStoredConsent().analytics);
+  const [preferencesOn, setPreferencesOn] = useState(() => readStoredConsent().preferences);
 
   if (!showBanner && !showModal) return null;
 
   const handleCloseModal = () => useConsentStore.setState({ showModal: false });
+  const handleOpenSettings = () => {
+    const stored = readStoredConsent();
+    setAnalyticsOn(stored.analytics);
+    setPreferencesOn(stored.preferences);
+    openSettings();
+  };
   const handleAcceptAll = () => { acceptAll(); };
   const handleRejectAll = () => { rejectAll(); };
   const handleSavePrefs = () => {
@@ -64,7 +63,7 @@ export function ConsentBanner() {
               </Text>
             </Group>
             <Group gap={8} wrap="nowrap">
-              <Button variant="subtle" size="xs" onClick={openSettings} leftSection={<IconSettings size={14} />}>
+              <Button variant="subtle" size="xs" onClick={handleOpenSettings} leftSection={<IconSettings size={14} />}>
                 Manage
               </Button>
               <Button variant="default" size="xs" onClick={rejectAll}>Decline</Button>
