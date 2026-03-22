@@ -18,6 +18,7 @@
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
+    "@dotlottie/dotlottie-js": "^1.6.3",
     "@excalidraw/excalidraw": "^0.18.0",
     "@mantine/core": "^8.3.17",
     "@mantine/dropzone": "^8.3.17",
