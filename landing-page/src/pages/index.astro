@@ -1,0 +1,28 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Nav from '../components/Nav.astro';
+import Hero from '../components/Hero.astro';
+import ValueProps from '../components/ValueProps.astro';
+import FeatureSplits from '../components/FeatureSplits.astro';
+import StatsRow from '../components/StatsRow.astro';
+import ExportShowcase from '../components/ExportShowcase.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import OpenSource from '../components/OpenSource.astro';
+import FinalCTA from '../components/FinalCTA.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout>
+  <Nav />
+  <main id="main">
+    <Hero />
+    <ValueProps />
+    <FeatureSplits />
+    <StatsRow />
+    <ExportShowcase />
+    <HowItWorks />
+    <OpenSource />
+    <FinalCTA />
+  </main>
+  <Footer />
+</BaseLayout>

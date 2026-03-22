@@ -1,0 +1,240 @@
+---
+/**
+ * Footer.astro — Site footer with link grid and bottom bar.
+ * Always dark — colors are hardcoded, not theme-adaptive.
+ */
+
+interface FooterLink {
+  label: string;
+  href: string;
+}
+
+interface FooterColumn {
+  heading: string;
+  links: FooterLink[];
+}
+
+const columns: FooterColumn[] = [
+  {
+    heading: 'Product',
+    links: [
+      { label: 'Features', href: '#features' },
+      { label: 'Export Formats', href: '#export' },
+      { label: 'MCP Server', href: 'https://github.com/excalimate/excalimate/tree/main/mcp-server' },
+      { label: 'AI Skills', href: 'https://github.com/excalimate/excalimate/tree/main/skills' },
+    ],
+  },
+  {
+    heading: 'Resources',
+    links: [
+      { label: 'Documentation', href: 'https://github.com/excalimate/excalimate#readme' },
+      { label: 'GitHub', href: 'https://github.com/excalimate/excalimate' },
+      { label: 'Changelog', href: 'https://github.com/excalimate/excalimate/blob/main/CHANGELOG.md' },
+    ],
+  },
+  {
+    heading: 'Community',
+    links: [
+      { label: 'GitHub Discussions', href: 'https://github.com/excalimate/excalimate/discussions' },
+      { label: 'Report an Issue', href: 'https://github.com/excalimate/excalimate/issues' },
+    ],
+  },
+  {
+    heading: 'Legal',
+    links: [
+      { label: 'License (MIT)', href: 'https://github.com/excalimate/excalimate/blob/main/LICENSE' },
+      { label: 'Security', href: 'https://github.com/excalimate/excalimate/blob/main/SECURITY.md' },
+    ],
+  },
+];
+---
+
+<footer class="footer">
+  <div class="container">
+    <!-- Row 1 — Link grid -->
+    <div class="link-grid">
+      {columns.map((col) => (
+        <div class="link-column">
+          <h3 class="column-heading">{col.heading}</h3>
+          <ul class="column-links" role="list">
+            {col.links.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  class="footer-link"
+                  {...(link.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+
+    <!-- Row 2 — Bottom bar -->
+    <div class="bottom-bar">
+      <a href="/" class="bottom-logo" aria-label="Excalimate home">
+        <img src="/excalimate_logo.svg" alt="Excalimate" height="22" />
+      </a>
+
+      <a
+        href="https://github.com/excalimate/excalimate"
+        class="github-link"
+        target="_blank"
+        rel="noopener"
+        aria-label="Excalimate on GitHub"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+      </a>
+
+      <p class="copyright">&copy; 2026 Excalimate · Made with Excalidraw</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  /* ── Footer shell ───────────────────────────────────────────────── */
+  .footer {
+    background: var(--bg);
+    padding: 72px 0 36px;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+
+  @media (min-width: 640px) {
+    .container { padding-inline: 32px; }
+  }
+
+  @media (min-width: 1024px) {
+    .container { padding-inline: 48px; }
+  }
+
+  /* ── Link grid ──────────────────────────────────────────────────── */
+  .link-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    margin-bottom: 56px;
+  }
+
+  @media (min-width: 640px) {
+    .link-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .link-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* ── Column ─────────────────────────────────────────────────────── */
+  .column-heading {
+    font-family: var(--f-body);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--tx3);
+    margin: 0 0 16px;
+    line-height: 1;
+  }
+
+  .column-links {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .footer-link {
+    font-family: var(--f-body);
+    font-weight: 400;
+    font-size: 14px;
+    color: var(--tx2);
+    transition: color 0.2s ease;
+  }
+
+  .footer-link:hover {
+    color: var(--tx);
+  }
+
+  /* ── Bottom bar ─────────────────────────────────────────────────── */
+  .bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--border);
+    padding-top: 28px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  @media (max-width: 639px) {
+    .bottom-bar {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+  }
+
+  /* ── Logo ────────────────────────────────────────────────────────── */
+  .bottom-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+  }
+
+  .bottom-logo img {
+    height: 20px;
+    width: auto;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+  }
+
+  .bottom-logo:hover img {
+    opacity: 0.8;
+  }
+
+  /* ── GitHub icon ────────────────────────────────────────────────── */
+  .github-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    color: var(--tx3);
+    transition: color 0.2s ease, background 0.2s ease;
+  }
+
+  .github-link:hover {
+    color: var(--tx);
+    background: var(--surface-hover);
+  }
+
+  .github-link svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* ── Copyright ──────────────────────────────────────────────────── */
+  .copyright {
+    font-family: var(--f-body);
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--tx3);
+    line-height: 1;
+  }
+</style>

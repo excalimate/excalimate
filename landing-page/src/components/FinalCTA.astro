@@ -1,0 +1,77 @@
+---
+---
+
+<section class="final-cta">
+  <div class="container">
+    <div class="cta-card reveal">
+      <h2 class="cta-headline">Start animating your diagrams</h2>
+      <p class="cta-subtext">Free, open source, no account needed.</p>
+      <div class="cta-actions">
+        <a href="https://app.excalimate.com" class="btn btn-cta btn-lg">Launch Excalimate</a>
+        <a href="https://github.com/excalimate/excalimate#readme" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-lg">View Documentation</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .final-cta {
+    background: var(--bg-alt);
+    padding: 120px 0;
+  }
+
+  .cta-card {
+    background: var(--accent);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: 6px 6px 0 var(--border-c);
+    padding: 64px 40px;
+    text-align: center;
+  }
+
+  .cta-headline {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.1;
+    color: var(--accent-text);
+    margin: 0;
+  }
+
+  .cta-subtext {
+    font-family: var(--f-body);
+    font-weight: 500;
+    font-size: 1.1rem;
+    color: var(--accent-text);
+    opacity: 0.75;
+    margin: 16px 0 0;
+  }
+
+  .cta-actions {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 36px;
+  }
+
+  /* Inverted button for on-accent background */
+  .btn-cta {
+    background: var(--bg);
+    color: var(--tx);
+    box-shadow: 4px 4px 0 var(--border-c);
+  }
+  .btn-cta:hover {
+    box-shadow: 6px 6px 0 var(--border-c);
+    transform: translate(-1px, -1px);
+  }
+
+  @media (max-width: 640px) {
+    .final-cta {
+      padding: 80px 0;
+    }
+    .cta-card {
+      padding: 48px 24px;
+    }
+  }
+</style>

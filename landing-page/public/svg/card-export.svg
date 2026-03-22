@@ -1,0 +1,27 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- Excalidraw-style export/share icon -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <!-- Download arrow -->
+    <path d="M60 14 C59 18, 61 32, 60 48 C59 52, 61 56, 60 60"
+      stroke="#1e1e1e" stroke-width="2.5" fill="none"/>
+    <path d="M44 48 C48 52, 54 58, 60 62 C66 58, 72 52, 76 48"
+      stroke="#1e1e1e" stroke-width="2.5" fill="none"/>
+    <!-- Tray/container -->
+    <path d="M20 70 C18 72, 16 78, 16 86 C16 92, 18 98, 22 100 C26 102, 44 103, 60 102 C76 101, 94 102, 98 100 C102 98, 104 92, 104 86 C104 78, 102 72, 100 70"
+      stroke="#1e1e1e" stroke-width="2.5" fill="#fff3bf" opacity="0.35"/>
+    <path d="M20 70 C18 72, 16 78, 16 86 C16 92, 18 98, 22 100 C26 102, 44 103, 60 102 C76 101, 94 102, 98 100 C102 98, 104 92, 104 86 C104 78, 102 72, 100 70"
+      stroke="#1e1e1e" stroke-width="2.5" fill="none"/>
+    <!-- Format badges in tray -->
+    <path d="M30 82 C32 80, 42 81, 44 82 C46 84, 45 88, 44 90 C42 92, 34 91, 32 90 C30 88, 29 84, 30 82"
+      fill="#f08c00" opacity="0.6" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text x="33" y="89" font-family="sans-serif" font-size="7" font-weight="bold" fill="#1e1e1e">MP4</text>
+    <path d="M52 82 C54 80, 64 81, 66 82 C68 84, 67 88, 66 90 C64 92, 56 91, 54 90 C52 88, 51 84, 52 82"
+      fill="#d0bfff" opacity="0.6" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text x="54" y="89" font-family="sans-serif" font-size="7" font-weight="bold" fill="#1e1e1e">SVG</text>
+    <path d="M74 82 C76 80, 86 81, 88 82 C90 84, 89 88, 88 90 C86 92, 78 91, 76 90 C74 88, 73 84, 74 82"
+      fill="#ffa8a8" opacity="0.6" stroke="#1e1e1e" stroke-width="1.5"/>
+    <text x="77" y="89" font-family="sans-serif" font-size="7" font-weight="bold" fill="#1e1e1e">GIF</text>
+  </g>
+</svg>

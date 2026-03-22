@@ -1,0 +1,474 @@
+---
+const codeBlockHtml = `<code><span class="hl-comment">// Create an animated diagram</span>
+<span class="hl-keyword">await</span> mcp.call(<span class="hl-string">"create_element"</span>, {
+  type: <span class="hl-string">"rectangle"</span>,
+  label: <span class="hl-string">"API Gateway"</span>
+});
+
+<span class="hl-keyword">await</span> mcp.call(<span class="hl-string">"add_keyframe"</span>, {
+  elementId: <span class="hl-string">"el_1"</span>,
+  opacity: <span class="hl-number">0</span>, scale: <span class="hl-number">0.5</span>
+});</code>`;
+
+const timelineTitle = `A Timeline That <span class="yellow-highlight">Makes Sense</span>`;
+
+interface Feature {
+  text: string;
+}
+
+interface SplitSection {
+  id: string;
+  dark: boolean;
+  reversed: boolean;
+  badge?: string;
+  title: string;
+  titleHtml?: string;
+  description: string;
+  descColor?: string;
+  features: Feature[];
+  visual: 'image' | 'code';
+  imgSrc?: string;
+  imgAlt?: string;
+  annotation?: string;
+  frameBg?: string;
+  frameBorder?: string;
+  frameShadow?: string;
+}
+
+const sections: SplitSection[] = [
+  {
+    id: 'workflow',
+    dark: true,
+    reversed: false,
+    title: 'Draw → Animate → Export',
+    description:
+      'The complete workflow in one tool. Draw diagrams with the full Excalidraw editor, add keyframe animations, and export in any format.',
+    features: [
+      { text: 'Full Excalidraw editor with all drawing tools' },
+      { text: 'Visual keyframe timeline with per-element tracks' },
+      { text: 'Real-time preview with playback controls' },
+      { text: 'One-click export to 8 formats' },
+    ],
+    visual: 'image',
+    imgSrc: '/images/feature-workflow.png',
+    imgAlt: 'Excalimate workflow: draw, animate, export',
+    annotation: 'this simple →',
+    frameBg: 'var(--surface)',
+    frameBorder: 'var(--border-w) solid var(--border-c)',
+    frameShadow: 'var(--shadow-frame)',
+  },
+  {
+    id: 'timeline',
+    dark: false,
+    reversed: true,
+    titleHtml: timelineTitle,
+    title: 'A Timeline That Makes Sense',
+    description:
+      'Collapsible per-element tracks with interpolation curves. See every keyframe at a glance.',
+    features: [
+      { text: 'Collapsible element tracks with color coding' },
+      { text: 'Drag-to-reposition keyframes' },
+      { text: 'Interpolation curve editor' },
+      { text: 'Zoom and scroll for precision' },
+    ],
+    visual: 'image',
+    imgSrc: '/images/feature-timeline.png',
+    imgAlt: 'Animation timeline with keyframe tracks',
+    frameBg: 'var(--surface)',
+    frameBorder: 'var(--border-w) solid var(--border-c)',
+    frameShadow: 'var(--shadow-card)',
+  },
+  {
+    id: 'camera',
+    dark: true,
+    reversed: false,
+    title: 'Camera Animations',
+    description:
+      'Pan, zoom, and rotate your canvas camera with aspect-ratio lock. Create cinematic transitions.',
+    features: [
+      { text: 'Camera keyframes with pan, zoom, rotation' },
+      { text: 'Aspect ratio lock for consistent framing' },
+      { text: 'Smooth interpolation between positions' },
+      { text: 'Preview camera path in real-time' },
+    ],
+    visual: 'image',
+    imgSrc: '/images/feature-camera.png',
+    imgAlt: 'Camera animation controls with pan and zoom',
+    annotation: undefined,
+    frameBg: 'var(--surface)',
+    frameBorder: 'var(--border-w) solid var(--border-c)',
+    frameShadow: 'var(--shadow-frame)',
+  },
+  {
+    id: 'ai',
+    dark: false,
+    reversed: true,
+    badge: 'MCP POWERED',
+    title: 'AI-Powered Creation',
+    description:
+      '23 MCP tools for AI-driven animation. Let Claude, GPT, or any AI build your animations.',
+    features: [
+      { text: '23 MCP tools for complete control' },
+      { text: 'Live SSE mode for real-time updates' },
+      { text: 'Works with Claude, GPT, any MCP client' },
+      { text: '16 specialized AI skills' },
+    ],
+    visual: 'code',
+  },
+];
+---
+
+{
+  sections.map((s) => (
+    <section
+      class:list={['split-section', s.dark ? 'section-dark' : 'section-light']}
+      data-section={s.id}
+    >
+      <div class="split-wrap">
+        <div class:list={['split-grid', s.reversed && 'reversed', 'reveal']}>
+          {/* ── Text side ── */}
+          <div class="split-text">
+            {s.badge && <span class="split-badge">{s.badge}</span>}
+
+            {s.titleHtml ? (
+              <h3 class="split-title" set:html={s.titleHtml} />
+            ) : (
+              <h3 class="split-title">{s.title}</h3>
+            )}
+
+            <p class="split-desc" style="color:var(--tx2)">
+              {s.description}
+            </p>
+
+            <ul class="feature-list">
+              {s.features.map((f) => (
+                <li class="feature-item">
+                  <svg
+                    class="check-icon"
+                    width="22"
+                    height="22"
+                    viewBox="0 0 22 22"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="4" fill="var(--border-c)" />
+                    <rect
+                      x="1"
+                      y="1"
+                      width="18"
+                      height="18"
+                      rx="4"
+                      fill="var(--accent)"
+                      stroke="var(--border-c)"
+                      stroke-width="0.75"
+                    />
+                    <path
+                      d="M6 10l3 3 5.5-6"
+                      stroke="var(--accent-text)"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <span class="feature-text">{f.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* ── Visual side ── */}
+          <div class="split-visual">
+            {s.visual === 'image' ? (
+              <div
+                class="visual-frame"
+                style={`background:${s.frameBg};border:${s.frameBorder};box-shadow:${s.frameShadow}`}
+              >
+                <img src={s.imgSrc} alt={s.imgAlt} loading="lazy" decoding="async" />
+                {s.annotation && <span class="annotation">{s.annotation}</span>}
+              </div>
+            ) : (
+              <div class="code-frame">
+                <div class="code-chrome">
+                  <div class="chrome-dots">
+                    <span class="dot dot-red" />
+                    <span class="dot dot-yellow" />
+                    <span class="dot dot-green" />
+                  </div>
+                  <span class="chrome-filename">mcp-tools.js</span>
+                </div>
+                <pre class="code-body" set:html={codeBlockHtml} />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  ))
+}
+
+<style>
+  /* ── Section wrappers ── */
+  .split-section {
+    padding: 80px 0;
+    position: relative;
+  }
+
+  .section-dark {
+    background: var(--bg-alt);
+    color: var(--tx);
+  }
+
+  .section-light {
+    background: var(--bg);
+    color: var(--tx);
+  }
+
+  .split-wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Grid layout ── */
+  .split-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    align-items: center;
+  }
+
+  @media (min-width: 1024px) {
+    .split-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+    }
+
+    .split-grid.reversed .split-text {
+      order: 2;
+    }
+
+    .split-grid.reversed .split-visual {
+      order: 1;
+    }
+  }
+
+  /* Mobile: visual first */
+  @media (max-width: 1023px) {
+    .split-visual {
+      order: -1;
+    }
+  }
+
+  /* ── Badge ── */
+  .split-badge {
+    display: block;
+    width: fit-content;
+    font-family: var(--f-body);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent-text);
+    background: var(--accent);
+    padding: 5px 14px;
+    border-radius: var(--radius);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    margin-bottom: 16px;
+  }
+
+  /* ── Title ── */
+  .split-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    line-height: 1.15;
+    margin: 0;
+  }
+
+  .section-dark .split-title {
+    color: var(--tx);
+  }
+
+  .section-light .split-title {
+    color: var(--tx);
+  }
+
+  /* Yellow highlight underline */
+  .split-title :global(.yellow-highlight) {
+    position: relative;
+    z-index: 1;
+  }
+
+  .split-title :global(.yellow-highlight)::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: -3px;
+    right: -3px;
+    height: 10px;
+    background: color-mix(in srgb, var(--p3) 25%, transparent);
+    border-radius: 3px;
+    transform: rotate(-1deg);
+    z-index: -1;
+  }
+
+  /* ── Description ── */
+  .split-desc {
+    font-family: var(--f-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 480px;
+    margin: 14px 0 0;
+  }
+
+  /* ── Feature list ── */
+  .feature-list {
+    list-style: none;
+    margin: 24px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .feature-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .check-icon {
+    flex-shrink: 0;
+  }
+
+  .feature-text {
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      sans-serif;
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  .section-dark .feature-text {
+    color: var(--tx2);
+  }
+
+  .section-light .feature-text {
+    color: var(--tx2);
+  }
+
+  /* ── Visual frame (image) ── */
+  .visual-frame {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .visual-frame img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  /* ── Annotation ── */
+  .annotation {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-family: var(--f-sketch);
+    font-size: 15px;
+    color: var(--yellow);
+    transform: rotate(-5deg);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1023px) {
+    .annotation {
+      display: none;
+    }
+  }
+
+  /* ── Code frame ── */
+  .code-frame {
+    border-radius: var(--radius);
+    border: var(--border-w) solid var(--border-c);
+    background: var(--bg-raised);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+
+  .code-chrome {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 40px;
+    padding: 0 16px;
+    background: var(--bg-alt);
+    border-bottom: var(--border-w-sm) solid var(--border-c);
+  }
+
+  .chrome-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .dot-red {
+    background: #ff5f57;
+  }
+  .dot-yellow {
+    background: #ffbd2e;
+  }
+  .dot-green {
+    background: #28ca42;
+  }
+
+  .chrome-filename {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 12px;
+    color: var(--tx2);
+  }
+
+  .code-body {
+    margin: 0;
+    padding: 20px;
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--tx);
+    overflow-x: auto;
+    tab-size: 2;
+  }
+
+  .code-body :global(code) {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+  }
+  .code-body :global(.hl-keyword) {
+    color: var(--p3);
+  }
+  .code-body :global(.hl-string) {
+    color: var(--p4);
+  }
+  .code-body :global(.hl-number) {
+    color: var(--p5);
+  }
+  .code-body :global(.hl-comment) {
+    color: var(--tx3);
+  }
+</style>

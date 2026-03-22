@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Camera pan/zoom animation via null parent layer with inverted transforms
   - Group hierarchy preserved via Lottie layer parenting
   - Proper camera frame → composition coordinate mapping with output resolution scaling
+- Image export scope selection (`Whole canvas` or `Selected elements`)
+  - Group selections expand to member elements and preserve bound text labels in selected-only exports
+- Image export background mode (`Include canvas background` or `No background`) for PNG/SVG
+  - JPG exports automatically include background because JPG does not support transparency
 
 ### Changed
 - N/A

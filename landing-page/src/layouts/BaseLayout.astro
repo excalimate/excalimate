@@ -1,0 +1,30 @@
+---
+import '../styles/global.css';
+
+interface Props { title?: string; description?: string }
+const {
+  title = 'Excalimate — Animate Hand-Drawn Diagrams',
+  description = 'Turn Excalidraw diagrams into keyframe animations. Export as MP4, WebM, GIF, animated SVG, and dotLottie. AI-powered with 23 MCP tools.',
+} = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="description" content={description}/>
+  <title>{title}</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+  <meta property="og:title" content={title}/><meta property="og:description" content={description}/>
+  <meta property="og:type" content="website"/><meta name="twitter:card" content="summary_large_image"/>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div class="grain" aria-hidden="true"></div>
+  <slot/>
+  <script>
+    const io=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target)}},{threshold:.07,rootMargin:'0px 0px -50px 0px'});
+    document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+  </script>
+</body>
+</html>

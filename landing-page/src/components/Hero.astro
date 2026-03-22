@@ -1,0 +1,318 @@
+---
+/* Hero – LottieFiles-style split layout: text left, animation right, features below */
+const features = [
+  {
+    img: '/svg/pencil.svg',
+    title: 'Full Excalidraw Editor',
+    desc: 'Draw, edit, and connect — the complete whiteboard built right in.',
+    bg: 'var(--p2)',
+  },
+  {
+    img: '/svg/keyframe-timeline.svg',
+    title: 'Keyframe Timeline',
+    desc: 'Animate opacity, position, scale, rotation, and draw progress.',
+    bg: 'var(--p3)',
+  },
+  {
+    img: '/svg/floppy-disk.svg',
+    title: '8 Export Formats',
+    desc: 'MP4, WebM, GIF, SVG, dotLottie, Lottie JSON, PNG, and WebP.',
+    bg: 'var(--p4)',
+  },
+  {
+    img: '/svg/sparkle-bot.svg',
+    title: '23 MCP Tools',
+    desc: 'Let Claude, GPT, or any AI build your animations for you.',
+    bg: 'var(--p4)',
+  },
+];
+---
+
+<section class="hero" aria-label="Hero">
+  <div class="orb orb-1" aria-hidden="true"></div>
+  <div class="orb orb-2" aria-hidden="true"></div>
+
+  <div class="hero-container container">
+    <div class="hero-grid">
+      <!-- Left: text + CTAs -->
+      <div class="hero-text">
+        <h1 class="headline hero-s1">
+          Turn <span class="hero-highlight">hand-drawn</span> diagrams into keyframe&nbsp;animations
+        </h1>
+
+        <p class="subheadline hero-s2">
+          Create, animate, and export Excalidraw designs as MP4, WebM, GIF, and animated SVG.
+          Powered by AI through 23 MCP&nbsp;tools.
+        </p>
+
+        <div class="cta-row hero-s3">
+          <a class="btn btn-primary btn-lg" href="https://app.excalimate.com"> Open Excalimate </a>
+          <a
+            class="btn btn-secondary btn-lg"
+            href="https://github.com/excalimate/excalimate"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.63 7.63 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+              ></path>
+            </svg>
+            View on GitHub
+          </a>
+        </div>
+      </div>
+
+      <!-- Right: animation -->
+      <div class="hero-visual hero-s4">
+        <div class="hero-animation-frame">
+          <!-- Replace src with your .lottie file when ready -->
+          <img
+            src="/images/hero-demo.png"
+            alt="Animated diagram created with Excalimate"
+            loading="eager"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Features strip below -->
+    <div class="hero-features hero-s3">
+      {
+        features.map((f) => (
+          <div class="hero-feature">
+            <div
+              class="hero-feature-icon-wrap"
+              style={`background: color-mix(in srgb, ${f.bg} 15%, transparent)`}
+            >
+              <img src={f.img} alt="" width="28" height="28" aria-hidden="true" />
+            </div>
+            <div class="hero-feature-text">
+              <span class="hero-feature-title">{f.title}</span>
+              <span class="hero-feature-desc">{f.desc}</span>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    background: var(--bg);
+    padding: 80px 0 80px;
+  }
+
+  /* ── Glow orbs ── */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    will-change: transform;
+    filter: blur(80px);
+  }
+  .orb-1 {
+    width: 500px;
+    height: 500px;
+    top: -120px;
+    right: -80px;
+    background: var(--p2);
+    opacity: 0.12;
+    animation: drift 22s ease-in-out infinite;
+  }
+  .orb-2 {
+    width: 400px;
+    height: 400px;
+    bottom: -100px;
+    left: -100px;
+    background: var(--p3);
+    opacity: 0.1;
+    animation: drift 22s ease-in-out infinite reverse;
+  }
+
+  /* ── Grid: text left, animation right ── */
+  .hero-container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  @media (min-width: 1024px) {
+    .hero-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+    }
+  }
+
+  /* ── Text side ── */
+  .hero-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .headline {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2.25rem, 5vw, 3.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .hero-highlight {
+    position: relative;
+    display: inline-block;
+  }
+  .hero-highlight::after {
+    content: '';
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    bottom: 2px;
+    height: 10px;
+    background: var(--accent);
+    opacity: 0.2;
+    border-radius: 3px;
+    transform: rotate(-1.5deg);
+    z-index: -1;
+  }
+
+  .subheadline {
+    font-family: var(--f-body);
+    font-weight: 400;
+    font-size: clamp(0.95rem, 1.8vw, 1.125rem);
+    line-height: 1.65;
+    color: var(--tx2);
+    max-width: 500px;
+    margin: 20px 0 0;
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  /* ── Visual side ── */
+  .hero-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hero-animation-frame {
+    width: 100%;
+    max-width: 520px;
+    aspect-ratio: 1 / 1;
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-alt);
+    border: var(--border-w) solid var(--border-c);
+    box-shadow: var(--shadow-card);
+  }
+
+  .hero-animation-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* ── Features strip ── */
+  .hero-features {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 64px;
+    padding-top: 48px;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (min-width: 640px) {
+    .hero-features {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .hero-feature {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: var(--shadow-card);
+  }
+
+  .hero-feature-icon-wrap {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hero-feature-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .hero-feature-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--tx);
+    line-height: 1.3;
+  }
+
+  .hero-feature-desc {
+    font-family: var(--f-body);
+    font-weight: 400;
+    font-size: 0.875rem;
+    color: var(--tx2);
+    line-height: 1.5;
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 639px) {
+    .hero {
+      padding: 60px 0 48px;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .hero-text {
+      text-align: center;
+      align-items: center;
+    }
+    .cta-row {
+      justify-content: center;
+    }
+    .hero-animation-frame {
+      max-width: 400px;
+    }
+  }
+
+  /* ── Reduced motion ── */
+  @media (prefers-reduced-motion: reduce) {
+    .orb {
+      animation: none;
+    }
+  }
+</style>

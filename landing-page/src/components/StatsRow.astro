@@ -1,0 +1,77 @@
+---
+const stats = [
+  { number: "23", label: "MCP Tools", color: 'var(--p2)' },
+  { number: "8", label: "Export Formats", color: 'var(--p3)' },
+  { number: "E2E", label: "Encrypted Sharing", color: 'var(--p4)' },
+  { number: "16", label: "AI Skills", color: 'var(--p5)' },
+];
+---
+
+<section class="stats-strip" aria-label="Key statistics">
+  <div class="container">
+    <div class="stats-row stagger">
+      {stats.map((stat) => (
+        <div class="stat reveal" style={`--stat-color: ${stat.color}`}>
+          <span class="stat-number">{stat.number}</span>
+          <span class="stat-label">{stat.label}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .stats-strip {
+    background: var(--bg-alt);
+    padding-block: 80px;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  @media (min-width: 640px) {
+    .stats-row {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .stats-row {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 28px 16px;
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    border-top: 4px solid var(--stat-color);
+  }
+
+  .stat-number {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--tx);
+  }
+
+  .stat-label {
+    font-family: var(--f-body);
+    font-weight: 500;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--tx2);
+  }
+</style>
