@@ -1,4 +1,4 @@
-name: Publish MCP Server
+name: Publish MCP Server (manual)
 
 on:
   push:
