@@ -5,6 +5,7 @@ on:
     tags:
       - 'v*'
       - '!mcp-server-v*'
+  workflow_dispatch:
 
 jobs:
   release:
