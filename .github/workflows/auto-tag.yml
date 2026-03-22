@@ -1,0 +1,63 @@
+name: Auto-tag on Version Bump
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'mcp-server/package.json'
+
+jobs:
+  tag:
+    name: Create Tags
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check web app version bump
+        id: app
+        run: |
+          # Compare package.json version between HEAD and HEAD~1
+          CURRENT=$(node -p "require('./package.json').version")
+          PREVIOUS=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).version" 2>/dev/null || echo "")
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "previous=$PREVIOUS" >> $GITHUB_OUTPUT
+          if [ "$CURRENT" != "$PREVIOUS" ] && [ -n "$PREVIOUS" ]; then
+            echo "bumped=true" >> $GITHUB_OUTPUT
+          else
+            echo "bumped=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check MCP server version bump
+        id: mcp
+        run: |
+          CURRENT=$(node -p "require('./mcp-server/package.json').version")
+          PREVIOUS=$(git show HEAD~1:mcp-server/package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).version" 2>/dev/null || echo "")
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "previous=$PREVIOUS" >> $GITHUB_OUTPUT
+          if [ "$CURRENT" != "$PREVIOUS" ] && [ -n "$PREVIOUS" ]; then
+            echo "bumped=true" >> $GITHUB_OUTPUT
+          else
+            echo "bumped=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create web app tag
+        if: steps.app.outputs.bumped == 'true'
+        run: |
+          TAG="v${{ steps.app.outputs.current }}"
+          echo "Creating tag: $TAG"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create MCP server tag
+        if: steps.mcp.outputs.bumped == 'true'
+        run: |
+          TAG="mcp-server-v${{ steps.mcp.outputs.current }}"
+          echo "Creating tag: $TAG"
+          git tag "$TAG"
+          git push origin "$TAG"

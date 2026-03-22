@@ -93,3 +93,71 @@ export function addKeyframeToState(
     },
   };
 }
+
+/**
+ * Batch-add many keyframes in a single pass, avoiding per-keyframe state cloning.
+ *
+ * Groups keyframes by (targetId, property), creates/finds tracks once per group,
+ * appends all keyframes at once, sorts each track once at the end.
+ * Returns the final state in one shot.
+ */
+export function addKeyframesBatchToState(
+  state: ServerState,
+  keyframes: { targetId: string; property: AnimatableProperty; time: number; value: number; easing?: EasingType }[],
+): ServerState {
+  if (keyframes.length === 0) return state;
+
+  // Build a mutable copy of tracks array (shallow — track objects reused until modified)
+  const tracks = [...state.timeline.tracks];
+  // Index for O(1) track lookup: "targetId|property" → index in tracks[]
+  const trackIndex = new Map<string, number>();
+  for (let i = 0; i < tracks.length; i++) {
+    trackIndex.set(`${tracks[i].targetId}|${tracks[i].property}`, i);
+  }
+
+  // Determine target type once per targetId
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const elementIdSet = new Set(state.scene.elements.map((e: any) => e.id as string));
+  const targetTypeCache = new Map<string, 'element' | 'group'>();
+  // Track which indices were cloned and need a final sort
+  const modifiedIndices = new Set<number>();
+
+  for (const kf of keyframes) {
+    const key = `${kf.targetId}|${kf.property}`;
+    let idx = trackIndex.get(key);
+
+    if (idx === undefined) {
+      let targetType = targetTypeCache.get(kf.targetId);
+      if (targetType === undefined) {
+        targetType = elementIdSet.has(kf.targetId) ? 'element' : 'group';
+        targetTypeCache.set(kf.targetId, targetType);
+      }
+      const newTrack = createTrack(kf.targetId, targetType, kf.property);
+      idx = tracks.length;
+      tracks.push(newTrack);
+      trackIndex.set(key, idx);
+    }
+
+    // Clone track on first modification (copy-on-write)
+    if (!modifiedIndices.has(idx)) {
+      tracks[idx] = { ...tracks[idx], keyframes: [...tracks[idx].keyframes] };
+      modifiedIndices.add(idx);
+    }
+
+    // Append keyframe (defer sorting until the end)
+    tracks[idx].keyframes.push(createKeyframe(kf.time, kf.value, kf.easing ?? 'linear'));
+  }
+
+  // Sort keyframes once per modified track
+  for (const idx of modifiedIndices) {
+    tracks[idx].keyframes.sort((a, b) => a.time - b.time);
+  }
+
+  return {
+    ...state,
+    timeline: {
+      ...state.timeline,
+      tracks,
+    },
+  };
+}

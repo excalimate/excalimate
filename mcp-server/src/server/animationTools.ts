@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { addKeyframeToState } from '../state.js';
+import { addKeyframeToState, addKeyframesBatchToState } from '../state.js';
 import type { AnimatableProperty, EasingType } from '../types.js';
 import { ANIMATABLE_PROPERTIES, EASING_TYPES } from '../types.js';
 import { ORIGIN_MAP } from './geometry.js';
 import type { StateContext } from './stateContext.js';
+import { getTimelineJSON } from './stateContext.js';
 
 export function registerAnimationTools(
   server: McpServer,
@@ -40,6 +41,11 @@ export function registerAnimationTools(
         const parsed = JSON.parse(keyframes);
         if (!Array.isArray(parsed)) return { content: [{ type: 'text', text: 'Error: must be array' }] };
 
+        const validProperties = new Set<string>(ANIMATABLE_PROPERTIES);
+        const batch: { targetId: string; property: AnimatableProperty; time: number; value: number; easing?: EasingType }[] = [];
+        let skipped = 0;
+
+        // Collect scale origin compensation data
         const scaleCompensation = new Map<string, { targetId: string; time: number; sx: number; sy: number; origin: string; easing: string }>();
         for (const kf of parsed) {
           if ((kf.property === 'scaleX' || kf.property === 'scaleY') && kf.scaleOrigin && kf.scaleOrigin !== 'top-left') {
@@ -52,32 +58,31 @@ export function registerAnimationTools(
           }
         }
 
-        const validProperties = new Set(ANIMATABLE_PROPERTIES);
-        let count = 0;
-        let skipped = 0;
+        // Collect valid keyframes
         for (const kf of parsed) {
           if (!validProperties.has(kf.property)) { skipped++; continue; }
-          const state = ctx.getState();
-          ctx.updateState(addKeyframeToState(state, kf.targetId, kf.property, kf.time, kf.value, kf.easing ?? 'linear'));
-          count++;
+          batch.push({ targetId: kf.targetId, property: kf.property, time: kf.time, value: kf.value, easing: kf.easing ?? 'linear' });
         }
 
+        // Compute scale origin compensation keyframes
+        const state = ctx.getState();
         for (const skf of scaleCompensation.values()) {
           const [ox, oy] = ORIGIN_MAP[skf.origin] ?? [0.5, 0.5];
-          const state = ctx.getState();
           const el = state.scene.elements.find((e: any) => e.id === skf.targetId);
           if (!el) continue;
           const bounds = getElementBounds(el);
           const w = bounds.maxX - bounds.minX;
           const h = bounds.maxY - bounds.minY;
-          const tx = -w * (skf.sx - 1) * ox;
-          const ty = -h * (skf.sy - 1) * oy;
-          ctx.updateState(addKeyframeToState(state, skf.targetId, 'translateX', skf.time, tx, skf.easing as EasingType));
-          const updated = ctx.getState();
-          ctx.updateState(addKeyframeToState(updated, skf.targetId, 'translateY', skf.time, ty, skf.easing as EasingType));
-          count += 2;
+          batch.push(
+            { targetId: skf.targetId, property: 'translateX', time: skf.time, value: -w * (skf.sx - 1) * ox, easing: skf.easing as EasingType },
+            { targetId: skf.targetId, property: 'translateY', time: skf.time, value: -h * (skf.sy - 1) * oy, easing: skf.easing as EasingType },
+          );
         }
 
+        // Apply all keyframes in one pass
+        ctx.updateState(addKeyframesBatchToState(state, batch));
+
+        const count = batch.length;
         return { content: [{ type: 'text', text: `Added ${count} keyframes.${skipped ? ` Skipped ${skipped} with invalid properties.` : ''}` }] };
       } catch (e) {
         return { content: [{ type: 'text', text: `Error: ${e}` }] };
@@ -113,22 +118,22 @@ export function registerAnimationTools(
       duration: z.number().min(50).default(500).describe('Duration of each reveal (ms)'),
     },
     async ({ elementIds, property, startTime, delay, duration }) => {
+      const prop = property as AnimatableProperty;
+      const batch: { targetId: string; property: AnimatableProperty; time: number; value: number; easing?: EasingType }[] = [];
+
       for (let i = 0; i < elementIds.length; i++) {
         const revealStart = startTime + i * delay;
         const revealEnd = revealStart + duration;
         const targetId = elementIds[i];
 
-        if (revealStart > 0) {
-          const state = ctx.getState();
-          ctx.updateState(addKeyframeToState(state, targetId, property as AnimatableProperty, 0, 0));
-        }
-        if (revealStart > 10) {
-          const state = ctx.getState();
-          ctx.updateState(addKeyframeToState(state, targetId, property as AnimatableProperty, revealStart, 0));
-        }
-        const state = ctx.getState();
-        ctx.updateState(addKeyframeToState(state, targetId, property as AnimatableProperty, revealEnd, 1, 'easeOut'));
+        if (revealStart > 0) batch.push({ targetId, property: prop, time: 0, value: 0 });
+        if (revealStart > 10) batch.push({ targetId, property: prop, time: revealStart, value: 0 });
+        batch.push({ targetId, property: prop, time: revealEnd, value: 1, easing: 'easeOut' });
       }
+
+      const state = ctx.getState();
+      ctx.updateState(addKeyframesBatchToState(state, batch));
+
       const totalDuration = startTime + (elementIds.length - 1) * delay + duration;
       return { content: [{ type: 'text', text: `Sequence created: ${elementIds.length} elements, total ${totalDuration}ms.` }] };
     },
@@ -153,20 +158,9 @@ export function registerAnimationTools(
     'get_timeline',
     'Return the current animation timeline as JSON.',
     {},
-    async () => {
-      const state = ctx.getState();
-      return {
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            timeline: state.timeline,
-            clipStart: state.clipStart,
-            clipEnd: state.clipEnd,
-            cameraFrame: state.cameraFrame,
-          }, null, 2),
-        }],
-      };
-    },
+    async () => ({
+      content: [{ type: 'text' as const, text: getTimelineJSON() }],
+    }),
   );
 
   ctx.mutatingTool(
@@ -202,31 +196,29 @@ export function registerAnimationTools(
         const h = bounds.maxY - bounds.minY;
         const [ox, oy] = ORIGIN_MAP[origin] ?? [0.5, 0.5];
 
-        let count = 0;
+        const batch: { targetId: string; property: AnimatableProperty; time: number; value: number; easing?: EasingType }[] = [];
         for (const kf of parsed) {
           const sx = kf.scaleX ?? 1;
           const sy = kf.scaleY ?? 1;
-          const easing = kf.easing ?? 'linear';
+          const easing = (kf.easing ?? 'linear') as EasingType;
 
-          let currentState = ctx.getState();
-          ctx.updateState(addKeyframeToState(currentState, targetId, 'scaleX', kf.time, sx, easing as EasingType));
-          currentState = ctx.getState();
-          ctx.updateState(addKeyframeToState(currentState, targetId, 'scaleY', kf.time, sy, easing as EasingType));
+          batch.push(
+            { targetId, property: 'scaleX', time: kf.time, value: sx, easing },
+            { targetId, property: 'scaleY', time: kf.time, value: sy, easing },
+          );
 
           const tx = -w * (sx - 1) * ox;
           const ty = -h * (sy - 1) * oy;
-
           if (Math.abs(tx) > 0.1 || Math.abs(ty) > 0.1 || ox !== 0 || oy !== 0) {
-            currentState = ctx.getState();
-            ctx.updateState(addKeyframeToState(currentState, targetId, 'translateX', kf.time, tx, easing as EasingType));
-            currentState = ctx.getState();
-            ctx.updateState(addKeyframeToState(currentState, targetId, 'translateY', kf.time, ty, easing as EasingType));
+            batch.push(
+              { targetId, property: 'translateX', time: kf.time, value: tx, easing },
+              { targetId, property: 'translateY', time: kf.time, value: ty, easing },
+            );
           }
-
-          count++;
         }
 
-        return { content: [{ type: 'text', text: `Added ${count} scale keyframes with origin "${origin}" for "${targetId}".` }] };
+        ctx.updateState(addKeyframesBatchToState(state, batch));
+        return { content: [{ type: 'text', text: `Added ${parsed.length} scale keyframes with origin "${origin}" for "${targetId}".` }] };
       } catch (e) {
         return { content: [{ type: 'text', text: `Error: ${e}` }] };
       }
@@ -250,14 +242,12 @@ export function registerAnimationTools(
       if (aspectRatio !== undefined) state.cameraFrame.aspectRatio = aspectRatio;
 
       const CAMERA_ID = '__camera_frame__';
-      let currentState = ctx.getState();
-      ctx.updateState(addKeyframeToState(currentState, CAMERA_ID, 'translateX', 0, 0));
-      currentState = ctx.getState();
-      ctx.updateState(addKeyframeToState(currentState, CAMERA_ID, 'translateY', 0, 0));
-      currentState = ctx.getState();
-      ctx.updateState(addKeyframeToState(currentState, CAMERA_ID, 'scaleX', 0, 1));
-      currentState = ctx.getState();
-      ctx.updateState(addKeyframeToState(currentState, CAMERA_ID, 'scaleY', 0, 1));
+      ctx.updateState(addKeyframesBatchToState(state, [
+        { targetId: CAMERA_ID, property: 'translateX', time: 0, value: 0 },
+        { targetId: CAMERA_ID, property: 'translateY', time: 0, value: 0 },
+        { targetId: CAMERA_ID, property: 'scaleX', time: 0, value: 1 },
+        { targetId: CAMERA_ID, property: 'scaleY', time: 0, value: 1 },
+      ]));
 
       const updated = ctx.getState();
       return { content: [{ type: 'text', text: `Camera: ${updated.cameraFrame.aspectRatio} at (${updated.cameraFrame.x}, ${updated.cameraFrame.y}), width ${updated.cameraFrame.width}. Initial keyframes created at t=0.` }] };
@@ -301,17 +291,20 @@ export function registerAnimationTools(
           zoom: 'scaleX',
           scale: 'scaleX',
         };
-        let count = 0;
+
+        const batch: { targetId: string; property: AnimatableProperty; time: number; value: number; easing?: EasingType }[] = [];
         let skipped = 0;
         for (const kf of parsed) {
           let prop = kf.property;
           if (propMap[prop]) prop = propMap[prop];
           if (!validCameraProps.has(prop)) { skipped++; continue; }
-          const state = ctx.getState();
-          ctx.updateState(addKeyframeToState(state, CAMERA_ID, prop as AnimatableProperty, kf.time, kf.value, (kf.easing as EasingType) ?? 'linear'));
-          count++;
+          batch.push({ targetId: CAMERA_ID, property: prop as AnimatableProperty, time: kf.time, value: kf.value, easing: (kf.easing as EasingType) ?? 'linear' });
         }
-        return { content: [{ type: 'text', text: `Added ${count} camera keyframes.${skipped ? ` Skipped ${skipped} with invalid properties (use translateX, translateY, scaleX, scaleY).` : ''}` }] };
+
+        const state = ctx.getState();
+        ctx.updateState(addKeyframesBatchToState(state, batch));
+
+        return { content: [{ type: 'text', text: `Added ${batch.length} camera keyframes.${skipped ? ` Skipped ${skipped} with invalid properties (use translateX, translateY, scaleX, scaleY).` : ''}` }] };
       } catch (e) {
         return { content: [{ type: 'text', text: `Error: ${e}` }] };
       }

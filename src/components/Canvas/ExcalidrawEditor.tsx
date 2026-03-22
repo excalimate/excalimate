@@ -19,9 +19,14 @@ export function ExcalidrawEditor({
   initialData,
 }: ExcalidrawEditorProps) {
   const theme = useUIStore((s) => s.theme);
+  const liveMode = useUIStore((s) => s.liveMode);
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const onSceneChangeRef = useRef(onSceneChange);
   const onElementsSelectedRef = useRef(onElementsSelected);
+  // Track element IDs we've pushed to Excalidraw so we can detect external changes
+  const knownElementIdsRef = useRef<string>('');
+  // Suppress the next onChange from our own updateScene call
+  const suppressNextChangeRef = useRef(false);
 
   useEffect(() => {
     onSceneChangeRef.current = onSceneChange;
@@ -39,6 +44,12 @@ export function ExcalidrawEditor({
     (elements: readonly ExcalidrawElement[], appState: any, _files: any) => {
       if (!apiRef.current) return;
 
+      // Skip onChange triggered by our own updateScene (live mode sync)
+      if (suppressNextChangeRef.current) {
+        suppressNextChangeRef.current = false;
+        return;
+      }
+
       // Persist viewport for edit mode restoration
       if (appState?.scrollX != null) {
         setCanvasViewport('edit', {
@@ -53,6 +64,12 @@ export function ExcalidrawEditor({
       const isDrawTool = toolType !== 'selection' && toolType !== 'hand' && toolType !== 'eraser';
       if (isDrawTool !== useUIStore.getState().drawToolActive) {
         useUIStore.getState().setDrawToolActive(isDrawTool);
+      }
+
+      // Update known IDs from Excalidraw's own state (only needed for live mode sync)
+      if (useUIStore.getState().liveMode) {
+        const nonDeleted = elements.filter(el => !el.isDeleted);
+        knownElementIdsRef.current = nonDeleted.map(el => el.id).join(',');
       }
 
       if (onSceneChangeRef.current) {
@@ -93,6 +110,28 @@ export function ExcalidrawEditor({
       files: initialData.files,
     };
   }, [initialData]);
+
+  // In live mode, sync external scene changes (from MCP) into Excalidraw.
+  // Without this, MCP-created elements disappear because Excalidraw only reads
+  // initialData on mount, and its onChange overwrites the store with stale data.
+  useEffect(() => {
+    if (!liveMode || !initialData) return;
+    const api = apiRef.current;
+    if (!api) return;
+
+    const newIds = (initialData.elements as ExcalidrawElement[])
+      .filter(el => !el.isDeleted)
+      .map(el => el.id)
+      .join(',');
+
+    if (newIds !== knownElementIdsRef.current && newIds.length > 0) {
+      knownElementIdsRef.current = newIds;
+      suppressNextChangeRef.current = true;
+      api.updateScene({
+        elements: initialData.elements as ExcalidrawElement[],
+      });
+    }
+  }, [liveMode, initialData]);
 
   return (
     <div

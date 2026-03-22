@@ -1,4 +1,4 @@
-name: Publish MCP Server to npm
+name: Publish MCP Server
 
 on:
   push:
@@ -53,6 +53,11 @@ jobs:
         working-directory: mcp-server
         run: node -e "require('./dist/index.js'); console.log('Build verified'); process.exit(0)"
 
+      # Run benchmarks
+      - name: Run benchmarks
+        working-directory: mcp-server
+        run: npx tsx bench/run.ts --markdown --output bench-results.md
+
       # Publish
       - name: Publish to npm (dry run)
         if: ${{ github.event.inputs.dry-run == 'true' }}
@@ -66,17 +71,39 @@ jobs:
         env:
           NPM_CONFIG_PROVENANCE: true
 
-      # Create GitHub Release
+      # Create GitHub Release with changelog
       - name: Extract version from tag
         if: startsWith(github.ref, 'refs/tags/')
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/mcp-server-v}" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog for version
+        if: startsWith(github.ref, 'refs/tags/')
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Extract the section for this version from CHANGELOG.md
+          # Matches from "## [VERSION]" to the next "## [" or end of file
+          NOTES=$(sed -n "/^## \[$VERSION\]/,/^## \[/{ /^## \[$VERSION\]/d; /^## \[/d; p; }" mcp-server/CHANGELOG.md)
+          # If no version-specific section found, use [Unreleased]
+          if [ -z "$NOTES" ]; then
+            NOTES=$(sed -n '/^## \[Unreleased\]/,/^## \[/{ /^## \[Unreleased\]/d; /^## \[/d; p; }' mcp-server/CHANGELOG.md)
+          fi
+          # Write to file for the release step
+          echo "$NOTES" > release-notes.md
+          # Append benchmark results
+          if [ -f mcp-server/bench-results.md ]; then
+            echo "" >> release-notes.md
+            echo "---" >> release-notes.md
+            echo "" >> release-notes.md
+            cat mcp-server/bench-results.md >> release-notes.md
+          fi
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           name: 'MCP Server v${{ steps.version.outputs.version }}'
-          generate_release_notes: true
+          body_path: release-notes.md
           files: |
-            mcp-server/dist/**
+            mcp-server/bench-results.md

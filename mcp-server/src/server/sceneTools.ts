@@ -2,6 +2,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { StateContext } from './stateContext.js';
+import { getSceneElementsJSON } from './stateContext.js';
 
 export function registerSceneTools(
   server: McpServer,
@@ -90,7 +91,7 @@ export function registerSceneTools(
     'Return the current scene elements as JSON.',
     {},
     async () => ({
-      content: [{ type: 'text' as const, text: JSON.stringify(ctx.getState().scene.elements, null, 2) }],
+      content: [{ type: 'text' as const, text: getSceneElementsJSON() }],
     }),
   );
 

@@ -6,7 +6,7 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
-import { getSharedState } from './server.js';
+import { getSharedStateJSON } from './server.js';
 
 function getCorsOrigin() {
   const raw = process.env.CORS_ORIGIN;
@@ -170,9 +170,10 @@ export async function startHTTPServer(
     req.on('close', () => sseClients.delete(res));
   });
 
-  // Current state endpoint
+  // Current state endpoint — serves cached JSON to avoid re-serialization
   app.get('/state', (_req: Request, res: Response) => {
-    res.json(getSharedState());
+    res.setHeader('Content-Type', 'application/json');
+    res.send(getSharedStateJSON());
   });
 
   const httpServer = app.listen(port, () => {

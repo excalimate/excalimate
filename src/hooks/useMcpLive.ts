@@ -15,6 +15,36 @@ import { computeFrameAtTime } from '../core/engine/playbackSingleton';
 
 const STORAGE_KEY = 'excalimate-mcp-url';
 
+/** Decompress a gzip+base64 encoded string using the browser's DecompressionStream API. */
+async function decompressGzBase64(b64: string): Promise<string> {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  const ds = new DecompressionStream('gzip');
+  const writer = ds.writable.getWriter();
+  writer.write(bytes);
+  writer.close();
+
+  const reader = ds.readable.getReader();
+  const chunks: Uint8Array[] = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+
+  const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+  const merged = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return new TextDecoder().decode(merged);
+}
+
 function getPersistedMcpUrl(): string {
   try {
     return localStorage.getItem(STORAGE_KEY) || import.meta.env.VITE_MCP_SERVER_URL || 'http://localhost:3001';
@@ -131,6 +161,21 @@ export function useMcpLive() {
           const data = JSON.parse(event.data);
           if (data.type === 'state' && data.state) {
             applyState(data.state);
+          } else if (data.type === 'gz' && data.data) {
+            // Decompress gzipped SSE payload
+            decompressGzBase64(data.data).then(
+              (json) => {
+                try {
+                  const parsed = JSON.parse(json);
+                  if (parsed.type === 'state' && parsed.state) {
+                    applyState(parsed.state);
+                  }
+                } catch (e) {
+                  console.error('[MCP Live] Parse error after decompress:', e);
+                }
+              },
+              (err) => console.error('[MCP Live] Decompress error:', err),
+            );
           }
         } catch (e) {
           console.error('[MCP Live] Parse error:', e);
@@ -198,63 +243,145 @@ export function useMcpLive() {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applyState(state: any) {
   // ── Batch all store mutations ──────────────────────────────────
-  // Each store is updated with a single set() call to minimize intermediate
-  // renders.  Frame recomputation runs after all stores are committed via
-  // queueMicrotask so subscribers see fully consistent state.
+  // Supports both full-state messages (from /state endpoint on reconnect)
+  // and delta messages (from SSE with upsert/removed fields).
 
-  // 1. Scene + targets + mode (project store + UI store)
-  if (state.scene?.elements) {
-    // Force element opacity to 100 — animation controls visibility via keyframes
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const elements = state.scene.elements.map((el: any) => ({ ...el, opacity: 100 }));
-
+  // 1. Scene
+  if (state.scene) {
     const projectStore = useProjectStore.getState();
     const currentProject = projectStore.project;
 
-    if (!currentProject) {
-      projectStore.createNewProject('MCP Live', {
-        elements,
-        appState: state.scene.appState ?? {},
-        files: state.scene.files ?? {},
-      });
-    } else {
-      // Preserve the current scene's appState (viewport scroll/zoom) so the
-      // user's view isn't reset on every MCP update.
-      const currentAppState = currentProject.scene?.appState ?? {};
-      const scene = {
-        elements,
-        appState: { ...currentAppState, ...(state.scene.appState ?? {}) },
-        files: { ...(currentProject.scene?.files ?? {}), ...(state.scene.files ?? {}) },
-      };
-      projectStore.updateScene(scene);
-    }
+    // Detect delta format (has upsert/removed) vs full format (has elements array)
+    if (Array.isArray(state.scene.upsert) || Array.isArray(state.scene.removed)) {
+      // ── Delta scene update ──
+      if (currentProject?.scene) {
+        const currentElements = [...(currentProject.scene.elements ?? [])];
 
-    const targets = extractTargets(elements);
-    projectStore.setTargets(targets);
+        // Remove deleted elements
+        const removedSet = new Set<string>(state.scene.removed ?? []);
+        let elements = removedSet.size > 0
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ? currentElements.filter((el: any) => !removedSet.has(el.id))
+          : currentElements;
+
+        // Upsert (add or replace) elements
+        if (state.scene.upsert?.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const upsertMap = new Map(state.scene.upsert.map((el: any) => [el.id, el]));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          elements = elements.map((el: any) => upsertMap.get(el.id) ?? el);
+          // Add truly new elements (not in existing array)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const existingIds = new Set(elements.map((el: any) => el.id));
+          for (const el of state.scene.upsert) {
+            if (!existingIds.has(el.id)) elements.push(el);
+          }
+        }
+
+        // Elements from the server normalizer already have opacity: 100.
+        // No additional mapping needed for the delta path.
+
+        const currentAppState = currentProject.scene.appState ?? {};
+        projectStore.updateScene({
+          elements,
+          appState: currentAppState,
+          files: currentProject.scene.files ?? {},
+        });
+
+        // Only re-extract targets if element IDs changed (add/remove), not just property updates
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const prevIdSet = new Set(currentElements.map((e: any) => e.id));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (removedSet.size > 0 || state.scene.upsert?.some((el: any) => !prevIdSet.has(el.id))) {
+          const targets = extractTargets(elements);
+          projectStore.setTargets(targets);
+        }
+      }
+    } else if (state.scene.elements) {
+      // ── Full scene replacement (reconnect / initial sync) ──
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const elements = state.scene.elements.map((el: any) => ({ ...el, opacity: 100 }));
+
+      if (!currentProject) {
+        projectStore.createNewProject('MCP Live', {
+          elements,
+          appState: state.scene.appState ?? {},
+          files: state.scene.files ?? {},
+        });
+      } else {
+        const currentAppState = currentProject.scene?.appState ?? {};
+        const scene = {
+          elements,
+          appState: { ...currentAppState, ...(state.scene.appState ?? {}) },
+          files: { ...(currentProject.scene?.files ?? {}), ...(state.scene.files ?? {}) },
+        };
+        projectStore.updateScene(scene);
+      }
+
+      const targets = extractTargets(elements);
+      projectStore.setTargets(targets);
+    }
   }
 
-  // 2. Animation store — batch timeline + clip range into one set()
-  if (state.timeline || (state.clipStart !== undefined && state.clipEnd !== undefined)) {
-    const updates: Record<string, unknown> = {};
-    if (state.timeline) {
-      updates.timeline = state.timeline;
+  // 2. Animation store
+  if (state.timeline) {
+    const animStore = useAnimationStore.getState();
 
-      // Switch to animate mode only once the MCP server adds keyframes.
-      // While only scene elements are being created, the user stays in edit mode
-      // so they can see elements appearing naturally on the canvas.
-      if (
-        state.timeline.tracks?.length > 0 &&
-        useUIStore.getState().mode !== 'animate'
-      ) {
+    // Detect delta format (has upsertedTracks/removedTrackIds) vs full format (has tracks array)
+    if (Array.isArray(state.timeline.upsertedTracks) || Array.isArray(state.timeline.removedTrackIds)) {
+      // ── Delta timeline update ──
+      const currentTimeline = animStore.timeline;
+      let tracks = [...currentTimeline.tracks];
+
+      // Remove deleted tracks
+      if (state.timeline.removedTrackIds?.length > 0) {
+        const removedSet = new Set<string>(state.timeline.removedTrackIds);
+        tracks = tracks.filter(t => !removedSet.has(t.id));
+      }
+
+      // Upsert tracks
+      if (state.timeline.upsertedTracks?.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const upsertMap = new Map<string, any>(state.timeline.upsertedTracks.map((t: any) => [t.id, t]));
+        tracks = tracks.map(t => upsertMap.get(t.id) ?? t) as typeof tracks;
+        const existingIds = new Set(tracks.map(t => t.id));
+        for (const t of state.timeline.upsertedTracks) {
+          if (!existingIds.has(t.id)) tracks.push(t);
+        }
+      }
+
+      // Update metadata if present
+      const duration = state.timeline.meta?.duration ?? currentTimeline.duration;
+      const fps = state.timeline.meta?.fps ?? currentTimeline.fps;
+
+      const updates: Record<string, unknown> = {
+        timeline: { ...currentTimeline, tracks, duration, fps },
+      };
+
+      // Switch to animate mode when tracks appear
+      if (tracks.length > 0 && useUIStore.getState().mode !== 'animate') {
         useUIStore.getState().setMode('animate');
       }
+
+      useAnimationStore.setState(updates);
+    } else if (state.timeline.tracks) {
+      // ── Full timeline replacement ──
+      const updates: Record<string, unknown> = { timeline: state.timeline };
+
+      if (state.timeline.tracks.length > 0 && useUIStore.getState().mode !== 'animate') {
+        useUIStore.getState().setMode('animate');
+      }
+
+      useAnimationStore.setState(updates);
     }
-    if (state.clipStart !== undefined && state.clipEnd !== undefined) {
-      updates.clipStart = Math.max(0, state.clipStart);
-      updates.clipEnd = Math.max(state.clipStart + 100, state.clipEnd);
-    }
-    // Apply all animation updates in a single set() call
-    useAnimationStore.setState(updates);
+  }
+
+  // Clip range (unchanged — always small payload)
+  if (state.clipStart !== undefined && state.clipEnd !== undefined) {
+    useAnimationStore.setState({
+      clipStart: Math.max(0, state.clipStart),
+      clipEnd: Math.max(state.clipStart + 100, state.clipEnd),
+    });
   }
 
   // 3. Camera frame
@@ -262,12 +389,12 @@ function applyState(state: any) {
     useProjectStore.getState().setCameraFrame(state.cameraFrame);
   }
 
-  // 4. Recompute animation frame AFTER all stores are updated.
-  // queueMicrotask ensures all synchronous Zustand subscriptions have
-  // fired and React has batched the pending re-renders, so the frame
-  // computation reads fully consistent state.
-  queueMicrotask(() => {
-    const currentTime = usePlaybackStore.getState().currentTime;
-    computeFrameAtTime(currentTime);
-  });
+  // 4. Recompute animation frame AFTER all stores are updated — but only
+  // when scene or timeline actually changed (not for clip-only or camera-only updates).
+  if (state.scene || state.timeline) {
+    queueMicrotask(() => {
+      const currentTime = usePlaybackStore.getState().currentTime;
+      computeFrameAtTime(currentTime);
+    });
+  }
 }

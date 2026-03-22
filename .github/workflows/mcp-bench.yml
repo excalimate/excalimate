@@ -1,0 +1,90 @@
+name: MCP Server Benchmarks
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mcp-server/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mcp-server/**'
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mcp-server
+        run: npm ci
+
+      - name: Build
+        working-directory: mcp-server
+        run: npx tsc
+
+      - name: Run benchmarks
+        working-directory: mcp-server
+        run: npx tsx bench/run.ts --markdown --output bench-results.md
+
+      - name: Run benchmarks (JSON)
+        working-directory: mcp-server
+        run: npx tsx bench/run.ts --json --output bench-results.json
+
+      - name: Write job summary
+        working-directory: mcp-server
+        run: cat bench-results.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            mcp-server/bench-results.md
+            mcp-server/bench-results.json
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const md = fs.readFileSync('mcp-server/bench-results.md', 'utf8');
+
+            // Find existing bench comment to update
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const marker = '<!-- mcp-bench-results -->';
+            const existing = comments.find(c => c.body?.includes(marker));
+            const body = `${marker}\n${md}`;
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
