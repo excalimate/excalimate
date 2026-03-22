@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- N/A
+- Lottie JSON (`.json`) and dotLottie (`.lottie`) export formats
+  - SVG-based shape rendering captures exact Excalidraw visual style (roughjs hand-drawn strokes, arrowheads, fills)
+  - Full keyframe animation support (opacity, translate, scale, rotation, draw progress)
+  - Camera pan/zoom animation via null parent layer with inverted transforms
+  - Group hierarchy preserved via Lottie layer parenting
+  - Proper camera frame → composition coordinate mapping with output resolution scaling
 
 ### Changed
 - N/A
