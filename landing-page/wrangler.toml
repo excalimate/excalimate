@@ -1,6 +1,4 @@
-#:schema node_modules/wrangler/config-schema.json
-name = "excalimate-landing"
-compatibility_date = "2025-04-01"
+"$schema" = "./node_modules/wrangler/config-schema.json"
 
-[assets]
-directory = "./dist"
+name = "excalimate-landing"
+pages_build_output_dir = "./dist"
