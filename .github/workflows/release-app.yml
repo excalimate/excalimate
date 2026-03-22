@@ -1,11 +1,15 @@
-name: Release Web App (manual)
+name: Release Web App
 
 on:
   push:
     tags:
       - 'v*'
       - '!mcp-server-v*'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
 
 jobs:
   release:
@@ -22,6 +26,15 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install dependencies
         run: npm ci
 
@@ -37,26 +50,29 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Extract changelog for version
-        id: changelog
+      - name: Extract changelog
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          NOTES=$(sed -n "/^## \[$VERSION\]/,/^## \[/{ /^## \[$VERSION\]/d; /^## \[/d; p; }" CHANGELOG.md)
-          if [ -z "$NOTES" ]; then
-            NOTES=$(sed -n '/^## \[Unreleased\]/,/^## \[/{ /^## \[Unreleased\]/d; /^## \[/d; p; }' CHANGELOG.md)
+          echo "Extracting changelog for version: $VERSION"
+          awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]") || (ver == "" && index($0, "[Unreleased]"))) found=1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            awk '/^## \[Unreleased\]/{found=1; next} /^## \[/{if(found) exit} found{print}' CHANGELOG.md > release-notes.md
           fi
-          echo "$NOTES" > release-notes.md
 
       - name: Create build archive
         run: tar -czf excalimate-${{ steps.version.outputs.version }}.tar.gz -C dist .
 
-      - name: Create GitHub Release
+      - name: Create tag and release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.version.outputs.version }}
           name: 'Excalimate v${{ steps.version.outputs.version }}'
           body_path: release-notes.md
           files: |

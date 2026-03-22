@@ -54,127 +54,20 @@ jobs:
     name: Release Web App
     needs: detect
     if: needs.detect.outputs.app-bumped == 'true'
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/release-app.yml
+    with:
+      version: ${{ needs.detect.outputs.app-version }}
     permissions:
       contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Test
-        run: npx vitest run
-
-      - name: Build
-        run: npm run build
-
-      - name: Extract changelog
-        id: changelog
-        run: |
-          VERSION="${{ needs.detect.outputs.app-version }}"
-          NOTES=$(sed -n "/^## \[$VERSION\]/,/^## \[/{ /^## \[$VERSION\]/d; /^## \[/d; p; }" CHANGELOG.md)
-          if [ -z "$NOTES" ]; then
-            NOTES=$(sed -n '/^## \[Unreleased\]/,/^## \[/{ /^## \[Unreleased\]/d; /^## \[/d; p; }' CHANGELOG.md)
-          fi
-          echo "$NOTES" > release-notes.md
-
-      - name: Create build archive
-        run: tar -czf excalimate-${{ needs.detect.outputs.app-version }}.tar.gz -C dist .
-
-      - name: Create tag and release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.detect.outputs.app-version }}
-          name: 'Excalimate v${{ needs.detect.outputs.app-version }}'
-          body_path: release-notes.md
-          files: |
-            excalimate-${{ needs.detect.outputs.app-version }}.tar.gz
 
   release-mcp:
     name: Release MCP Server
     needs: detect
     if: needs.detect.outputs.mcp-bumped == 'true'
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/publish-mcp.yml
+    with:
+      version: ${{ needs.detect.outputs.mcp-version }}
     permissions:
       contents: write
       id-token: write
-    environment: production
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org
-
-      - name: Install web app dependencies
-        run: npm ci
-
-      - name: Test web app
-        run: npx vitest run
-
-      - name: Install MCP server dependencies
-        working-directory: mcp-server
-        run: npm ci
-
-      - name: Type check
-        working-directory: mcp-server
-        run: npx tsc --noEmit
-
-      - name: Build
-        working-directory: mcp-server
-        run: npx tsc
-
-      - name: Verify build
-        working-directory: mcp-server
-        run: node -e "require('./dist/index.js'); console.log('Build verified'); process.exit(0)"
-
-      - name: Run benchmarks
-        working-directory: mcp-server
-        run: npx tsx bench/run.ts --markdown --output bench-results.md
-
-      - name: Publish to npm
-        working-directory: mcp-server
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
-
-      - name: Extract changelog
-        id: changelog
-        run: |
-          VERSION="${{ needs.detect.outputs.mcp-version }}"
-          NOTES=$(sed -n "/^## \[$VERSION\]/,/^## \[/{ /^## \[$VERSION\]/d; /^## \[/d; p; }" mcp-server/CHANGELOG.md)
-          if [ -z "$NOTES" ]; then
-            NOTES=$(sed -n '/^## \[Unreleased\]/,/^## \[/{ /^## \[Unreleased\]/d; /^## \[/d; p; }' mcp-server/CHANGELOG.md)
-          fi
-          echo "$NOTES" > release-notes.md
-          if [ -f mcp-server/bench-results.md ]; then
-            echo "" >> release-notes.md
-            echo "---" >> release-notes.md
-            echo "" >> release-notes.md
-            cat mcp-server/bench-results.md >> release-notes.md
-          fi
-
-      - name: Create tag and release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: mcp-server-v${{ needs.detect.outputs.mcp-version }}
-          name: 'MCP Server v${{ needs.detect.outputs.mcp-version }}'
-          body_path: release-notes.md
-          files: |
-            mcp-server/bench-results.md
+    secrets: inherit

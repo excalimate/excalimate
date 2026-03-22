@@ -1,9 +1,14 @@
-name: Publish MCP Server (manual)
+name: Publish MCP Server
 
 on:
   push:
     tags:
       - 'mcp-server-v*'
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       dry-run:
@@ -28,6 +33,17 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ "$GITHUB_REF" == refs/tags/mcp-server-v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/mcp-server-v}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(node -p "require('./mcp-server/package.json').version")" >> $GITHUB_OUTPUT
+          fi
+
       # Run web app tests first (MCP server depends on shared types)
       - name: Install web app dependencies
         run: npm ci
@@ -48,50 +64,44 @@ jobs:
         working-directory: mcp-server
         run: npx tsc
 
-      # Verify the built output
       - name: Verify build
         working-directory: mcp-server
         run: node -e "require('./dist/index.js'); console.log('Build verified'); process.exit(0)"
 
-      # Run benchmarks
       - name: Run benchmarks
         working-directory: mcp-server
         run: npx tsx bench/run.ts --markdown --output bench-results.md
 
       # Publish
       - name: Publish to npm (dry run)
-        if: ${{ github.event.inputs.dry-run == 'true' }}
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry-run == 'true'
         working-directory: mcp-server
         run: npm publish --dry-run --access public
 
       - name: Publish to npm
-        if: ${{ github.event.inputs.dry-run != 'true' || startsWith(github.ref, 'refs/tags/') }}
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry-run != 'true'
         working-directory: mcp-server
         run: npm publish --access public --provenance
         env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
-      # Create GitHub Release with changelog
-      - name: Extract version from tag
-        if: startsWith(github.ref, 'refs/tags/')
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/mcp-server-v}" >> $GITHUB_OUTPUT
-
-      - name: Extract changelog for version
-        if: startsWith(github.ref, 'refs/tags/')
-        id: changelog
+      # Release
+      - name: Extract changelog
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # Extract the section for this version from CHANGELOG.md
-          # Matches from "## [VERSION]" to the next "## [" or end of file
-          NOTES=$(sed -n "/^## \[$VERSION\]/,/^## \[/{ /^## \[$VERSION\]/d; /^## \[/d; p; }" mcp-server/CHANGELOG.md)
-          # If no version-specific section found, use [Unreleased]
-          if [ -z "$NOTES" ]; then
-            NOTES=$(sed -n '/^## \[Unreleased\]/,/^## \[/{ /^## \[Unreleased\]/d; /^## \[/d; p; }' mcp-server/CHANGELOG.md)
+          echo "Extracting changelog for version: $VERSION"
+          awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]") || (ver == "" && index($0, "[Unreleased]"))) found=1
+              next
+            }
+            found { print }
+          ' mcp-server/CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            awk '/^## \[Unreleased\]/{found=1; next} /^## \[/{if(found) exit} found{print}' mcp-server/CHANGELOG.md > release-notes.md
           fi
-          # Write to file for the release step
-          echo "$NOTES" > release-notes.md
-          # Append benchmark results
           if [ -f mcp-server/bench-results.md ]; then
             echo "" >> release-notes.md
             echo "---" >> release-notes.md
@@ -99,10 +109,10 @@ jobs:
             cat mcp-server/bench-results.md >> release-notes.md
           fi
 
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Create tag and release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: mcp-server-v${{ steps.version.outputs.version }}
           name: 'MCP Server v${{ steps.version.outputs.version }}'
           body_path: release-notes.md
           files: |
