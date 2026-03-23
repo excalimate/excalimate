@@ -5,9 +5,32 @@ import Footer from '../../components/Footer.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
 import Callout from '../../components/Callout.astro';
 import RelatedGuides from '../../components/RelatedGuides.astro';
+import ComparisonFAQ from '../../components/ComparisonFAQ.astro';
 
-const title = 'Excalimate vs After Effects: Diagram Animation Compared — Excalimate';
-const description = 'Compare Excalimate and Adobe After Effects for animating diagrams. See which tool is better for creating animated flowcharts, architecture diagrams, and presentations.';
+const title = 'Excalimate vs After Effects for Diagram Animation';
+const description = 'Compare Excalimate vs After Effects for animated flowcharts and architecture diagrams. Choose diagram-first speed or full motion-graphics depth based on your workflow.';
+const faqItems = [
+  {
+    question: 'Can After Effects animate technical diagrams?',
+    answer:
+      'Yes. After Effects can animate diagram assets, but you typically design the diagram in another tool first and then animate layers manually.',
+  },
+  {
+    question: 'Is Excalimate a replacement for After Effects?',
+    answer:
+      'No. Excalimate is focused on diagram animation. After Effects remains stronger for advanced motion graphics, compositing, and visual effects.',
+  },
+  {
+    question: 'Which tool is faster for architecture and flowchart animations?',
+    answer:
+      'For most diagram-first projects, Excalimate is faster because drawing, keyframing, and export happen in one workflow built specifically for diagrams.',
+  },
+  {
+    question: 'Is Excalimate free to use?',
+    answer:
+      'Yes. Excalimate is free and open source, including keyframe animation, camera controls, and export features.',
+  },
+];
 ---
 
 <PageLayout title={title} description={description} path="/compare/excalimate-vs-after-effects">
@@ -18,7 +41,7 @@ const description = 'Compare Excalimate and Adobe After Effects for animating di
       <header class="guide-header">
         <a href="/compare" class="guide-back">← Back to comparisons</a>
         <h1 class="guide-title">Excalimate vs After Effects</h1>
-        <p class="guide-subtitle">{description}</p>
+        <p class="guide-subtitle">A diagram-first workflow versus a full motion-graphics suite.</p>
       </header>
 
       <div class="guide-body">
@@ -38,15 +61,15 @@ const description = 'Compare Excalimate and Adobe After Effects for animating di
         <!-- Introduction -->
         <section class="step">
           <div class="step-header">
-            <h2 class="step-title">Different Tools, Different Strengths</h2>
+             <h2 class="step-title">Choose by Workflow, Not by Brand</h2>
           </div>
           <p class="step-text">
-            Adobe After Effects is the industry standard for motion graphics, visual effects,
-            and compositing. It can animate <strong>anything</strong>. Excalimate is purpose-built
-            for one thing: <strong>animating diagrams</strong>. This focus means radically different
-            workflows, learning curves, and time-to-result for diagram animation specifically.
-          </p>
-        </section>
+             Adobe After Effects is built for broad motion-graphics production. Excalimate is built for
+             <strong>technical diagram animation</strong>. If your day-to-day output is architecture maps,
+             process flows, or explainer diagrams, the better choice usually comes down to how quickly you
+             can go from idea to export with the level of control you need.
+           </p>
+         </section>
 
         <!-- Feature comparison table -->
         <div class="compare-table-wrap">
@@ -178,6 +201,11 @@ const description = 'Compare Excalimate and Adobe After Effects for animating di
             <li><strong>Use After Effects</strong> for broadcast motion graphics, film VFX, complex character animation, and projects requiring deep compositing</li>
           </ul>
         </section>
+
+        <ComparisonFAQ
+          items={faqItems}
+          subtitle="Quick answers for teams choosing between diagram-first output speed and full motion-graphics depth."
+        />
 
         <!-- Verdict -->
         <section class="verdict">
@@ -411,7 +439,25 @@ const description = 'Compare Excalimate and Adobe After Effects for animating di
     '@type': 'Article',
     headline: 'Excalimate vs After Effects: Diagram Animation Compared',
     description,
+    datePublished: '2026-03-22',
+    dateModified: '2026-03-22',
     author: { '@type': 'Organization', name: 'Excalimate' },
     publisher: { '@type': 'Organization', name: 'Excalimate' },
+  })}
+/>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqItems.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
   })}
 />

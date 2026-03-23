@@ -37,7 +37,7 @@ const features = [
       <!-- Left: text + CTAs -->
       <div class="hero-text">
         <h1 class="headline hero-s1">
-          Turn <span class="hero-highlight">hand-drawn</span> diagrams into keyframe&nbsp;animations
+          Turn <span class="hero-highlight">hand-drawn</span> diagrams into keyframe animations
         </h1>
 
         <p class="subheadline hero-s2">
@@ -61,6 +61,11 @@ const features = [
             View on GitHub
           </a>
         </div>
+
+        <p class="hero-guide-link hero-s3">
+          Want a repeatable process? Read the
+          <a href="/guides/excalidraw-to-lottie-workflow">Excalidraw to Lottie workflow guide</a>.
+        </p>
       </div>
 
       <!-- Right: animation -->
@@ -158,11 +163,12 @@ const features = [
   .headline {
     font-family: var(--f-display);
     font-weight: 700;
-    font-size: clamp(2.25rem, 5vw, 3.5rem);
+    font-size: clamp(1.95rem, 4.6vw, 3.5rem);
     line-height: 1.08;
     letter-spacing: -0.03em;
     color: var(--tx);
     margin: 0;
+    text-wrap: balance;
   }
 
   .hero-highlight {
@@ -200,16 +206,35 @@ const features = [
     margin-top: 32px;
   }
 
+  .hero-guide-link {
+    margin: 16px 0 0;
+    font-family: var(--f-body);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--tx2);
+  }
+
+  .hero-guide-link a {
+    color: var(--tx);
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+
+  .hero-guide-link a:hover {
+    text-decoration-color: var(--tx);
+  }
+
   /* ── Visual side ── */
   .hero-visual {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
   }
 
   .hero-animation-frame {
-    width: 100%;
-    max-width: 520px;
+    width: min(100%, 520px);
+    max-width: 100%;
     aspect-ratio: 1 / 1;
     border-radius: var(--radius);
     overflow: hidden;
@@ -217,6 +242,7 @@ const features = [
     border: var(--border-w) solid var(--border-c);
     box-shadow: var(--shadow-card);
     position: relative;
+    margin-inline: auto;
   }
 
   .lottie-badge {
@@ -295,6 +321,20 @@ const features = [
     .hero {
       padding: 60px 0 48px;
     }
+
+    .headline {
+      font-size: clamp(1.55rem, 8.2vw, 2.1rem);
+      line-height: 1.14;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-visual {
+      padding-inline: 2px;
+    }
+
+    .hero-animation-frame {
+      width: min(100%, 320px);
+    }
   }
 
   @media (max-width: 1023px) {
@@ -306,7 +346,7 @@ const features = [
       justify-content: center;
     }
     .hero-animation-frame {
-      max-width: 400px;
+      width: min(100%, 380px);
     }
   }
 

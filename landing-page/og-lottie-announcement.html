@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200, height=630">
+<title>Excalimate OG Image</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700&family=Inter:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #f7f7f8;
+    position: relative;
+  }
+
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+  .orb-1 { width: 400px; height: 400px; top: -120px; right: -60px; background: #FFC300; opacity: 0.12; }
+  .orb-2 { width: 300px; height: 300px; bottom: -100px; left: -50px; background: #EE5622; opacity: 0.08; }
+
+  /* ── Left column ── */
+  .left {
+    position: absolute;
+    z-index: 2;
+    top: 60px;
+    left: 80px;
+    width: 600px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .logo-row img { height: 36px; width: auto; }
+
+  h1 {
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 58px;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    color: #111115;
+    margin-bottom: 18px;
+  }
+  h1 .highlight {
+    position: relative;
+    display: inline-block;
+  }
+  h1 .highlight::after {
+    content: '';
+    position: absolute;
+    left: -4px; right: -4px; bottom: 4px;
+    height: 14px;
+    background: #FFC300;
+    opacity: 0.3;
+    border-radius: 4px;
+    transform: rotate(-1.5deg);
+    z-index: -1;
+  }
+
+  .subtitle {
+    font-size: 20px;
+    color: #555560;
+    line-height: 1.5;
+    margin-bottom: 28px;
+  }
+
+  .pills {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 2px solid #111115;
+    box-shadow: 3px 3px 0 #111115;
+    font-weight: 600;
+    font-size: 16px;
+    color: #111115;
+    background: #fff;
+  }
+  .pill .dot {
+    width: 9px; height: 9px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* ── Right column — app preview ── */
+  .preview {
+    position: absolute;
+    right: 50px;
+    top: 55px;
+    width: 440px;
+    height: 460px;
+    border: 2px solid #111115;
+    border-radius: 10px;
+    box-shadow: 6px 6px 0 #111115;
+    background: #fff;
+    overflow: hidden;
+    z-index: 2;
+  }
+  .preview-bar {
+    height: 30px;
+    background: #f0f0f0;
+    border-bottom: 1.5px solid #111115;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+  }
+  .preview-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .preview-canvas {
+    position: relative;
+    height: calc(100% - 30px);
+  }
+
+  /* Diagram shapes — absolute positioning inside canvas */
+  .shape {
+    position: absolute;
+    border-radius: 8px;
+    border: 2.5px solid #111115;
+    padding: 10px 20px;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .s-client { left: 28px; top: 20px; background: #FFC300; color: #111115; }
+  .s-api    { left: 28px; top: 100px; background: #EE5622; color: #fff; }
+  .s-db     { left: 28px; top: 180px; background: #7129c5; color: #fff; }
+
+  /* SVG arrows — hand-drawn style */
+  .arrows {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  /* Properties panel on the right of canvas */
+  .props {
+    position: absolute;
+    right: 0; top: 0; bottom: 130px;
+    width: 180px;
+    background: #fafafa;
+    border-left: 1px solid #e0e0e0;
+    padding: 14px 12px;
+  }
+  .props-title { font-size: 11px; color: #999; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .prop-row {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    padding: 5px 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: #666;
+  }
+
+  /* Timeline at bottom of canvas */
+  .timeline {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 130px;
+    background: #f8f8f8;
+    border-top: 1px solid #e0e0e0;
+    padding: 14px 14px;
+  }
+  .tl-track {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .tl-label { font-size: 14px; color: #999; width: 50px; text-align: right; flex-shrink: 0; font-weight: 500; }
+  .tl-bar { height: 20px; border-radius: 5px; }
+  .tl-spacer { flex-shrink: 0; }
+  .tl-kf {
+    width: 14px; height: 14px;
+    transform: rotate(45deg);
+    border: 2px solid #111115;
+    flex-shrink: 0;
+  }
+  .tl-playhead {
+    position: absolute;
+    top: 8px; bottom: 8px;
+    left: 58%;
+    width: 2px;
+    background: #FFC300;
+  }
+
+  /* ── Bottom bar ── */
+  .badge {
+    position: absolute;
+    bottom: 26px;
+    left: 80px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: 1.5px solid #169b3e;
+    background: #e8f8ee;
+    font-size: 15px;
+    font-weight: 600;
+    color: #169b3e;
+  }
+
+  .url {
+    position: absolute;
+    bottom: 28px;
+    right: 80px;
+    z-index: 3;
+    font-size: 20px;
+    font-weight: 600;
+    color: #999;
+  }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="left">
+    <div class="logo-row">
+      <img src="https://app.excalimate.com/excalimate_logo.svg" alt="Excalimate" style="height:32px">
+      <span style="font-size:28px;color:#ccc;font-weight:300;margin:0 6px;">×</span>
+      <img src="https://assets-v2.lottiefiles.com/home-page-assets/lottiefiles-logo.svg" alt="LottieFiles" style="height:28px;width:auto;">
+    </div>
+    <h1>Now exporting <span class="highlight">Lottie</span> animations</h1>
+    <p class="subtitle">Excalimate now exports to Lottie JSON and dotLottie — tiny, scalable, web-native animations from your hand-drawn diagrams.</p>
+    <div class="pills">
+      <span class="pill"><span class="dot" style="background:#00DDB3"></span>dotLottie Export</span>
+      <span class="pill"><span class="dot" style="background:#FFC300"></span>Lottie JSON</span>
+      <span class="pill"><span class="dot" style="background:#7129c5"></span>90% Smaller Than GIF</span>
+    </div>
+  </div>
+
+  <div class="preview">
+    <div class="preview-bar">
+      <span class="preview-dot" style="background:#ff5f57"></span>
+      <span class="preview-dot" style="background:#ffbd2e"></span>
+      <span class="preview-dot" style="background:#28ca42"></span>
+    </div>
+    <div class="preview-canvas" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px;">
+      <!-- Diagram sketch -->
+      <div style="display:flex;gap:12px;align-items:center;">
+        <div class="shape" style="position:static;background:#FFC300;color:#111115;">Draw</div>
+        <span style="font-size:22px;color:#111115;">→</span>
+        <div class="shape" style="position:static;background:#EE5622;color:#fff;">Animate</div>
+        <span style="font-size:22px;color:#111115;">→</span>
+        <div class="shape" style="position:static;background:#00DDB3;color:#111115;border-color:#009e84;">Export</div>
+      </div>
+      <!-- Arrow down -->
+      <svg width="24" height="40" viewBox="0 0 24 40"><path d="M12 2 C11 10, 13 20, 12 30" stroke="#111115" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M6 25 L12 34 L18 25" stroke="#111115" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <!-- Lottie output card -->
+      <div style="border:2.5px solid #111115;border-radius:10px;padding:20px 28px;background:#f0fdf8;box-shadow:4px 4px 0 #111115;text-align:center;">
+        <div style="font-family:'Bricolage Grotesque',system-ui;font-weight:700;font-size:28px;color:#111115;margin-bottom:4px;">.lottie</div>
+        <div style="font-size:13px;color:#666;margin-bottom:12px;">Lightweight · Scalable · Web-native</div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <span style="background:#00DDB3;color:#111115;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;border:1.5px solid #009e84;">dotLottie</span>
+          <span style="background:#FFC300;color:#111115;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;border:1.5px solid #d4a200;">JSON</span>
+        </div>
+      </div>
+      <!-- Size comparison -->
+      <div style="font-size:13px;color:#888;text-align:center;line-height:1.5;">
+        <span style="font-weight:700;color:#00DDB3;">2 KB</span> dotLottie vs <span style="font-weight:700;color:#EE5622;">200 KB</span> GIF
+      </div>
+    </div>
+  </div>
+
+  <span class="badge">✦ Free & Open Source</span>
+  <span class="badge" style="border-color:#00DDB3;background:#e6faf5;color:#009e84;left:290px;">✦ New: Lottie Export</span>
+  <span class="url">excalimate.com</span>
+</body>
+</html>

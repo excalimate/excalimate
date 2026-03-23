@@ -3,28 +3,28 @@ import PageLayout from '../../layouts/PageLayout.astro';
 import Nav from '../../components/Nav.astro';
 import Footer from '../../components/Footer.astro';
 
-const title = 'Comparisons — Excalimate';
-const description = 'See how Excalimate compares to Excalidraw, After Effects, Canva, and PowerPoint for creating animated diagrams.';
+const title = 'Excalimate Comparisons: Excalidraw, After Effects, Canva, PowerPoint';
+const description = 'Compare Excalimate vs Excalidraw, After Effects, Canva, and PowerPoint to choose the right tool for animated diagrams, technical explainers, and presentations.';
 
 const comparisons = [
   {
     title: 'Excalimate vs Excalidraw',
-    description: 'How Excalimate extends Excalidraw with keyframe animation, timeline, camera controls, and AI tools.',
+    description: 'For Excalidraw users deciding whether to add keyframe animation, timeline control, and export formats.',
     href: '/compare/excalimate-vs-excalidraw',
   },
   {
     title: 'Excalimate vs After Effects',
-    description: 'Diagram animation compared — speed, learning curve, price, and capabilities.',
+    description: 'For teams comparing a diagram-first workflow against a full motion-graphics suite.',
     href: '/compare/excalimate-vs-after-effects',
   },
   {
     title: 'Excalimate vs Canva',
-    description: 'Keyframe animation control vs general graphic design for animated diagrams.',
+    description: 'For Canva users who need technical diagram animation instead of template-first design.',
     href: '/compare/excalimate-vs-canva',
   },
   {
     title: 'Excalimate vs PowerPoint',
-    description: 'Why keyframe animation produces better diagram animations than slide transitions.',
+    description: 'For presentation workflows where you need to embed animated diagrams into decks.',
     href: '/compare/excalimate-vs-powerpoint',
   },
 ];
@@ -37,9 +37,9 @@ const comparisons = [
     <div class="container">
       <header class="compare-header">
         <a href="/" class="compare-back">← Back to home</a>
-        <h1 class="compare-title">Comparisons</h1>
+        <h1 class="compare-title">Excalimate Comparisons</h1>
         <p class="compare-subtitle">
-          See how Excalimate stacks up against other tools for diagram animation.
+          Pick the right tool for your workflow, from whiteboarding and design to slide decks and motion graphics.
         </p>
       </header>
 
@@ -191,6 +191,7 @@ const comparisons = [
   "name": "Excalimate Comparisons",
   "description": description,
   "url": "https://excalimate.com/compare",
+  "dateModified": "2026-03-22",
   "hasPart": comparisons.map((c) => ({
     "@type": "WebPage",
     "name": c.title,

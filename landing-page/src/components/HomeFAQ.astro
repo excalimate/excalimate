@@ -1,0 +1,107 @@
+---
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  items: FAQItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<section id="faq" class="home-faq" aria-labelledby="home-faq-heading">
+  <div class="container">
+    <header class="faq-header reveal">
+      <h2 id="home-faq-heading" class="faq-title">Frequently asked questions</h2>
+      <p class="faq-subtitle">
+        Quick, answer-first details about exports, AI workflows, security, and open-source access.
+      </p>
+    </header>
+
+    <ul class="faq-grid stagger" role="list">
+      {items.map((item) => (
+        <li class="faq-card reveal">
+          <article>
+            <h3 class="faq-question">{item.question}</h3>
+            <p class="faq-answer">{item.answer}</p>
+          </article>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .home-faq {
+    background: var(--bg-alt);
+    padding: 120px 0;
+  }
+
+  .faq-header {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+
+  .faq-title {
+    font-family: var(--f-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .faq-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: var(--tx2);
+    margin: 16px auto 0;
+    max-width: 640px;
+  }
+
+  .faq-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  @media (min-width: 1024px) {
+    .faq-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+  }
+
+  .faq-card {
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    border-top: 4px solid var(--p4);
+    padding: 24px;
+  }
+
+  .faq-question {
+    font-family: var(--f-display);
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .faq-answer {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: var(--tx2);
+    margin: 12px 0 0;
+  }
+</style>

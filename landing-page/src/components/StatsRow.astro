@@ -1,22 +1,66 @@
 ---
 const stats = [
-  { number: "23", label: "MCP Tools", color: 'var(--p2)' },
-  { number: "8", label: "Export Formats", color: 'var(--p3)' },
-  { number: "E2E", label: "Encrypted Sharing", color: 'var(--p4)' },
-  { number: "16", label: "AI Skills", color: 'var(--p5)' },
+  {
+    number: '23',
+    label: 'MCP Tools',
+    color: 'var(--p2)',
+    href: 'https://github.com/excalimate/excalimate/tree/main/mcp-server/src/server',
+    source: 'MCP server tool source',
+    ariaLabel: 'View Excalimate MCP server tool source on GitHub',
+    external: true,
+  },
+  {
+    number: '8',
+    label: 'Export Formats',
+    color: 'var(--p3)',
+    href: '/guides/export-animations',
+    source: 'Export formats guide',
+    ariaLabel: 'Read the Excalimate export formats guide',
+    external: false,
+  },
+  {
+    number: 'E2E',
+    label: 'Encrypted Sharing',
+    color: 'var(--p4)',
+    href: 'https://github.com/excalimate/excalimate/blob/main/SECURITY.md#e2e-encrypted-sharing',
+    source: 'Security documentation',
+    ariaLabel: 'Read Excalimate encrypted sharing security documentation on GitHub',
+    external: true,
+  },
+  {
+    number: '16',
+    label: 'AI Skills',
+    color: 'var(--p5)',
+    href: 'https://github.com/excalimate/excalimate/tree/main/skills',
+    source: 'Skills directory',
+    ariaLabel: 'Browse Excalimate AI skills on GitHub',
+    external: true,
+  },
 ];
 ---
 
 <section class="stats-strip" aria-label="Key statistics">
   <div class="container">
-    <div class="stats-row stagger">
+    <ul class="stats-row stagger" role="list">
       {stats.map((stat) => (
-        <div class="stat reveal" style={`--stat-color: ${stat.color}`}>
-          <span class="stat-number">{stat.number}</span>
-          <span class="stat-label">{stat.label}</span>
-        </div>
+        <li class="stat reveal" style={`--stat-color: ${stat.color}`}>
+          <a
+            class="stat-link"
+            href={stat.href}
+            aria-label={stat.ariaLabel}
+            target={stat.external ? '_blank' : undefined}
+            rel={stat.external ? 'noopener noreferrer' : undefined}
+          >
+            <span class="stat-number">{stat.number}</span>
+            <span class="stat-label">{stat.label}</span>
+            <span class="stat-source">
+              Source: {stat.source}
+              {stat.external && <span class="sr-only"> (opens in a new tab)</span>}
+            </span>
+          </a>
+        </li>
       ))}
-    </div>
+    </ul>
   </div>
 </section>
 
@@ -30,6 +74,9 @@ const stats = [
     display: grid;
     grid-template-columns: 1fr;
     gap: 16px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 
   @media (min-width: 640px) {
@@ -45,16 +92,39 @@ const stats = [
   }
 
   .stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 28px 16px;
     background: var(--card-bg);
     border: var(--border-w) solid var(--border-c);
     border-radius: var(--radius);
     box-shadow: var(--shadow-card);
     border-top: 4px solid var(--stat-color);
+  }
+
+  .stat-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    padding: 28px 16px;
+    min-height: 100%;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .stat-link:hover {
+    transform: translate(-2px, -2px);
+  }
+
+  .stat-link:active {
+    transform: translate(2px, 2px);
+  }
+
+  .stat-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
   }
 
   .stat-number {
@@ -73,5 +143,26 @@ const stats = [
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--tx2);
+  }
+
+  .stat-source {
+    font-family: var(--f-body);
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--tx3);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

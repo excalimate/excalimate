@@ -1,0 +1,353 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import Callout from '../../components/Callout.astro';
+import RelatedGuides from '../../components/RelatedGuides.astro';
+
+const title = 'Excalidraw to Lottie Workflow: From Diagram to Production Asset — Excalimate';
+const description =
+  'Follow a practical Excalidraw-to-Lottie workflow in Excalimate: prepare your diagram, animate with keyframes, export as dotLottie or Lottie JSON, and ship to web or app.';
+
+const promptExample = `Animate this onboarding flow in 6 seconds:
+- Fade in each card with a 180ms stagger
+- Draw connector arrows as each card appears
+- Add a gentle camera pan from left to right
+- End with a 300ms hold on the final frame`;
+
+const dotlottieEmbed = `<script src="https://unpkg.com/@dotlottie/player-component"></script>
+
+<dotlottie-wc
+  src="/animations/onboarding-flow.lottie"
+  autoplay
+  style="width: 100%; max-width: 720px; height: 420px"
+></dotlottie-wc>`;
+
+const reactEmbed = `import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+
+export function WorkflowDemo() {
+  return (
+    <DotLottieReact
+      src="/animations/onboarding-flow.lottie"
+      autoplay
+      loop={false}
+      speed={1}
+    />
+  );
+}`;
+---
+
+<PageLayout title={title} description={description} path="/guides/excalidraw-to-lottie-workflow">
+  <Nav />
+
+  <main id="main" class="guide">
+    <div class="guide-container">
+      <header class="guide-header">
+        <a href="/guides" class="guide-back">&larr; Back to guides</a>
+        <h1 class="guide-title">Excalidraw to Lottie Workflow</h1>
+        <p class="guide-subtitle">A repeatable path from whiteboard sketch to production-ready animation</p>
+      </header>
+
+      <div class="guide-body">
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">1</span>
+            <h2 class="step-title">Start with a clear Excalidraw scene</h2>
+          </div>
+          <p class="step-text">
+            Build your base diagram first: clear labels, consistent spacing, and a logical visual order. If you are
+            new to Excalidraw itself, start with the <a href="/guides/what-is-excalidraw">What is Excalidraw?</a>
+            guide before moving into animation.
+          </p>
+          <ul class="param-list">
+            <li>Name core elements clearly so animation prompts can target them reliably.</li>
+            <li>Use groups for repeated UI sections or multi-element blocks.</li>
+            <li>Keep the initial frame readable before motion is added.</li>
+          </ul>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <h2 class="step-title">Define timing and motion intent</h2>
+          </div>
+          <p class="step-text">
+            Move into Excalimate and describe the reveal flow in plain language. The MCP tools can translate your
+            instruction into keyframes and sequencing rules.
+          </p>
+          <CodeBlock code={promptExample} label="Prompt example" />
+          <Callout type="tip">
+            Animate in layers: first visibility, then movement, then camera motion. This keeps iterations predictable
+            and avoids over-animating early drafts.
+          </Callout>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">3</span>
+            <h2 class="step-title">Preview and polish in timeline context</h2>
+          </div>
+          <p class="step-text">
+            Scrub the timeline and check each reveal moment at normal speed and reduced speed. Focus on readability:
+            can someone follow the story without replaying?
+          </p>
+          <ul class="param-list">
+            <li>Use staggered reveals to reduce visual overload.</li>
+            <li>Adjust easing for natural starts and stops.</li>
+            <li>Keep camera moves subtle unless you need a strong narrative shift.</li>
+          </ul>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">4</span>
+            <h2 class="step-title">Export as dotLottie or Lottie JSON</h2>
+          </div>
+          <p class="step-text">
+            For most web delivery, export to <strong>dotLottie</strong> for smaller payloads. Choose
+            <strong> Lottie JSON</strong> when your downstream tooling requires raw JSON.
+          </p>
+          <p class="step-text">
+            Need format trade-offs? Use the <a href="/guides/export-animations">export guide</a> for side-by-side
+            comparisons and <a href="/guides/what-are-lottie-files">What are Lottie Files?</a> for format details.
+          </p>
+          <ul class="param-list">
+            <li><strong>dotLottie</strong> — smallest files, best for web and app embedding.</li>
+            <li><strong>Lottie JSON</strong> — broad compatibility with existing Lottie pipelines.</li>
+            <li>Always review one exported file outside the editor before shipping.</li>
+          </ul>
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">5</span>
+            <h2 class="step-title">Embed and validate in the real target surface</h2>
+          </div>
+          <p class="step-text">
+            Test playback where users actually see the animation: docs page, product UI, or landing page.
+          </p>
+          <CodeBlock code={dotlottieEmbed} label="Web component embed" />
+          <CodeBlock code={reactEmbed} label="React embed" />
+        </section>
+
+        <section class="step">
+          <div class="step-header">
+            <span class="step-num">6</span>
+            <h2 class="step-title">Save the workflow as a reusable template</h2>
+          </div>
+          <p class="step-text">
+            Reuse successful patterns across teams by keeping a small workflow template: scene naming conventions,
+            timing defaults, and export targets.
+          </p>
+          <Callout type="info">
+            A consistent Excalidraw-to-Lottie workflow helps design, docs, and engineering teams collaborate on the
+            same animation source without toolchain drift.
+          </Callout>
+        </section>
+      </div>
+      <RelatedGuides current="/guides/excalidraw-to-lottie-workflow" />
+    </div>
+  </main>
+
+  <Footer />
+</PageLayout>
+
+<style>
+  .guide {
+    background: var(--bg);
+    padding: 40px 0 80px;
+  }
+
+  .guide-container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  @media (min-width: 640px) {
+    .guide-container {
+      padding: 0 32px;
+    }
+  }
+
+  .guide-header {
+    margin-bottom: 56px;
+  }
+
+  .guide-back {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--f-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tx3);
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.2s;
+  }
+
+  .guide-back:hover {
+    color: var(--tx);
+  }
+
+  .guide-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.1;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .guide-subtitle {
+    font-family: var(--f-body);
+    font-size: 1.1rem;
+    color: var(--tx2);
+    margin: 12px 0 0;
+    line-height: 1.5;
+  }
+
+  .guide-body {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    border: var(--border-w-sm) solid var(--border-c);
+    box-shadow: 2px 2px 0 var(--border-c);
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent-text);
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--tx);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .step-text {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .step-text :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .step-text :global(code) {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--tx);
+  }
+
+  .step-text :global(a) {
+    color: var(--tx);
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+
+  .step-text :global(a:hover) {
+    text-decoration-color: var(--tx);
+  }
+
+  .param-list {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    color: var(--tx2);
+    line-height: 1.7;
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .param-list :global(strong) {
+    color: var(--tx);
+    font-weight: 600;
+  }
+</style>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: 'Excalidraw to Lottie Workflow',
+    description:
+      'Step-by-step workflow for turning Excalidraw diagrams into production-ready dotLottie or Lottie JSON animations with Excalimate.',
+    datePublished: '2026-03-23',
+    dateModified: '2026-03-23',
+    step: [
+      {
+        '@type': 'HowToStep',
+        name: 'Create a clear Excalidraw scene',
+        text: 'Build a readable diagram with clean labels, visual hierarchy, and grouped elements.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Define animation intent',
+        text: 'Use Excalimate and MCP prompts to set keyframes, reveal order, and camera timing.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Preview and polish',
+        text: 'Scrub the timeline and refine easing, stagger intervals, and motion clarity.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Export in the right Lottie format',
+        text: 'Choose dotLottie for compact delivery or Lottie JSON for broad tool compatibility.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Embed and test',
+        text: 'Embed the exported animation in your web or app surface and verify playback.',
+      },
+      {
+        '@type': 'HowToStep',
+        name: 'Template the workflow',
+        text: 'Save naming conventions, timing defaults, and export targets for repeatable production.',
+      },
+    ],
+    tool: [
+      { '@type': 'HowToTool', name: 'Excalidraw' },
+      { '@type': 'HowToTool', name: 'Excalimate' },
+      { '@type': 'HowToTool', name: 'dotLottie player' },
+    ],
+  })}
+/>

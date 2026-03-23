@@ -3,8 +3,8 @@ import PageLayout from '../../layouts/PageLayout.astro';
 import Nav from '../../components/Nav.astro';
 import Footer from '../../components/Footer.astro';
 
-const title = 'Guides — Excalimate';
-const description = 'Step-by-step guides for using Excalimate: MCP server setup, creating designs with AI, animating diagrams, and exporting animations.';
+const title = 'Diagram Animation Guides & Tutorials — Excalimate';
+const description = 'Step-by-step guides and tutorials for Excalimate: MCP server setup, creating AI-powered diagrams, animating with keyframes, and exporting to MP4, GIF, Lottie.';
 
 const guides = [
   {
@@ -85,24 +85,31 @@ const guides = [
     color: 'var(--p2)',
   },
   {
+    title: 'Excalidraw to Lottie Workflow',
+    description: 'Go from Excalidraw diagrams to production-ready dotLottie or Lottie JSON assets with a repeatable workflow.',
+    href: '/guides/excalidraw-to-lottie-workflow',
+    num: '12',
+    color: 'var(--p2)',
+  },
+  {
     title: 'How to Export Animations',
     description: 'Complete guide to exporting as MP4, WebM, GIF, animated SVG, dotLottie, Lottie JSON, PNG, and WebP.',
     href: '/guides/export-animations',
-    num: '12',
+    num: '13',
     color: 'var(--p2)',
   },
   {
     title: 'Why Animate Diagrams?',
     description: 'Benefits of animated diagrams for presentations, documentation, education, and engagement.',
     href: '/guides/why-animate-diagrams',
-    num: '13',
+    num: '14',
     color: 'var(--p2)',
   },
   {
     title: 'Enhance Presentations',
     description: 'Use Excalimate animations in PowerPoint, Google Slides, and Keynote for more engaging presentations.',
     href: '/guides/enhance-presentations',
-    num: '14',
+    num: '15',
     color: 'var(--p2)',
   },
 ];
@@ -292,6 +299,7 @@ const guides = [
   "name": "Excalimate Guides",
   "description": description,
   "url": "https://excalimate.com/guides",
+  "dateModified": "2026-03-23",
   "hasPart": guides.map((g) => ({
     "@type": "HowTo",
     "name": g.title,

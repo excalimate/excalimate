@@ -3,7 +3,10 @@ import '../styles/global.css';
 import CookieConsent from '../components/CookieConsent.astro';
 import PostHog from '../components/PostHog.astro';
 
-interface Props { title?: string; description?: string }
+interface Props {
+  title?: string;
+  description?: string;
+}
 const {
   title = 'Excalimate — Animate Hand-Drawn Diagrams',
   description = 'Turn Excalidraw diagrams into keyframe animations. Export as MP4, WebM, GIF, animated SVG, and dotLottie. Free, open source, AI-powered with 23 MCP tools.',
@@ -12,81 +15,104 @@ const {
 const siteUrl = 'https://excalimate.com';
 const ogImage = `${siteUrl}/og-image.png`;
 ---
+
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>{title}</title>
-  <meta name="description" content={description}/>
-  <meta name="robots" content="index, follow"/>
-  <link rel="canonical" href={siteUrl}/>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
-  <link rel="sitemap" href="/sitemap-index.xml"/>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="theme-color" content="#0B0F14" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href={siteUrl} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
 
-  <!-- Open Graph -->
-  <meta property="og:type" content="website"/>
-  <meta property="og:url" content={siteUrl}/>
-  <meta property="og:title" content={title}/>
-  <meta property="og:description" content={description}/>
-  <meta property="og:image" content={ogImage}/>
-  <meta property="og:image:width" content="1200"/>
-  <meta property="og:image:height" content="630"/>
-  <meta property="og:site_name" content="Excalimate"/>
-  <meta property="og:locale" content="en_US"/>
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={siteUrl} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta
+      property="og:image:alt"
+      content="Excalimate app interface with animated hand-drawn diagrams"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Excalimate" />
+    <meta property="og:locale" content="en_US" />
 
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image"/>
-  <meta name="twitter:title" content={title}/>
-  <meta name="twitter:description" content={description}/>
-  <meta name="twitter:image" content={ogImage}/>
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:domain" content="excalimate.com" />
 
-  <!-- Structured Data (JSON-LD) -->
-  <script type="application/ld+json" set:html={JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Excalimate",
-    "description": description,
-    "url": siteUrl,
-    "applicationCategory": "DesignApplication",
-    "operatingSystem": "Web",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "license": "https://github.com/excalimate/excalimate/blob/main/LICENSE",
-    "isAccessibleForFree": true,
-    "creator": {
-      "@type": "Organization",
-      "name": "Excalimate",
-      "url": siteUrl
-    },
-    "softwareVersion": "1.0",
-    "featureList": [
-      "Full Excalidraw editor",
-      "Keyframe animation timeline",
-      "Export to MP4, WebM, GIF, SVG, dotLottie, Lottie JSON, PNG, WebP",
-      "AI-powered with 23 MCP tools",
-      "E2E encrypted sharing",
-      "Camera pan, zoom, and rotation animations"
-    ]
-  })} />
+    <!-- Structured Data (JSON-LD) -->
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: 'Excalimate',
+        description: description,
+        url: siteUrl,
+        applicationCategory: 'DesignApplication',
+        operatingSystem: 'Web',
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+        license: 'https://github.com/excalimate/excalimate/blob/main/LICENSE',
+        isAccessibleForFree: true,
+        creator: {
+          '@type': 'Organization',
+          name: 'Excalimate',
+          url: siteUrl,
+        },
+        datePublished: '2026-03-22',
+        softwareVersion: '1.0',
+        featureList: [
+          'Full Excalidraw editor',
+          'Keyframe animation timeline',
+          'Export to MP4, WebM, GIF, SVG, dotLottie, Lottie JSON, PNG, WebP',
+          'AI-powered with 23 MCP tools',
+          'E2E encrypted sharing',
+          'Camera pan, zoom, and rotation animations',
+        ],
+      })}
+    />
 
-  <!-- Lottie player -->
-  <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@latest/dist/dotlottie-wc.js" type="module"></script>
+    <!-- Lottie player -->
+    <script
+      src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.4.2/dist/dotlottie-wc.js"
+      type="module"></script>
 
-  <!-- Analytics (consent-gated) -->
-  <PostHog />
-</head>
-<body>
-  <a href="#main" class="skip-link">Skip to content</a>
-  <div class="grain" aria-hidden="true"></div>
-  <slot/>
-  <CookieConsent />
-  <script>
-    const io=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target)}},{threshold:.07,rootMargin:'0px 0px -50px 0px'});
-    document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
-  </script>
-</body>
+    <!-- Analytics (consent-gated) -->
+    <PostHog />
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <div class="grain" aria-hidden="true"></div>
+    <slot />
+    <CookieConsent />
+    <script>
+      const io = new IntersectionObserver(
+        (es) => {
+          for (const e of es)
+            if (e.isIntersecting) {
+              e.target.classList.add('visible');
+              io.unobserve(e.target);
+            }
+        },
+        { threshold: 0.07, rootMargin: '0px 0px -50px 0px' },
+      );
+      document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+    </script>
+  </body>
 </html>

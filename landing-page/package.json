@@ -10,6 +10,7 @@
     "deploy": "astro build && wrangler versions upload"
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.7.1",
     "astro": "^5.7.10"
   },
   "devDependencies": {
