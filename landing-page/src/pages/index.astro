@@ -7,22 +7,61 @@ import FeatureSplits from '../components/FeatureSplits.astro';
 import StatsRow from '../components/StatsRow.astro';
 import ExportShowcase from '../components/ExportShowcase.astro';
 import HowItWorks from '../components/HowItWorks.astro';
+import HomeFAQ from '../components/HomeFAQ.astro';
 import OpenSource from '../components/OpenSource.astro';
 import FinalCTA from '../components/FinalCTA.astro';
 import Footer from '../components/Footer.astro';
+
+const faqItems = [
+  {
+    question: 'What can I export from Excalimate?',
+    answer:
+      'Excalimate exports animated diagrams in 8 formats: MP4, WebM, GIF, SVG, dotLottie, Lottie JSON, PNG, and WebP.',
+  },
+  {
+    question: 'Does Excalimate support AI-assisted workflows?',
+    answer:
+      'Yes. Excalimate provides MCP tools for direct scene and animation control, plus 16 specialized AI skills for common diagram types.',
+  },
+  {
+    question: 'How does encrypted sharing work?',
+    answer:
+      'Sharing is end-to-end encrypted: project data is encrypted client-side and the key stays in the URL hash fragment, so the server cannot read your content.',
+  },
+  {
+    question: 'Is Excalimate free and open source?',
+    answer:
+      'Yes. Excalimate is free to use and open source under the MIT license, with the full codebase available on GitHub.',
+  },
+];
+
+const faqPageSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqItems.map((item) => ({
+    '@type': 'Question',
+    name: item.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: item.answer,
+    },
+  })),
+};
 ---
 
 <BaseLayout>
   <Nav />
-  <main id="main">
+  <main id="main" class="landing-main">
     <Hero />
     <ValueProps />
     <FeatureSplits />
     <StatsRow />
     <ExportShowcase />
     <HowItWorks />
+    <HomeFAQ items={faqItems} />
     <OpenSource />
     <FinalCTA />
   </main>
   <Footer />
+  <script type="application/ld+json" set:html={JSON.stringify(faqPageSchema)} />
 </BaseLayout>

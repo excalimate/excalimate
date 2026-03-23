@@ -61,6 +61,11 @@ const features = [
             View on GitHub
           </a>
         </div>
+
+        <p class="hero-guide-link hero-s3">
+          Want a repeatable process? Read the
+          <a href="/guides/excalidraw-to-lottie-workflow">Excalidraw to Lottie workflow guide</a>.
+        </p>
       </div>
 
       <!-- Right: animation -->
@@ -198,6 +203,24 @@ const features = [
     flex-wrap: wrap;
     gap: 12px;
     margin-top: 32px;
+  }
+
+  .hero-guide-link {
+    margin: 16px 0 0;
+    font-family: var(--f-body);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--tx2);
+  }
+
+  .hero-guide-link a {
+    color: var(--tx);
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+
+  .hero-guide-link a:hover {
+    text-decoration-color: var(--tx);
   }
 
   /* ── Visual side ── */

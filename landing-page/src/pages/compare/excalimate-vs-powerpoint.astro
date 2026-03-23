@@ -4,9 +4,10 @@ import Nav from '../../components/Nav.astro';
 import Footer from '../../components/Footer.astro';
 import Callout from '../../components/Callout.astro';
 import RelatedGuides from '../../components/RelatedGuides.astro';
+import ComparisonFAQ from '../../components/ComparisonFAQ.astro';
 
-const title = 'Excalimate vs PowerPoint: Better Diagram Animations — Excalimate';
-const description = 'Compare Excalimate and PowerPoint for animated diagrams. Learn why Excalimate\'s keyframe animation produces better results than PowerPoint transitions.';
+const title = 'Excalimate vs PowerPoint for Animated Diagram Presentations';
+const description = 'Compare Excalimate vs PowerPoint for animated diagrams in slide decks. Learn when timeline keyframes outperform slide transitions, and when using both tools together is best.';
 
 const features = [
   { name: 'Animation type', excalimate: 'Keyframe', powerpoint: 'Transition-based' },
@@ -22,6 +23,29 @@ const features = [
   { name: 'Free', excalimate: '✓', powerpoint: 'Paid' },
   { name: 'Open source', excalimate: '✓', powerpoint: '✗' },
 ];
+
+const faqItems = [
+  {
+    question: 'Should I replace PowerPoint with Excalimate?',
+    answer:
+      'Usually no. Many teams use both together: build timeline-driven diagram animations in Excalimate, then embed the exported result in PowerPoint decks.',
+  },
+  {
+    question: 'Can I put Excalimate animations into PowerPoint?',
+    answer:
+      'Yes. You can export from Excalimate as MP4 (and other formats) and place the exported media into PowerPoint slides.',
+  },
+  {
+    question: 'What does Excalimate add beyond PowerPoint transitions?',
+    answer:
+      'Excalimate adds per-element keyframe control, draw-progress reveals, and camera motion, which provides finer control for technical diagram storytelling.',
+  },
+  {
+    question: 'Is Excalimate free and open source?',
+    answer:
+      'Yes. Excalimate is free to use and open source, including timeline animation and export tooling.',
+  },
+];
 ---
 
 <PageLayout title={title} description={description} path="/compare/excalimate-vs-powerpoint">
@@ -33,7 +57,7 @@ const features = [
       <header class="guide-header">
         <a href="/compare" class="guide-back">← Back to comparisons</a>
         <h1 class="guide-title">Excalimate vs PowerPoint</h1>
-        <p class="guide-subtitle">Keyframe animation vs slide transitions — which approach wins for diagrams?</p>
+        <p class="guide-subtitle">For presentation teams deciding between slide transitions and timeline-based diagram animation.</p>
       </header>
 
       <div class="guide-body">
@@ -76,12 +100,12 @@ const features = [
 
         <!-- Animation Philosophy -->
         <section class="step">
-          <h2 class="step-title">Animation Philosophy</h2>
+          <h2 class="step-title">Slide Timeline vs Animation Timeline</h2>
           <p class="step-text">
-            <strong>PowerPoint</strong> uses a transition-based model. Animations happen between slides or as entrance/exit effects on individual objects. You pick from preset animations — appear, fly in, wipe — and adjust basic timing. This works well for revealing bullet points, but it's limited when you want smooth, continuous diagram animations.
+            <strong>PowerPoint</strong> is built around slide progression. Animations are mostly entrance, exit, emphasis, and slide transition effects. This works well for narrative decks, but complex diagrams can feel stepwise rather than continuous.
           </p>
           <p class="step-text">
-            <strong>Excalimate</strong> uses keyframe animation. You define the exact state of each element at specific points in time, and the engine interpolates between them. This means you can animate opacity, position, scale, rotation, and draw progress independently on every element with precise easing control. The result is fluid, cinematic animations that build diagrams progressively.
+            <strong>Excalimate</strong> uses a true keyframe timeline. You define exact element states over time and animate opacity, position, scale, rotation, and draw progress independently. That model is better suited to walkthrough-style diagram reveals that need precise pacing.
           </p>
         </section>
 
@@ -117,6 +141,11 @@ const features = [
             <strong>Pro tip:</strong> Create your animated diagram in Excalimate, export as MP4, and embed the video directly in your PowerPoint slide for the best of both worlds.
           </Callout>
         </section>
+
+        <ComparisonFAQ
+          items={faqItems}
+          subtitle="Common answers for presentation teams balancing slide workflows with richer diagram animation."
+        />
 
         <!-- Verdict -->
         <div class="verdict">
@@ -277,6 +306,8 @@ const features = [
   "headline": "Excalimate vs PowerPoint: Better Diagram Animations",
   "description": description,
   "url": "https://excalimate.com/compare/excalimate-vs-powerpoint",
+  "datePublished": "2026-03-22",
+  "dateModified": "2026-03-22",
   "author": {
     "@type": "Organization",
     "name": "Excalimate"
@@ -286,4 +317,17 @@ const features = [
     "name": "Excalimate",
     "url": "https://excalimate.com"
   }
+})} />
+
+<script type="application/ld+json" set:html={JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqItems.map((item) => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
 })} />

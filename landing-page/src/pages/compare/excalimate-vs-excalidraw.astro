@@ -5,9 +5,32 @@ import Footer from '../../components/Footer.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
 import Callout from '../../components/Callout.astro';
 import RelatedGuides from '../../components/RelatedGuides.astro';
+import ComparisonFAQ from '../../components/ComparisonFAQ.astro';
 
-const title = 'Excalimate vs Excalidraw: What\'s the Difference? — Excalimate';
-const description = 'Compare Excalimate and Excalidraw. Understand how Excalimate extends Excalidraw with keyframe animation, timeline, camera controls, and AI-powered MCP tools.';
+const title = 'Excalimate vs Excalidraw: Same Editor, Added Animation';
+const description = 'Choosing between Excalimate and Excalidraw? Excalimate keeps the Excalidraw canvas and file format, then adds timeline-based animation, camera moves, and animated exports.';
+const faqItems = [
+  {
+    question: 'Is Excalimate built on Excalidraw?',
+    answer:
+      'Yes. Excalimate embeds the Excalidraw editor, so you keep the same drawing experience and hand-drawn visual style while adding animation capabilities.',
+  },
+  {
+    question: 'Can I use Excalidraw files in Excalimate?',
+    answer:
+      'Yes. Excalimate uses the same Excalidraw file format, so diagrams made in Excalidraw can be opened in Excalimate and animated.',
+  },
+  {
+    question: 'Does Excalimate have real-time collaboration like Excalidraw?',
+    answer:
+      'Not currently. Excalidraw supports real-time multi-user collaboration, while Excalimate is focused on single-user diagram animation workflows.',
+  },
+  {
+    question: 'When should I choose Excalidraw instead of Excalimate?',
+    answer:
+      'Choose Excalidraw for quick static sketches and live collaborative whiteboarding. Choose Excalimate when you need keyframe animation, camera motion, and animated export formats.',
+  },
+];
 ---
 
 <PageLayout title={title} description={description} path="/compare/excalimate-vs-excalidraw">
@@ -18,7 +41,7 @@ const description = 'Compare Excalimate and Excalidraw. Understand how Excalimat
       <header class="guide-header">
         <a href="/compare" class="guide-back">← Back to comparisons</a>
         <h1 class="guide-title">Excalimate vs Excalidraw</h1>
-        <p class="guide-subtitle">{description}</p>
+        <p class="guide-subtitle">For Excalidraw users: keep the same canvas, add animation when your diagram needs motion.</p>
       </header>
 
       <div class="guide-body">
@@ -38,14 +61,13 @@ const description = 'Compare Excalimate and Excalidraw. Understand how Excalimat
         <!-- Introduction -->
         <section class="step">
           <div class="step-header">
-            <h2 class="step-title">Built on Excalidraw</h2>
+             <h2 class="step-title">If You Already Use Excalidraw</h2>
           </div>
           <p class="step-text">
-            Excalimate is not a competitor to Excalidraw — it's built <strong>on top of it</strong>.
-            The full Excalidraw editor is embedded inside Excalimate, so you get the same
-            hand-drawn aesthetic, the same tools, and the same file format. Excalimate adds a
-            keyframe animation layer, a visual timeline, camera controls, and AI-powered creation
-            tools via MCP.
+            Excalimate is not a replacement for Excalidraw's editor. It is built <strong>on top of Excalidraw</strong>.
+            You keep the same drawing workflow and file format, then add a dedicated animation layer
+            when static diagrams are no longer enough. Excalimate adds timeline keyframes, camera controls,
+            and animation exports without forcing a new diagramming toolchain.
           </p>
         </section>
 
@@ -157,6 +179,11 @@ const description = 'Compare Excalimate and Excalidraw. Understand how Excalimat
             Excalidraw and bring it into Excalimate to add animation later.
           </Callout>
         </section>
+
+        <ComparisonFAQ
+          items={faqItems}
+          subtitle="These answers help Excalidraw users choose the right workflow for static diagrams, collaboration, and animation."
+        />
 
         <!-- Verdict -->
         <section class="verdict">
@@ -390,7 +417,25 @@ const description = 'Compare Excalimate and Excalidraw. Understand how Excalimat
     '@type': 'Article',
     headline: 'Excalimate vs Excalidraw: What\'s the Difference?',
     description,
+    datePublished: '2026-03-22',
+    dateModified: '2026-03-22',
     author: { '@type': 'Organization', name: 'Excalimate' },
     publisher: { '@type': 'Organization', name: 'Excalimate' },
+  })}
+/>
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqItems.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
   })}
 />

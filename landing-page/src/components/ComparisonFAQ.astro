@@ -1,0 +1,100 @@
+---
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  items: FAQItem[];
+  title?: string;
+  subtitle?: string;
+}
+
+const {
+  items,
+  title = 'Frequently asked questions',
+  subtitle = 'Short, practical answers for common comparison questions.',
+} = Astro.props;
+---
+
+<section class="comparison-faq step" aria-labelledby="comparison-faq-heading">
+  <header class="comparison-faq-header">
+    <h2 id="comparison-faq-heading" class="comparison-faq-title">{title}</h2>
+    <p class="comparison-faq-subtitle">{subtitle}</p>
+  </header>
+
+  <ul class="comparison-faq-list" role="list">
+    {items.map((item) => (
+      <li class="comparison-faq-card">
+        <article>
+          <h3 class="comparison-faq-question">{item.question}</h3>
+          <p class="comparison-faq-answer">{item.answer}</p>
+        </article>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  .comparison-faq {
+    gap: 20px;
+  }
+
+  .comparison-faq-header {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .comparison-faq-title {
+    font-family: var(--f-display);
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .comparison-faq-subtitle {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: var(--tx2);
+    margin: 0;
+  }
+
+  .comparison-faq-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .comparison-faq-card {
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-top: 4px solid var(--p4);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 18px 20px;
+  }
+
+  .comparison-faq-question {
+    font-family: var(--f-display);
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--tx);
+    margin: 0;
+  }
+
+  .comparison-faq-answer {
+    font-family: var(--f-body);
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--tx2);
+    margin: 10px 0 0;
+  }
+</style>

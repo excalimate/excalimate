@@ -113,6 +113,14 @@ ul,ol{list-style:none}
 @media(min-width:640px){.container{padding-inline:32px}}
 @media(min-width:1024px){.container{padding-inline:48px}}
 
+/* ── Landing page section striping (order-resilient) ───────────── */
+.landing-main > section{
+  background:var(--bg)!important;
+}
+.landing-main > section:nth-of-type(even){
+  background:var(--bg-alt)!important;
+}
+
 /* ── Skip link ──────────────────────────────────────────────────── */
 .skip-link{position:absolute;top:-100%;left:16px;padding:8px 20px;background:var(--accent);color:var(--accent-text);border-radius:8px;font-size:14px;font-weight:600;z-index:200;transition:top .2s}
 .skip-link:focus{top:16px}

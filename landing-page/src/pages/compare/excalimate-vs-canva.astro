@@ -4,9 +4,10 @@ import Nav from '../../components/Nav.astro';
 import Footer from '../../components/Footer.astro';
 import Callout from '../../components/Callout.astro';
 import RelatedGuides from '../../components/RelatedGuides.astro';
+import ComparisonFAQ from '../../components/ComparisonFAQ.astro';
 
-const title = 'Excalimate vs Canva: Animated Diagrams Compared — Excalimate';
-const description = 'Compare Excalimate and Canva for creating animated diagrams. See which tool is better for diagram animations, keyframe control, and export options.';
+const title = 'Excalimate vs Canva for Animated Technical Diagrams';
+const description = 'Compare Excalimate vs Canva for animated diagrams. Use this guide if you need keyframe precision, technical diagram workflows, and export options beyond template-based design.';
 
 const features = [
   { name: 'Diagram focus', excalimate: '✓', canva: 'General' },
@@ -22,6 +23,29 @@ const features = [
   { name: 'Custom easing curves', excalimate: '✓', canva: '✗' },
   { name: 'Draw progress animation', excalimate: '✓', canva: '✗' },
 ];
+
+const faqItems = [
+  {
+    question: 'Is Canva good for technical diagram animation?',
+    answer:
+      'Canva can animate visual elements with presets, but it is not optimized for timeline-based technical diagram workflows with per-element keyframe control.',
+  },
+  {
+    question: 'Can Canva export Lottie for diagram animations?',
+    answer:
+      'No. In this comparison context, Excalimate supports Lottie export while Canva does not provide the same diagram-focused Lottie workflow.',
+  },
+  {
+    question: 'When is Excalimate a better fit than Canva?',
+    answer:
+      'Excalimate is usually a better fit when you need precise keyframes, camera animation, diagram-first tooling, and open-source flexibility for technical visuals.',
+  },
+  {
+    question: 'Is Excalimate free and open source?',
+    answer:
+      'Yes. Excalimate is free to use and open source, including timeline animation and export features.',
+  },
+];
 ---
 
 <PageLayout title={title} description={description} path="/compare/excalimate-vs-canva">
@@ -33,7 +57,7 @@ const features = [
       <header class="guide-header">
         <a href="/compare" class="guide-back">← Back to comparisons</a>
         <h1 class="guide-title">Excalimate vs Canva</h1>
-        <p class="guide-subtitle">Which tool is better for creating animated diagrams?</p>
+        <p class="guide-subtitle">Template-first design versus diagram-first animation control.</p>
       </header>
 
       <div class="guide-body">
@@ -76,12 +100,12 @@ const features = [
 
         <!-- Diagram Creation -->
         <section class="step">
-          <h2 class="step-title">Diagram Creation</h2>
+          <h2 class="step-title">Template Workflow vs Diagram Workflow</h2>
           <p class="step-text">
-            <strong>Canva</strong> is a general-purpose design tool. It comes with thousands of templates for social media posts, presentations, and marketing materials. You can create diagrams, but they're not the primary focus.
+            <strong>Canva</strong> is optimized for fast, template-based visual content. It excels when your primary goal is branded social graphics or presentation visuals with light motion.
           </p>
           <p class="step-text">
-            <strong>Excalimate</strong> is built on Excalidraw, which means diagrams are first-class citizens. Every element — rectangles, arrows, text, ellipses — is designed for diagramming. The hand-drawn aesthetic gives your diagrams a distinctive, approachable look that stands out from polished corporate graphics.
+            <strong>Excalimate</strong> is optimized for diagram structure first. Because it is built on Excalidraw, arrows, nodes, and connectors are native building blocks, then animation is layered on top with timeline control.
           </p>
           <p class="step-text">
             With the MCP server, you can create entire diagrams through natural language prompts in your AI coding assistant. Describe the architecture, and the diagram appears in real-time.
@@ -120,6 +144,11 @@ const features = [
             <strong>Excalimate</strong> is completely free and open source. Every feature — keyframe animation, camera control, Lottie export, MCP server — is available at no cost. You can self-host it, modify it, and contribute to its development.
           </p>
         </section>
+
+        <ComparisonFAQ
+          items={faqItems}
+          subtitle="Answers focused on diagram workflows, export capabilities, and tooling fit."
+        />
 
         <!-- Verdict -->
         <div class="verdict">
@@ -280,6 +309,8 @@ const features = [
   "headline": "Excalimate vs Canva: Animated Diagrams Compared",
   "description": description,
   "url": "https://excalimate.com/compare/excalimate-vs-canva",
+  "datePublished": "2026-03-22",
+  "dateModified": "2026-03-22",
   "author": {
     "@type": "Organization",
     "name": "Excalimate"
@@ -289,4 +320,17 @@ const features = [
     "name": "Excalimate",
     "url": "https://excalimate.com"
   }
+})} />
+
+<script type="application/ld+json" set:html={JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqItems.map((item) => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
 })} />

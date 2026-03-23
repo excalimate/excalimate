@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /og-image.html
+Disallow: /og-lottie-announcement.html
+
+Sitemap: https://excalimate.com/sitemap-index.xml

@@ -62,6 +62,10 @@ ffmpeg -i animation.mp4 -ss 00:00:02 -frames:v 1 frame.png`;
             quality settings, and click export. The animation renderer processes your keyframes
             and produces the final file.
           </p>
+          <p class="step-text">
+            If you want an end-to-end process from diagram prep through embed-ready assets, follow
+            the <a href="/guides/excalidraw-to-lottie-workflow">Excalidraw to Lottie workflow</a>.
+          </p>
         </section>
 
         <!-- MP4 -->
@@ -418,6 +422,16 @@ ffmpeg -i animation.mp4 -ss 00:00:02 -frames:v 1 frame.png`;
     color: var(--tx);
   }
 
+  .step-text :global(a) {
+    color: var(--tx);
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+  }
+
+  .step-text :global(a:hover) {
+    text-decoration-color: var(--tx);
+  }
+
   /* ── Inline code ── */
   .inline-code {
     font-size: 0.85em;
@@ -505,6 +519,8 @@ ffmpeg -i animation.mp4 -ss 00:00:02 -frames:v 1 frame.png`;
     name: 'How to Export Animations from Excalimate',
     description:
       'Complete guide to exporting animations as MP4, WebM, GIF, animated SVG, dotLottie, Lottie JSON, PNG, and WebP from Excalimate.',
+    datePublished: '2026-03-22',
+    dateModified: '2026-03-22',
     step: [
       {
         '@type': 'HowToStep',
