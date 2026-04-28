@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/excalimate-excalimate-badge.png)](https://mseep.ai/app/excalimate-excalimate)
+
 <div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="public/excalimate_logo_dark.svg">
