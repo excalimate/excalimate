@@ -7,6 +7,9 @@ on:
       - 'package.json'
       - 'mcp-server/package.json'
 
+permissions:
+  contents: read
+
 jobs:
   detect:
     name: Detect Version Bumps
