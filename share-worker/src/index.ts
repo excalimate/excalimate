@@ -59,7 +59,7 @@ function generateId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
   let binary = '';
   for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, '-').replace(/_/g, '_').replace(/=+$/, '');
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 export default {
