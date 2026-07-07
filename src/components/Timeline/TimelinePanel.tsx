@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type MouseEvent } from 'react';
-import { ActionIcon } from '@mantine/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconKeyframeFilled, IconX, IconVolume, IconVolumeOff, IconChevronRight, IconChevronDown } from '@tabler/icons-react';
 import type { AnimationTrack, Keyframe } from '../../types/animation';
 import { KeyframeDiamond } from './KeyframeDiamond';
@@ -42,6 +42,8 @@ export interface TimelinePanelProps {
   targetOrder: Map<string, number>;
   targetParents: Map<string, string | undefined>;
   zoom?: number;
+  /** When provided, renders a collapse button in the header that hides the timeline. */
+  onCollapse?: () => void;
 }
 
 type RowData =
@@ -94,6 +96,7 @@ export function TimelinePanel({
   targetOrder,
   targetParents,
   zoom: initialZoom = 0.1,
+  onCollapse,
 }: TimelinePanelProps) {
   void _onDeleteKeyframe;
 
@@ -200,6 +203,15 @@ export function TimelinePanel({
         <div className="flex-1 overflow-hidden" ref={keyframeAreaRef} onMouseDown={handleScrubberMouseDown} aria-label="Timeline scrubber">
           <TimeRuler duration={duration} zoom={zoom} scrollX={scrollX} width={rulerWidth} />
         </div>
+        {onCollapse && (
+          <div className="shrink-0 flex items-center px-1 border-b border-l border-border bg-surface-alt">
+            <Tooltip label="Collapse timeline" position="left">
+              <ActionIcon variant="subtle" color="gray" size="xs" onClick={onCollapse} aria-label="Collapse timeline">
+                <IconChevronDown size={14} />
+              </ActionIcon>
+            </Tooltip>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-1 overflow-hidden">

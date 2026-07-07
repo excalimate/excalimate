@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useCallback } from 'react';
 import { MantineProvider, CloseButton, ActionIcon, Tooltip } from '@mantine/core';
-import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
+import { IconLayoutSidebarLeftExpand, IconChevronUp } from '@tabler/icons-react';
 import { Notifications } from '@mantine/notifications';
 import { ModalsProvider } from '@mantine/modals';
 import { NavigationProgress } from '@mantine/nprogress';
@@ -67,6 +67,7 @@ export function App() {
   const selectedElementIds = useUIStore((s) => s.selectedElementIds);
   const sequenceRevealOpen = useUIStore((s) => s.sequenceRevealOpen);
   const layersPanelOpen = useUIStore((s) => s.layersPanelOpen);
+  const timelinePanelOpen = useUIStore((s) => s.timelinePanelOpen);
   const targets = useProjectStore((s) => s.targets);
   const project = useProjectStore((s) => s.project);
   const cameraFrame = useProjectStore((s) => s.cameraFrame);
@@ -190,6 +191,21 @@ export function App() {
               </Tooltip>
             </div>
           )}
+          {/* Timeline toggle (floating, visible when the timeline is collapsed) */}
+          {!timelinePanelOpen && (
+            <div className="absolute bottom-2 right-2 z-20">
+              <Tooltip label="Show timeline" position="left">
+                <ActionIcon
+                  variant="filled"
+                  color="indigo"
+                  size="md"
+                  onClick={() => useUIStore.getState().toggleTimelinePanel()}
+                >
+                  <IconChevronUp size={18} />
+                </ActionIcon>
+              </Tooltip>
+            </div>
+          )}
         </main>
 
         {/* Right: Property panel (visible when elements or keyframes selected) */}
@@ -219,6 +235,7 @@ export function App() {
       </div>
 
       {/* Bottom: Timeline panel */}
+      {timelinePanelOpen && (
       <div data-hint="timeline" className="h-[250px] mx-2 mb-2 border border-border bg-surface-alt rounded-lg shadow-float overflow-hidden">
         <ErrorBoundary fallback={<div className="flex items-center justify-center h-full text-sm text-danger">Timeline error</div>}>
         <TimelinePanelWrapper
@@ -241,9 +258,11 @@ export function App() {
           targetOrder={targetOrder}
           targetParents={targetParents}
           selectedElementIds={selectedElementIds}
+          onCollapse={() => useUIStore.getState().toggleTimelinePanel()}
         />
         </ErrorBoundary>
       </div>
+      )}
     </div>
         )}
         <ConsentBanner />

@@ -25,6 +25,7 @@ interface UIState {
   ghostMode: boolean;
   sequenceRevealOpen: boolean;
   layersPanelOpen: boolean;
+  timelinePanelOpen: boolean;
   liveMode: boolean;
   /** True when a shape/draw tool is active in Excalidraw (not selection/hand). */
   drawToolActive: boolean;
@@ -46,6 +47,7 @@ interface UIState {
   toggleGhostMode: () => void;
   toggleSequenceReveal: () => void;
   toggleLayersPanel: () => void;
+  toggleTimelinePanel: () => void;
   setLiveMode: (live: boolean) => void;
   setDrawToolActive: (active: boolean) => void;
   setActivePage: (page: string | null) => void;
@@ -58,6 +60,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
   ghostMode: false,
   sequenceRevealOpen: false,
   layersPanelOpen: true,
+  timelinePanelOpen: true,
   liveMode: false,
   drawToolActive: false,
   activePage: null,
@@ -150,6 +153,9 @@ export const useUIStore = create<UIState>()((set, get) => ({
   },
   toggleLayersPanel: (): void => {
     set((state) => ({ layersPanelOpen: !state.layersPanelOpen }));
+  },
+  toggleTimelinePanel: (): void => {
+    set((state) => ({ timelinePanelOpen: !state.timelinePanelOpen }));
   },
   setLiveMode: (live: boolean): void => {
     set({ liveMode: live });
