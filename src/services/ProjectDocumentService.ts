@@ -4,7 +4,9 @@ import { toProjectDocument } from '../core/models/Project';
 import type { AnimationProject } from '../core/models/Project';
 import { useAnimationStore } from '../stores/animationStore';
 import { useProjectStore } from '../stores/projectStore';
+import { useUIStore } from '../stores/uiStore';
 import { replaceProject } from './AnimationCommandService';
+import { trackCreatorEvent } from './analytics/posthog';
 
 export function captureProjectDocument(): ProjectDocument | null {
   const project = useProjectStore.getState().project;
@@ -46,5 +48,9 @@ export function loadProjectDocumentIntoStores(
 ): AnimationProject {
   const result = replaceProject(project, options);
   if (!result.ok) throw new Error(result.error.message);
+  trackCreatorEvent('creator_workspace_changed', {
+    workspace: useUIStore.getState().workspace,
+    source: 'project-load',
+  });
   return result.value;
 }

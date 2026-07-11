@@ -9,6 +9,7 @@ import type {
   AnimationAction,
   AnimationActionTiming,
   AnimationTimeline,
+  EasingType,
   ProjectAuthoring,
   ProjectDocument,
 } from '@excalimate/project-schema';
@@ -188,36 +189,55 @@ function compileAndCommit(
 export function createAction(
   draft: AnimationActionDraft,
 ): AnimationCommandResult<AnimationCommandValue> {
+  return createActions([draft]);
+}
+
+export function createActions(
+  drafts: readonly AnimationActionDraft[],
+): AnimationCommandResult<AnimationCommandValue> {
+  if (drafts.length === 0) {
+    return failure('INVALID_INPUT', 'At least one animation action is required');
+  }
   const current = useAnimationStore.getState();
-  const occurrence = current.actions.filter(
-    (action) => action.type === draft.type,
-  ).length;
-  const action = createAnimationAction(draft, occurrence);
-  if (current.actions.some((candidate) => candidate.id === action.id)) {
-    return failure(
-      'DUPLICATE_ACTION',
-      `Animation action "${action.id}" already exists`,
-    );
+  const occurrences = new Map<AnimationAction['type'], number>();
+  for (const action of current.actions) {
+    occurrences.set(action.type, (occurrences.get(action.type) ?? 0) + 1);
   }
-  const parsed = AnimationActionSchema.safeParse(action);
-  if (!parsed.success) {
-    const details = parsed.error.issues.map((issue) => issue.message);
-    return failure(
-      'INVALID_INPUT',
-      details[0] ?? 'Invalid animation action',
-      details,
-    );
+  const newActions: AnimationAction[] = [];
+  const knownIds = new Set(current.actions.map((action) => action.id));
+  for (const draft of drafts) {
+    const occurrence = occurrences.get(draft.type) ?? 0;
+    occurrences.set(draft.type, occurrence + 1);
+    const action = createAnimationAction(draft, occurrence);
+    if (knownIds.has(action.id)) {
+      return failure(
+        'DUPLICATE_ACTION',
+        `Animation action "${action.id}" already exists`,
+      );
+    }
+    const parsed = AnimationActionSchema.safeParse(action);
+    if (!parsed.success) {
+      const details = parsed.error.issues.map((issue) => issue.message);
+      return failure(
+        'INVALID_INPUT',
+        details[0] ?? 'Invalid animation action',
+        details,
+      );
+    }
+    const references = validateReferences(parsed.data);
+    if (!references.ok) return references;
+    knownIds.add(parsed.data.id);
+    newActions.push(parsed.data);
   }
-  const references = validateReferences(parsed.data);
-  if (!references.ok) return references;
-  const result = compileAndCommit([...current.actions, parsed.data]);
+  const result = compileAndCommit([...current.actions, ...newActions]);
   if (!result.ok) return result;
+  const lastAction = newActions.at(-1);
   return {
     ...result,
     value: {
       ...result.value,
       action: result.value.actions.find(
-        (candidate) => candidate.id === parsed.data.id,
+        (candidate) => candidate.id === lastAction?.id,
       ),
     },
   };
@@ -269,15 +289,40 @@ export function applyPreset(input: {
   preset: string;
   targetIds: readonly string[];
   timing: AnimationActionTiming;
+  easing?: EasingType;
 }): AnimationCommandResult<AnimationCommandValue> {
   try {
-    return createAction(
-      presetDraft(input.preset, input.targetIds, input.timing),
-    );
+    return createAction({
+      ...presetDraft(input.preset, input.targetIds, input.timing),
+      ...(input.easing ? { easing: input.easing } : {}),
+    });
   } catch (error) {
     return failure(
       'INVALID_INPUT',
       error instanceof Error ? error.message : 'Invalid animation preset',
+    );
+  }
+}
+
+export function applyPresetBatch(
+  inputs: readonly {
+    preset: string;
+    targetIds: readonly string[];
+    timing: AnimationActionTiming;
+    easing?: EasingType;
+  }[],
+): AnimationCommandResult<AnimationCommandValue> {
+  try {
+    return createActions(
+      inputs.map((input) => ({
+        ...presetDraft(input.preset, input.targetIds, input.timing),
+        ...(input.easing ? { easing: input.easing } : {}),
+      })),
+    );
+  } catch (error) {
+    return failure(
+      'INVALID_INPUT',
+      error instanceof Error ? error.message : 'Invalid animation preset batch',
     );
   }
 }
@@ -405,6 +450,7 @@ export function replaceProject(
     );
   }
   const appProject = fromProjectDocument(document);
+  const previousMode = useUIStore.getState().mode;
   if (options.pushUndo) useUndoRedoStore.getState().pushState(true);
   const targets = extractTargets(appProject.scene.elements);
   useProjectStore.setState({
@@ -413,6 +459,10 @@ export function replaceProject(
     cameraFrame: appProject.playback.cameraFrame,
     isDirty: false,
   });
+  const workspace =
+    document.preferredWorkspace ??
+    (document.timeline.tracks.length > 0 ? 'studio' : 'magic');
+  useUIStore.getState().hydrateWorkspace(workspace);
   runAnimationStoreTransaction(() => {
     useAnimationStore.setState({
       timeline: appProject.timeline,
@@ -424,9 +474,13 @@ export function replaceProject(
     });
   });
   invalidatePlaybackCache();
-  if (options.activateAnimationMode ?? true) {
-    useUIStore.getState().setMode('animate');
-    computeFrameAtTime(0);
+  if (workspace !== 'magic') {
+    if (options.activateAnimationMode ?? true) {
+      useUIStore.getState().setMode('animate');
+      computeFrameAtTime(0);
+    } else {
+      useUIStore.getState().setMode(previousMode);
+    }
   }
   return { ok: true, value: appProject };
 }

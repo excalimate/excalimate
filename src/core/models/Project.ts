@@ -62,6 +62,7 @@ export function createProject(
       clipEnd: Math.min(10_000, timeline.duration),
       cameraFrame,
     },
+    preferredWorkspace: 'magic',
   });
   return { ...project, scene };
 }
@@ -78,7 +79,9 @@ export function createProjectFromContent(
     timeline: content.timeline,
     playback: content.playback,
     authoring: content.authoring,
-    preferredWorkspace: content.preferredWorkspace,
+    preferredWorkspace:
+      content.preferredWorkspace ??
+      (content.timeline.tracks.length > 0 ? 'studio' : 'magic'),
   });
 }
 

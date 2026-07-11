@@ -18,8 +18,9 @@ import { ExportControls } from './ExportControls';
 import { InfoLinks } from './InfoLinks';
 import { useUIStore } from '../../stores/uiStore';
 import { useMcpLive, getMcpUrl } from '../../hooks/useMcpLive';
+import { WorkspaceSwitcher } from '../Workspace/WorkspaceSwitcher';
 
-export function Toolbar() {
+export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
   const ghostMode = useUIStore((s) => s.ghostMode);
   const sequenceRevealOpen = useUIStore((s) => s.sequenceRevealOpen);
   const theme = useUIStore((s) => s.theme);
@@ -128,7 +129,8 @@ export function Toolbar() {
       </div>
 
       {/* Center section: Mode switcher */}
-      <div className="flex-1 flex justify-center" data-hint="mode">
+      <div className="flex-1 flex justify-center items-center gap-3" data-hint="mode">
+        {!legacyShell && <WorkspaceSwitcher />}
         <ModeSwitcher />
       </div>
 

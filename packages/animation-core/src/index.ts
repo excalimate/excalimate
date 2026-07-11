@@ -5,3 +5,4 @@ export * from './interpolation.js';
 export * from './models.js';
 export * from './runtime.js';
 export * from './compiler.js';
+export * from './autoAnimate.js';

@@ -11,6 +11,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { useUndoRedoStore } from '../stores/undoRedoStore';
 import {
   applyPreset,
+  applyPresetBatch,
   createAction,
   createCameraMove,
   deleteAction,
@@ -257,5 +258,67 @@ describe('AnimationCommandService', () => {
             ?.ownership.some((ownership) => ownership.trackId === track.id),
         ),
     ).toBe(false);
+  });
+
+  it.each([
+    ['fade', 'opacity'],
+    ['slide-left', 'translateX'],
+    ['slide-right', 'translateX'],
+    ['slide-up', 'translateY'],
+    ['slide-down', 'translateY'],
+    ['draw', 'drawProgress'],
+    ['pop', 'scaleX'],
+  ] as const)('applies the %s preset through the command service', (preset, property) => {
+    const result = applyPreset({
+      preset,
+      targetIds: ['element-1'],
+      timing: {
+        startMs: 0,
+        durationMs: 500,
+        staggerMs: 0,
+        startMode: 'absolute',
+      },
+      easing: 'easeInOut',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(
+      useAnimationStore
+        .getState()
+        .timeline.tracks.some((track) => track.property === property),
+    ).toBe(true);
+  });
+
+  it('applies an auto-animate preset batch as one undoable commit', () => {
+    const result = applyPresetBatch([
+      {
+        preset: 'fade',
+        targetIds: ['element-1'],
+        timing: {
+          startMs: 0,
+          durationMs: 400,
+          staggerMs: 0,
+          startMode: 'absolute',
+        },
+      },
+      {
+        preset: 'draw',
+        targetIds: ['element-2'],
+        timing: {
+          startMs: 200,
+          durationMs: 500,
+          staggerMs: 0,
+          startMode: 'absolute',
+        },
+      },
+    ]);
+
+    expect(result.ok).toBe(true);
+    expect(useAnimationStore.getState().actions).toHaveLength(2);
+    expect(useUndoRedoStore.getState().past).toHaveLength(1);
+
+    useUndoRedoStore.getState().undo();
+    expect(useAnimationStore.getState().actions).toEqual([]);
+    expect(useAnimationStore.getState().timeline.tracks).toEqual([]);
   });
 });

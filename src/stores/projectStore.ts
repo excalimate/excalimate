@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import type {
   AspectRatio,
   CameraFrame,
+  PreferredWorkspace,
 } from '@excalimate/project-schema';
 import { CAMERA_FRAME_TARGET_ID } from '@excalimate/project-schema';
 import type { AnimationProject } from '../core/models/Project';
@@ -50,6 +51,7 @@ interface ProjectState {
   updateScene: (scene: ExcalidrawSceneData) => void;
   updateProjectName: (name: string) => void;
   setTargets: (targets: AnimatableTarget[]) => void;
+  setPreferredWorkspace: (workspace: PreferredWorkspace) => void;
   markClean: () => void;
   groupElements: (selectedIds: string[]) => void;
   ungroupTarget: (groupId: string) => void;
@@ -123,6 +125,21 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     if (cameraFrame.x === 640 && cameraFrame.y === 360) {
       get().fitFrameToScene();
     }
+  },
+
+  setPreferredWorkspace: (workspace: PreferredWorkspace): void => {
+    const { project } = get();
+    if (!project || project.preferredWorkspace === workspace) return;
+    const updatedAt = new Date().toISOString();
+    set({
+      project: {
+        ...project,
+        preferredWorkspace: workspace,
+        updatedAt,
+        metadata: { ...project.metadata, updatedAt },
+      },
+      isDirty: true,
+    });
   },
 
   markClean: (): void => {

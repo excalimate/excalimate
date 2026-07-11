@@ -17,7 +17,14 @@ import {
   captureProjectDocument,
   loadProjectDocumentIntoStores,
 } from '../../services/ProjectDocumentService';
-import { trackNewProject, trackSaveProject, trackLoadProject, trackImport } from '../../services/analytics/posthog';
+import {
+  trackCreatorEvent,
+  trackImport,
+  trackLoadProject,
+  trackNewProject,
+  trackSaveProject,
+} from '../../services/analytics/posthog';
+import { useUIStore } from '../../stores/uiStore';
 
 function resetTimeline() {
   const timeline = createTimeline();
@@ -32,6 +39,7 @@ function importScene(name: string, scene: ExcalidrawSceneData) {
   const targets = extractTargets(scene.elements);
   useProjectStore.getState().setTargets(targets);
   resetTimeline();
+  useUIStore.getState().hydrateWorkspace('magic');
 }
 
 export function useFileOperations() {
@@ -44,6 +52,8 @@ export function useFileOperations() {
     useProjectStore.getState().setTargets([]);
     useProjectStore.getState().setCameraAspectRatio(aspectRatio);
     resetTimeline();
+    useUIStore.getState().hydrateWorkspace('magic');
+    trackCreatorEvent('creator_project_started', { path: 'draw' });
     trackNewProject(aspectRatio);
   };
 
@@ -68,6 +78,9 @@ export function useFileOperations() {
   const handleImportFile = async (file: File) => {
     const scene = await parseExcalidrawFileBlob(file);
     importScene('Imported Animation', scene);
+    trackCreatorEvent('creator_project_started', {
+      path: 'import-excalidraw',
+    });
     trackImport('file');
   };
 
@@ -81,6 +94,7 @@ export function useFileOperations() {
   const handleLoadProjectFile = async (file: File) => {
     const project = await parseProjectFileBlob(file);
     loadProjectDocumentIntoStores(project);
+    trackCreatorEvent('creator_project_started', { path: 'open-project' });
     trackLoadProject('file');
   };
 

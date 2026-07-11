@@ -1,4 +1,6 @@
 export type AppMode = 'edit' | 'animate';
+export type WorkspaceMode = 'magic' | 'sequence' | 'studio';
+export type CanvasMode = 'design' | 'preview';
 export type PlaybackState = 'playing' | 'paused' | 'stopped';
 export type LoopMode = 'none' | 'loop' | 'pingpong';
 export type PlaybackSpeed = 0.25 | 0.5 | 1 | 2;

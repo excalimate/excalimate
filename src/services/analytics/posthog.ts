@@ -1,5 +1,7 @@
 import posthog, { type PostHog } from 'posthog-js';
 import { CONSENT_KEY, type StoredConsent } from './consent';
+import type { AutoAnimateConfidenceBand, AutoAnimateStrategy } from '@excalimate/animation-core';
+import type { WorkspaceMode } from '../../types/ui';
 
 /**
  * PostHog configuration — reads from Vite env vars.
@@ -52,6 +54,101 @@ export function disableCapture(): void {
 export function trackEvent(event: string, properties?: Record<string, unknown>): void {
   if (!isPostHogConfigured() || posthog.has_opted_out_capturing()) return;
   posthog.capture(event, properties);
+}
+
+export interface CreatorAnalyticsEventMap {
+  creator_workspace_changed: {
+    workspace: WorkspaceMode;
+    source: 'switcher' | 'escalation' | 'project-load' | 'query';
+  };
+  creator_project_started: {
+    path: 'draw' | 'import-excalidraw' | 'open-project' | 'mcp' | 'template-teaser';
+  };
+  creator_auto_animate_previewed: {
+    scope: 'selection' | 'diagram';
+    strategy: AutoAnimateStrategy;
+    confidence_band: AutoAnimateConfidenceBand;
+    target_count: number;
+  };
+  creator_auto_animate_applied: {
+    scope: 'selection' | 'diagram';
+    strategy: AutoAnimateStrategy;
+    confidence_band: AutoAnimateConfidenceBand;
+    recipe_count: number;
+  };
+  creator_auto_animate_rejected: {
+    scope: 'selection' | 'diagram';
+    strategy: AutoAnimateStrategy;
+    confidence_band: AutoAnimateConfidenceBand;
+  };
+  creator_preset_applied: {
+    preset: 'fade' | 'slide' | 'draw' | 'pop';
+    direction?: 'left' | 'right' | 'up' | 'down';
+    selection_size: number;
+    speed_band: 'slow' | 'normal' | 'fast';
+  };
+  creator_first_preview: {
+    workspace: WorkspaceMode;
+    reduced_motion: boolean;
+  };
+  creator_escalated: {
+    destination: 'sequence' | 'studio';
+  };
+}
+
+const CREATOR_PROPERTY_ALLOWLIST = {
+  creator_workspace_changed: ['workspace', 'source'],
+  creator_project_started: ['path'],
+  creator_auto_animate_previewed: [
+    'scope',
+    'strategy',
+    'confidence_band',
+    'target_count',
+  ],
+  creator_auto_animate_applied: [
+    'scope',
+    'strategy',
+    'confidence_band',
+    'recipe_count',
+  ],
+  creator_auto_animate_rejected: ['scope', 'strategy', 'confidence_band'],
+  creator_preset_applied: [
+    'preset',
+    'direction',
+    'selection_size',
+    'speed_band',
+  ],
+  creator_first_preview: ['workspace', 'reduced_motion'],
+  creator_escalated: ['destination'],
+} as const satisfies {
+  [Event in keyof CreatorAnalyticsEventMap]: readonly (
+    keyof CreatorAnalyticsEventMap[Event]
+  )[];
+};
+
+export function sanitizeCreatorAnalyticsPayload<
+  Event extends keyof CreatorAnalyticsEventMap,
+>(
+  event: Event,
+  payload: CreatorAnalyticsEventMap[Event] & Record<string, unknown>,
+): CreatorAnalyticsEventMap[Event] {
+  const sanitized: Record<string, unknown> = {};
+  for (const key of CREATOR_PROPERTY_ALLOWLIST[event]) {
+    if (payload[key] !== undefined) sanitized[key] = payload[key];
+  }
+  return sanitized as CreatorAnalyticsEventMap[Event];
+}
+
+export function trackCreatorEvent<
+  Event extends keyof CreatorAnalyticsEventMap,
+>(event: Event, payload: CreatorAnalyticsEventMap[Event]): void {
+  trackEvent(
+    event,
+    sanitizeCreatorAnalyticsPayload(
+      event,
+      payload as CreatorAnalyticsEventMap[Event] & Record<string, unknown>,
+    ),
+  );
 }
 
 export function trackExport(format: string): void {
