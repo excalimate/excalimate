@@ -27,6 +27,7 @@ import { hexToLottie } from './colorUtils';
 import type { AnimatableTarget } from '../../../types/excalidraw';
 import type { AnimationTrack } from '../../../types/animation';
 import type { LottieFontEmbeddingMode } from '../types';
+import type { ExportFrameSampler } from '@excalimate/export-runtime';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExcalElement = Record<string, any>;
@@ -121,6 +122,7 @@ export interface LottieExportOptions {
   height: number;
   embedFontsAsDataUri?: boolean;
   fontEmbeddingModes?: LottieFontEmbeddingMode[];
+  sampler: ExportFrameSampler;
 }
 
 /**
@@ -159,10 +161,10 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
     height,
     embedFontsAsDataUri = false,
     fontEmbeddingModes = ['inline'],
+    sampler,
   } = options;
 
-  const durationMs = clipEnd - clipStart;
-  const totalFrames = Math.ceil((durationMs / 1000) * fps);
+  const totalFrames = sampler.frameCount;
   const ip = 0;
   const op = totalFrames;
 
@@ -189,8 +191,11 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
   }
 
   // Build group null layers first
-  const { groupLayers, parentMap } = buildGroupLayers(
-    targets, tracks, fps, clipStart, ip, op,
+  const { groupLayers, parentMap, parentOffsetMap } = buildGroupLayers(
+    targets,
+    tracks,
+    { scaleX: sx, scaleY: sy, left: camLeft, top: camTop },
+    fps, clipStart, clipEnd, ip, op,
     elements.length + 1,
   );
 
@@ -215,7 +220,12 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
 
     // Get element position in scene coords, then map to composition coords
     const scenePos = getElementPosition(el);
-    const compPos = toComp(scenePos.x, scenePos.y);
+    const absoluteCompPos = toComp(scenePos.x, scenePos.y);
+    const parentOffset = parentOffsetMap.get(el.id);
+    const compPos = {
+      x: absoluteCompPos.x - (parentOffset?.x ?? 0),
+      y: absoluteCompPos.y - (parentOffset?.y ?? 0),
+    };
 
     // Build animated transform
     const props = groupTracksByProperty(tracks, el.id);
@@ -248,7 +258,7 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
       }
 
       if (!renderTextAsGlyphShapes) {
-        const transform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, {
+        const transform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, clipEnd, {
           width: textBox.width,
           height: textBox.height,
         });
@@ -306,7 +316,7 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
         } as LottieFill);
       }
       if (hasGlyphPathData) {
-        const shapeTransform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, {
+        const shapeTransform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, clipEnd, {
           width: textBox.width,
           height: textBox.height,
         });
@@ -341,7 +351,7 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
         e: 1,
       });
 
-      const imageTransform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, {
+      const imageTransform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, clipEnd, {
         width: glyphAsset.width,
         height: glyphAsset.height,
       });
@@ -370,14 +380,14 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
     const shapeGroup = await elementToLottieShapes(el, files, sx, sy);
 
     // Add trim path for drawProgress animation
-    const trimPath = buildTrimPath(scaledProps, fps, clipStart);
+    const trimPath = buildTrimPath(scaledProps, fps, clipStart, clipEnd);
     if (trimPath) {
       shapeGroup.it.splice(shapeGroup.it.length - 1, 0, trimPath);
     }
 
     const shapeWidth = Math.max(1, Math.abs((el.width ?? 0) * sx));
     const shapeHeight = Math.max(1, Math.abs((el.height ?? 0) * sy));
-    const transform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, {
+    const transform = buildTransform(compPos.x, compPos.y, baseAngle, baseOpacity, scaledProps, fps, clipStart, clipEnd, {
       width: shapeWidth,
       height: shapeHeight,
     });
@@ -407,7 +417,7 @@ export async function generateLottie(options: LottieExportOptions): Promise<Lott
   // All element layers parent to this so camera pan/zoom affects everything.
   const cameraLayer = buildCameraLayer(
     tracks, Math.round(width), Math.round(height), sx, sy,
-    fps, clipStart, ip, op, layerIdx,
+    fps, clipStart, clipEnd, ip, op, layerIdx,
   );
 
   if (cameraLayer) {

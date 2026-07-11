@@ -5,20 +5,21 @@ export {
   type ExportQuality,
 } from './export/types';
 import type { ExportOptions } from './export/types';
+export type {
+  ExportJob,
+  ExportPreflightResult,
+  ExportProgress,
+} from '@excalimate/export-runtime';
 
 export async function exportAnimation(options: ExportOptions): Promise<void> {
-  switch (options.format) {
-    case 'webm':
-      return (await import('./export/exportWebM')).exportWebM(options);
-    case 'mp4':
-      return (await import('./export/exportMP4')).exportMP4(options);
-    case 'gif':
-      return (await import('./export/exportGIF')).exportGIF(options);
-    case 'svg':
-      return (await import('./export/exportSVG')).exportAnimatedSVG(options);
-    case 'lottie':
-      return (await import('./export/lottie/exportLottie')).exportLottieJSON(options);
-    case 'dotlottie':
-      return (await import('./export/lottie/exportLottie')).exportDotLottie(options);
-  }
+  const job = await createExportJob(options);
+  return job.start();
+}
+
+export async function createExportJob(options: ExportOptions) {
+  return (await import('./export/job')).createAnimationExportJob(options);
+}
+
+export async function estimateExport(options: ExportOptions) {
+  return (await import('./export/job')).estimateAnimationExport(options);
 }

@@ -37,6 +37,18 @@ describe('strict SVG sanitization', () => {
     expect(result.elementIds).toEqual(['element']);
   });
 
+  it('preserves safe dark-mode filters and rejects external filter URLs', () => {
+    const result = sanitizeSvg(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" filter="invert(93%) hue-rotate(180deg)">
+        <rect width="10" height="10" filter="url(https://attacker.example/filter)"/>
+      </svg>
+    `);
+    expect(result.svg).toContain(
+      'filter="invert(93%) hue-rotate(180deg)"',
+    );
+    expect(result.svg).not.toContain('attacker.example');
+  });
+
   it('preserves local image symbols and sanitizes embedded SVG images', () => {
     const embedded = btoa(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><script>alert(1)</script><rect width="1" height="1"/></svg>',

@@ -60,6 +60,7 @@ const ALLOWED_ATTRIBUTES = new Set([
   'stroke-dashoffset',
   'paint-order',
   'vector-effect',
+  'filter',
   'font-family',
   'font-size',
   'font-style',
@@ -104,6 +105,7 @@ const ALLOWED_STYLE_PROPERTIES = new Set([
   'text-anchor',
   'paint-order',
   'vector-effect',
+  'filter',
 ]);
 const ALLOWED_DATA_IMAGE_MIMES = new Set([
   'image/png',
@@ -118,6 +120,7 @@ const LOCAL_URL_ATTRIBUTES = new Set([
   'stroke',
   'clip-path',
   'mask',
+  'filter',
 ]);
 const TARGET_ID_PATTERN = /^[A-Za-z0-9_-]{1,256}$/;
 

@@ -28,6 +28,7 @@ const ASPECT_VALUES: Record<ProjectDocument['playback']['cameraFrame']['aspectRa
 export async function generatePlayerPackage(
   project: ProjectDocument,
   targets: readonly AnimatableTarget[],
+  options: { theme?: 'light' | 'dark' } = {},
 ): Promise<PlayerPackageV1> {
   const { exportToSvg, getCommonBounds, getNonDeletedElements } = await import(
     '@excalidraw/excalidraw'
@@ -68,7 +69,7 @@ export async function generatePlayerPackage(
       ...project.scene.appState,
       exportBackground: true,
       exportEmbedScene: false,
-      exportWithDarkMode: false,
+      exportWithDarkMode: options.theme === 'dark',
       frameRendering: {
         enabled: true,
         clip: false,
@@ -76,7 +77,9 @@ export async function generatePlayerPackage(
         outline: false,
       },
       viewBackgroundColor:
-        readString(project.scene.appState['viewBackgroundColor']) ?? '#ffffff',
+        options.theme === 'dark'
+          ? '#ffffff'
+          : readString(project.scene.appState['viewBackgroundColor']) ?? '#ffffff',
     },
     exportPadding: 0,
   });
@@ -212,6 +215,11 @@ function getExportRenderOrder(
 function wrapScene(svg: SVGSVGElement): void {
   const scene = document.createElementNS(SVG_NAMESPACE, 'g');
   scene.setAttribute('data-excalimate-scene', 'true');
+  const rootFilter = svg.getAttribute('filter');
+  if (rootFilter) {
+    scene.setAttribute('filter', rootFilter);
+    svg.removeAttribute('filter');
+  }
   const renderableChildren = Array.from(svg.children).filter(
     (child) => child.localName !== 'defs',
   );

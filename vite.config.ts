@@ -16,6 +16,9 @@ export default defineConfig({
       '@excalimate/animation-core': fileURLToPath(
         new URL('./packages/animation-core/src/index.ts', import.meta.url),
       ),
+      '@excalimate/export-runtime': fileURLToPath(
+        new URL('./packages/export-runtime/src/index.ts', import.meta.url),
+      ),
       '@excalimate/project-schema': fileURLToPath(
         new URL('./packages/project-schema/src/index.ts', import.meta.url),
       ),
@@ -67,6 +70,9 @@ function playerIsolationPlugin(): Plugin {
     [/[\\/]src[\\/]services[\\/]FileService\./i, 'file services'],
     [/[\\/]src[\\/]services[\\/]ExportService\./i, 'export services'],
     [/[\\/]src[\\/]services[\\/]export[\\/]/i, 'export services'],
+    [/[\\/]packages[\\/]export-runtime[\\/]/i, 'export runtime'],
+    [/[\\/]node_modules[\\/](?:gif\.js|mp4-muxer|webm-muxer|@dotlottie)[\\/]/i, 'format encoder'],
+    [/[\\/]src[\\/]services[\\/]export[\\/].*worker/i, 'worker orchestration'],
     [/[\\/]src[\\/]services[\\/]analytics[\\/]/i, 'analytics'],
     [/[\\/]src[\\/].*(?:Mcp|template)/i, 'MCP or template code'],
   ]

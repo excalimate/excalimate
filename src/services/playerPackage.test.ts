@@ -38,6 +38,7 @@ describe('editor PlayerPackage generation', () => {
       sceneOffsetX: 10,
       sceneOffsetY: 20,
     });
+
     expect(playerPackage.animation.timeline).toEqual(project.timeline);
     expect(playerPackage.dimensions).toEqual({
       width: 1920,
@@ -56,6 +57,37 @@ describe('editor PlayerPackage generation', () => {
         },
       },
     });
+  });
+
+  it('preserves the safe Excalidraw dark-mode filter', async () => {
+    const project = createSyntheticV2Project();
+    exportToSvg.mockImplementationOnce(async (options?: MockExportOptions) => {
+      expect(options?.appState).toMatchObject({
+        exportWithDarkMode: true,
+        viewBackgroundColor: '#ffffff',
+      });
+      return new DOMParser().parseFromString(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" filter="invert(93%) hue-rotate(180deg)"><defs/><g><rect width="100" height="100"/></g></svg>',
+        'image/svg+xml',
+      ).documentElement;
+    });
+
+    const playerPackage = await generatePlayerPackage(project, [], {
+      theme: 'dark',
+    });
+    expect(playerPackage.scene.svg).toContain(
+      'filter="invert(93%) hue-rotate(180deg)"',
+    );
+    const document = new DOMParser().parseFromString(
+      playerPackage.scene.svg,
+      'image/svg+xml',
+    );
+    expect(document.documentElement.hasAttribute('filter')).toBe(false);
+    expect(
+      document
+        .querySelector('[data-excalimate-scene="true"]')
+        ?.getAttribute('filter'),
+    ).toBe('invert(93%) hue-rotate(180deg)');
   });
 
   it('matches bound-text and iframe export ordering without preserving links', async () => {
