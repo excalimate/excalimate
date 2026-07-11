@@ -1,6 +1,5 @@
 import type { ToolCallResult } from './McpTestClient.js';
 import type { TrafficReport } from './SseTrafficMonitor.js';
-import { getSharedStateJSON } from '../../src/server/stateContext.js';
 
 export interface BenchmarkResult {
   scenario: string;
@@ -26,8 +25,8 @@ export function collectMetrics(
   totalTimeMs: number,
   traffic: TrafficReport,
   state: { elementCount: number; trackCount: number; keyframeCount: number },
+  stateJson: string,
 ): BenchmarkResult {
-  const stateJson = getSharedStateJSON();
   const memUsage = process.memoryUsage();
 
   return {

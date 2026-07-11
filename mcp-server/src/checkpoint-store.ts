@@ -92,12 +92,12 @@ export class FileCheckpointStore implements CheckpointStore {
           const code = (err as NodeJS.ErrnoException).code;
           // ENOENT is expected (concurrent delete) — log anything else
           if (code !== 'ENOENT') {
-            console.warn(`[checkpoint] Failed to prune ${f.name}:`, err);
+            console.warn(`[checkpoint] Failed to prune ${f.name}`);
           }
         }
       }));
-    } catch (err) {
-      console.warn('[checkpoint] Prune scan failed:', err);
+    } catch {
+      console.warn('[checkpoint] Prune scan failed');
     } finally {
       this._pruning = false;
     }

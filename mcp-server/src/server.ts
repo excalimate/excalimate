@@ -1,5 +1,4 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { nanoid } from 'nanoid';
 import { createRequire } from 'node:module';
 import type { CheckpointStore } from './checkpoint-store.js';
 
@@ -15,27 +14,41 @@ import { registerQueryTools } from './server/queryTools.js';
 import { registerShareTools } from './server/shareTools.js';
 import { REFERENCE_TEXT, EXAMPLES_TEXT } from './server/referenceText.js';
 import { registerSceneTools } from './server/sceneTools.js';
-import { createStateContext, getSharedState, getSharedStateJSON, getSceneElementsJSON, getTimelineJSON } from './server/stateContext.js';
-import type { StateChangeListener } from './server/stateContext.js';
+import { createStateContext } from './server/stateContext.js';
+import type {
+  StateChangeListener,
+  StateContext,
+  StateContextOptions,
+} from './server/stateContext.js';
 
-export { getSharedState, getSharedStateJSON, getSceneElementsJSON, getTimelineJSON };
 export type { StateChangeListener } from './server/stateContext.js';
+
+export type ExcalimateMcpServer = McpServer & {
+  readonly stateContext: StateContext;
+};
 
 export function createServer(
   store: CheckpointStore,
   onStateChange?: StateChangeListener,
-): McpServer {
+  options: StateContextOptions = {},
+): ExcalimateMcpServer {
   const server = new McpServer({ name: 'excalimate', version: PKG_VERSION });
-  const ctx = createStateContext(nanoid(8), server, onStateChange);
+  const ctx = createStateContext(server, onStateChange, options);
+  Object.defineProperty(server, 'stateContext', {
+    value: ctx,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
 
-  server.tool(
+  ctx.tool(
     'read_me',
     'Returns the Excalidraw element format reference, animation property docs, easing types, and usage examples. Call this FIRST before creating scenes or animations.',
     {},
     async () => ({ content: [{ type: 'text', text: REFERENCE_TEXT }] }),
   );
 
-  server.tool(
+  ctx.tool(
     'get_examples',
     'Returns few-shot examples showing how to create elements and animate them. Call this to learn common patterns.',
     {},
@@ -49,5 +62,5 @@ export function createServer(
   registerCheckpointTools(server, ctx, store);
   registerShareTools(server, ctx);
 
-  return server;
+  return server as ExcalimateMcpServer;
 }

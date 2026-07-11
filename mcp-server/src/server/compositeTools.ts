@@ -6,6 +6,14 @@ import type { AnimatableProperty, EasingType } from '../types.js';
 import { ANIMATABLE_PROPERTIES, EASING_TYPES } from '../types.js';
 import { ORIGIN_MAP } from './geometry.js';
 import type { StateContext } from './stateContext.js';
+import {
+  assertAdditionalKeyframes,
+  boundedString,
+  boundedTime,
+  invalidInput,
+  legacyDeprecation,
+  parseLegacyArray,
+} from './limits.js';
 
 /**
  * Registers the `create_animated_scene` composite tool.
@@ -22,51 +30,86 @@ export function registerCompositeTools(
   normalizeElements: (elements: any[]) => any[],
   getElementBounds: (el: any) => { minX: number; minY: number; maxX: number; maxY: number },
 ): void {
+  const propertySchema = z.enum(
+    ANIMATABLE_PROPERTIES as unknown as [AnimatableProperty, ...AnimatableProperty[]],
+  );
+  const easingSchema = z.enum(
+    EASING_TYPES as unknown as [EasingType, ...EasingType[]],
+  );
+  const scaleOriginSchema = z.enum([
+    'center', 'top-left', 'top-right', 'bottom-left', 'bottom-right',
+    'top', 'bottom', 'left', 'right',
+  ]);
+  const keyframeSchema = z.object({
+    targetId: boundedString(ctx.limits),
+    property: propertySchema,
+    time: boundedTime(ctx.limits),
+    value: z.number().finite(),
+    easing: easingSchema.optional(),
+    scaleOrigin: scaleOriginSchema.optional(),
+  }).strict();
+  const keyframesSchema = z.array(keyframeSchema).max(ctx.limits.maxBatchItems);
+  const sequenceSchema = z.object({
+    elementIds: z.array(boundedString(ctx.limits))
+      .min(1)
+      .max(ctx.limits.maxBatchItems),
+    property: z.enum(['opacity', 'drawProgress']).optional(),
+    startTime: boundedTime(ctx.limits).optional(),
+    delay: boundedTime(ctx.limits).optional(),
+    duration: boundedTime(ctx.limits).min(50).optional(),
+  }).strict();
+  const sequencesSchema = z.array(sequenceSchema).max(ctx.limits.maxBatchItems);
+  const elementsSchema = z.array(z.record(z.unknown())).max(ctx.limits.maxElements);
+
   ctx.mutatingTool(
     'create_animated_scene',
     'Create a complete animated scene in one call: elements + keyframes + sequences + camera + clip range. ' +
     'Preferred over calling create_scene, add_keyframes_batch, create_sequence separately. ' +
     'Only elements is required — all other fields are optional.',
     {
-      elements: z.string().describe(
+      elements: z.string().max(ctx.limits.maxStateBytes).describe(
         'JSON string of Excalidraw elements array',
       ),
-      keyframes: z.string().optional().describe(
-        'JSON array of {targetId, property, time, value, easing?, scaleOrigin?}. ' +
-        'Properties: opacity, translateX, translateY, scaleX, scaleY, rotation, drawProgress.',
+      keyframes: z.union([
+        keyframesSchema,
+        z.string().max(ctx.limits.maxStateBytes),
+      ]).optional().describe(
+        'Array of {targetId, property, time, value, easing?, scaleOrigin?}; legacy JSON strings are deprecated.',
       ),
-      sequences: z.string().optional().describe(
-        'JSON array of {elementIds: string[], property?: "opacity"|"drawProgress", ' +
-        'startTime?: number, delay?: number, duration?: number}. Creates reveal sequences.',
+      sequences: z.union([
+        sequencesSchema,
+        z.string().max(ctx.limits.maxStateBytes),
+      ]).optional().describe(
+        'Array of reveal sequences; legacy JSON strings are deprecated.',
       ),
-      duration: z.number().optional().describe('Timeline duration in ms (default: 30000)'),
-      clipStart: z.number().optional().describe('Clip start time in ms (default: 0)'),
-      clipEnd: z.number().optional().describe('Clip end time in ms'),
+      duration: boundedTime(ctx.limits).optional().describe('Timeline duration in ms (default: 30000)'),
+      clipStart: boundedTime(ctx.limits).optional().describe('Clip start time in ms (default: 0)'),
+      clipEnd: boundedTime(ctx.limits).optional().describe('Clip end time in ms'),
       cameraFrame: z.object({
-        x: z.number().optional(),
-        y: z.number().optional(),
-        width: z.number().optional(),
+        x: z.number().finite().optional(),
+        y: z.number().finite().optional(),
+        width: z.number().finite().positive().optional(),
         aspectRatio: z.enum(['16:9', '4:3', '1:1', '3:2']).optional(),
-      }).optional().describe('Camera frame position and size'),
+      }).strict().optional().describe('Camera frame position and size'),
     },
     async ({ elements, keyframes, sequences, duration, clipStart, clipEnd, cameraFrame }) => {
-      const errors: string[] = [];
       const stats = { elements: 0, keyframes: 0, sequences: 0 };
+      let keyframesLegacy = false;
+      let sequencesLegacy = false;
 
       // ── 1. Parse and create scene elements ───────────────
-      let parsedElements: any[];
+      let rawElements: unknown;
       try {
-        parsedElements = JSON.parse(elements);
-        if (!Array.isArray(parsedElements)) {
-          return { content: [{ type: 'text' as const, text: 'Error: elements must be a JSON array' }] };
-        }
-      } catch (e) {
-        return { content: [{ type: 'text' as const, text: `Error parsing elements: ${e}` }] };
+        rawElements = JSON.parse(elements);
+      } catch {
+        invalidInput('elements must be valid JSON');
       }
+      const parsedElements = elementsSchema.safeParse(rawElements);
+      if (!parsedElements.success) invalidInput('elements must be a valid array');
 
       const state = ctx.getState();
-      state.scene.elements = normalizeElements(parsedElements);
-      stats.elements = parsedElements.length;
+      state.scene.elements = normalizeElements(parsedElements.data);
+      stats.elements = parsedElements.data.length;
 
       // ── 2. Set timeline duration ─────────────────────────
       if (duration !== undefined) {
@@ -83,8 +126,6 @@ export function registerCompositeTools(
 
       // ── 4. Collect all keyframes into a single batch ─────
       const allKeyframes: { targetId: string; property: AnimatableProperty; time: number; value: number; easing?: EasingType }[] = [];
-      const validProperties = new Set<string>(ANIMATABLE_PROPERTIES);
-      const validEasings = new Set<string>(EASING_TYPES);
 
       // 4a. Camera initial keyframes (always create at t=0 so camera starts correctly)
       if (cameraFrame) {
@@ -99,101 +140,138 @@ export function registerCompositeTools(
 
       // 4b. User-supplied keyframes
       if (keyframes) {
-        try {
-          const parsedKfs = JSON.parse(keyframes);
-          if (!Array.isArray(parsedKfs)) {
-            errors.push('keyframes must be a JSON array — skipped');
-          } else {
-            // Pre-process scale compensation (same logic as add_keyframes_batch)
-            const scaleCompensation = new Map<string, { targetId: string; time: number; sx: number; sy: number; origin: string; easing: string }>();
+        const parsed = parseLegacyArray(keyframes, keyframesSchema, 'keyframes', ctx.limits);
+        keyframesLegacy = parsed.legacy;
+        const scaleCompensation = new Map<string, {
+          targetId: string;
+          time: number;
+          scaleX: number;
+          scaleY: number;
+          origin: string;
+          easing: EasingType;
+        }>();
 
-            for (const kf of parsedKfs) {
-              if (!kf.targetId || !kf.property || kf.time === undefined || kf.value === undefined) continue;
-              if (!validProperties.has(kf.property)) continue;
-
-              // Collect scale origin compensation data
-              if ((kf.property === 'scaleX' || kf.property === 'scaleY') && kf.scaleOrigin && kf.scaleOrigin !== 'top-left') {
-                const key = `${kf.targetId}@${kf.time}`;
-                const existing = scaleCompensation.get(key) ?? {
-                  targetId: kf.targetId, time: kf.time, sx: 1, sy: 1,
-                  origin: kf.scaleOrigin, easing: kf.easing ?? 'linear',
-                };
-                if (kf.property === 'scaleX') existing.sx = kf.value;
-                if (kf.property === 'scaleY') existing.sy = kf.value;
-                existing.origin = kf.scaleOrigin;
-                scaleCompensation.set(key, existing);
-              }
-
-              const easing = (kf.easing && validEasings.has(kf.easing)) ? kf.easing : 'linear';
-              allKeyframes.push({
-                targetId: kf.targetId,
-                property: kf.property as AnimatableProperty,
-                time: kf.time,
-                value: kf.value,
-                easing: easing as EasingType,
-              });
-              stats.keyframes++;
-            }
-
-            // Compute scale origin translation compensation
-            for (const skf of scaleCompensation.values()) {
-              const [ox, oy] = ORIGIN_MAP[skf.origin] ?? [0.5, 0.5];
-              const el = state.scene.elements.find((e: any) => e.id === skf.targetId);
-              if (!el) continue;
-              const bounds = getElementBounds(el);
-              const w = bounds.maxX - bounds.minX;
-              const h = bounds.maxY - bounds.minY;
-              const tx = -w * (skf.sx - 1) * ox;
-              const ty = -h * (skf.sy - 1) * oy;
-              const easing = (validEasings.has(skf.easing) ? skf.easing : 'linear') as EasingType;
-              allKeyframes.push(
-                { targetId: skf.targetId, property: 'translateX', time: skf.time, value: tx, easing },
-                { targetId: skf.targetId, property: 'translateY', time: skf.time, value: ty, easing },
-              );
-              stats.keyframes += 2;
-            }
+        for (const keyframe of parsed.value) {
+          if (
+            (keyframe.property === 'scaleX' || keyframe.property === 'scaleY') &&
+            keyframe.scaleOrigin &&
+            keyframe.scaleOrigin !== 'top-left'
+          ) {
+            const key = `${keyframe.targetId}@${keyframe.time}`;
+            const existing = scaleCompensation.get(key) ?? {
+              targetId: keyframe.targetId,
+              time: keyframe.time,
+              scaleX: 1,
+              scaleY: 1,
+              origin: keyframe.scaleOrigin,
+              easing: keyframe.easing ?? 'linear',
+            };
+            if (keyframe.property === 'scaleX') existing.scaleX = keyframe.value;
+            if (keyframe.property === 'scaleY') existing.scaleY = keyframe.value;
+            existing.origin = keyframe.scaleOrigin;
+            scaleCompensation.set(key, existing);
           }
-        } catch (e) {
-          errors.push(`Error parsing keyframes: ${e}`);
+
+          allKeyframes.push({
+            targetId: keyframe.targetId,
+            property: keyframe.property,
+            time: keyframe.time,
+            value: keyframe.value,
+            easing: keyframe.easing ?? 'linear',
+          });
+          stats.keyframes++;
+        }
+
+        for (const scaleKeyframe of scaleCompensation.values()) {
+          const [originX, originY] = ORIGIN_MAP[scaleKeyframe.origin] ?? [0.5, 0.5];
+          const element = state.scene.elements.find(
+            (entry: any) => entry.id === scaleKeyframe.targetId,
+          );
+          if (!element) continue;
+          const bounds = getElementBounds(element);
+          const width = bounds.maxX - bounds.minX;
+          const height = bounds.maxY - bounds.minY;
+          allKeyframes.push(
+            {
+              targetId: scaleKeyframe.targetId,
+              property: 'translateX',
+              time: scaleKeyframe.time,
+              value: -width * (scaleKeyframe.scaleX - 1) * originX,
+              easing: scaleKeyframe.easing,
+            },
+            {
+              targetId: scaleKeyframe.targetId,
+              property: 'translateY',
+              time: scaleKeyframe.time,
+              value: -height * (scaleKeyframe.scaleY - 1) * originY,
+              easing: scaleKeyframe.easing,
+            },
+          );
+          stats.keyframes += 2;
         }
       }
 
       // 4c. Sequence reveals → expand into keyframes
       if (sequences) {
-        try {
-          const parsedSeqs = JSON.parse(sequences);
-          if (!Array.isArray(parsedSeqs)) {
-            errors.push('sequences must be a JSON array — skipped');
-          } else {
-            for (const seq of parsedSeqs) {
-              const ids = seq.elementIds;
-              if (!Array.isArray(ids) || ids.length === 0) continue;
-
-              const prop: AnimatableProperty = (seq.property === 'drawProgress') ? 'drawProgress' : 'opacity';
-              const startTime = seq.startTime ?? 0;
-              const delay = seq.delay ?? 300;
-              const dur = seq.duration ?? 500;
-
-              for (let i = 0; i < ids.length; i++) {
-                const revealStart = startTime + i * delay;
-                const revealEnd = revealStart + dur;
-                const targetId = ids[i];
-
-                if (revealStart > 0) {
-                  allKeyframes.push({ targetId, property: prop, time: 0, value: 0 });
-                }
-                if (revealStart > 10) {
-                  allKeyframes.push({ targetId, property: prop, time: revealStart, value: 0 });
-                }
-                allKeyframes.push({ targetId, property: prop, time: revealEnd, value: 1, easing: 'easeOut' });
-                stats.keyframes += (revealStart > 0 ? 1 : 0) + (revealStart > 10 ? 1 : 0) + 1;
-              }
-              stats.sequences++;
-            }
+        const parsed = parseLegacyArray(sequences, sequencesSchema, 'sequences', ctx.limits);
+        sequencesLegacy = parsed.legacy;
+        let expandedKeyframeCount = 0;
+        for (const sequence of parsed.value) {
+          const itemCount = sequence.elementIds.length;
+          const startTime = sequence.startTime ?? 0;
+          const delay = sequence.delay ?? 300;
+          const sequenceDuration = sequence.duration ?? 500;
+          const finalTime = startTime + Math.max(0, itemCount - 1) * delay + sequenceDuration;
+          if (!Number.isFinite(finalTime) || finalTime > ctx.limits.maxTimeMs) {
+            invalidInput(`Sequence times must not exceed ${ctx.limits.maxTimeMs}ms`);
           }
-        } catch (e) {
-          errors.push(`Error parsing sequences: ${e}`);
+
+          const countAfter = (threshold: number): number => {
+            if (delay === 0) return startTime > threshold ? itemCount : 0;
+            const firstIndex = Math.max(0, Math.floor((threshold - startTime) / delay) + 1);
+            return Math.max(0, itemCount - firstIndex);
+          };
+          expandedKeyframeCount +=
+            itemCount +
+            countAfter(0) +
+            countAfter(10);
         }
+        assertAdditionalKeyframes(
+          state,
+          allKeyframes.length + expandedKeyframeCount,
+          ctx.limits,
+        );
+
+        for (const sequence of parsed.value) {
+          const property: AnimatableProperty =
+            sequence.property === 'drawProgress' ? 'drawProgress' : 'opacity';
+          const startTime = sequence.startTime ?? 0;
+          const delay = sequence.delay ?? 300;
+          const sequenceDuration = sequence.duration ?? 500;
+
+          for (let index = 0; index < sequence.elementIds.length; index++) {
+            const revealStart = startTime + index * delay;
+            const revealEnd = revealStart + sequenceDuration;
+            const targetId = sequence.elementIds[index];
+            if (revealStart > 0) {
+              allKeyframes.push({ targetId, property, time: 0, value: 0 });
+            }
+            if (revealStart > 10) {
+              allKeyframes.push({ targetId, property, time: revealStart, value: 0 });
+            }
+            allKeyframes.push({
+              targetId,
+              property,
+              time: revealEnd,
+              value: 1,
+              easing: 'easeOut',
+            });
+            stats.keyframes += (revealStart > 0 ? 1 : 0) + (revealStart > 10 ? 1 : 0) + 1;
+          }
+          stats.sequences++;
+        }
+      } else {
+        assertAdditionalKeyframes(state, allKeyframes.length, ctx.limits);
       }
 
       // ── 5. Apply all keyframes in one batched pass ───────
@@ -227,9 +305,7 @@ export function registerCompositeTools(
         `clip: ${finalState.clipStart}ms–${finalState.clipEnd}ms`,
       ].filter(Boolean).join(', ');
 
-      const msg = errors.length > 0
-        ? `${parts}\nWarnings: ${errors.join('; ')}`
-        : parts;
+      const msg = `${parts}${legacyDeprecation('keyframes', keyframesLegacy)}${legacyDeprecation('sequences', sequencesLegacy)}`;
 
       return { content: [{ type: 'text' as const, text: msg }] };
     },
