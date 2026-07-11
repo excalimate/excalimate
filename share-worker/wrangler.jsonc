@@ -1,23 +1,39 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "excalimate-share",
-	"main": "src/index.ts",
-	"compatibility_date": "2025-09-27",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
-	"r2_buckets": [
-		{
-			"bucket_name": "excalimate-shares",
-			"binding": "SHARE_BUCKET"
-		}
-	],
-	"rules": [],
-	"vars": {
-		"MAX_SHARE_SIZE_MB": "2",
-		"SHARE_TTL_DAYS": "30",
-		"MAX_TOTAL_SHARES": "2000",
-		"MAX_DAILY_UPLOADS": "500",
-		"ALLOWED_ORIGINS": "https://app.excalimate.com,https://excalimate.com,https://www.excalimate.com,http://localhost:5173",
-	},
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "excalimate-share",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "r2_buckets": [
+    {
+      "bucket_name": "excalimate-shares-v2",
+      "binding": "SHARE_BUCKET",
+    },
+    {
+      "bucket_name": "excalimate-shares",
+      "binding": "LEGACY_SHARE_BUCKET",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SHARE_QUOTA",
+        "class_name": "ShareQuota",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ShareQuota"],
+    },
+  ],
+  "rules": [],
+  "vars": {
+    "MAX_SHARE_SIZE_MB": "2",
+    "SHARE_TTL_DAYS": "30",
+    "MAX_TOTAL_SHARES": "2000",
+    "MAX_TOTAL_STORAGE_MB": "4096",
+    "ALLOWED_ORIGINS": "https://app.excalimate.com,https://excalimate.com,https://www.excalimate.com,http://localhost:5173",
+  },
 }
