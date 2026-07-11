@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       app: ${{ steps.filter.outputs.app }}
+      share: ${{ steps.filter.outputs.share }}
       mcp: ${{ steps.filter.outputs.mcp }}
       landing: ${{ steps.filter.outputs.landing }}
     steps:
@@ -33,6 +34,8 @@ jobs:
               - 'index.html'
             mcp:
               - 'mcp-server/**'
+            share:
+              - 'share-worker/**'
             landing:
               - 'landing-page/**'
 
@@ -72,6 +75,24 @@ jobs:
         with:
           name: web-app-dist
           path: dist/
+
+  # ── Share Worker ────────────────────────────────────────────────
+  share-worker-check:
+    name: 'Share Worker: Type Check & Test'
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.share == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: share-worker/package-lock.json
+      - working-directory: share-worker
+        run: npm ci
+      - working-directory: share-worker
+        run: npm run check
 
   # ── MCP Server ─────────────────────────────────────────────────
   mcp-check:

@@ -1,0 +1,9 @@
+# Editor application routes. A future embeddable player must be served by a
+# separate Worker route so it can intentionally use a different frame policy.
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  Cross-Origin-Resource-Policy: same-origin
+  Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
+  Referrer-Policy: no-referrer
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
