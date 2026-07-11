@@ -56,6 +56,26 @@ export const ANIMATABLE_PROPERTIES = [
 
 export const ASPECT_RATIOS = ['16:9', '4:3', '1:1', '3:2'] as const;
 export const PREFERRED_WORKSPACES = ['magic', 'sequence'] as const;
+export const ANIMATION_ACTION_TYPES = [
+  'fade',
+  'slide',
+  'draw',
+  'pop',
+  'sequence',
+  'cameraMove',
+] as const;
+export const ANIMATION_ACTION_STATUSES = [
+  'managed',
+  'customized',
+  'disabled',
+  'detached',
+] as const;
+export const ACTION_START_MODES = [
+  'absolute',
+  'afterPrevious',
+  'withPrevious',
+] as const;
+export const SLIDE_DIRECTIONS = ['left', 'right', 'up', 'down'] as const;
 
 const identifierSchema = z
   .string()
@@ -139,6 +159,112 @@ export const AnimationTimelineSchema = z
         path: ['tracks'],
         message: `Timeline exceeds ${PROJECT_LIMITS.maxTotalKeyframes} keyframes`,
       });
+    }
+  });
+
+export const AnimationActionTimingSchema = z
+  .object({
+    startMs: finiteNumberSchema
+      .nonnegative()
+      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+    durationMs: finiteNumberSchema
+      .positive()
+      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+    staggerMs: finiteNumberSchema
+      .nonnegative()
+      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+    startMode: z.enum(ACTION_START_MODES),
+  })
+  .strict();
+
+export const AnimationActionParametersSchema = z
+  .object({
+    direction: z.enum(SLIDE_DIRECTIONS).optional(),
+    distance: finiteNumberSchema.nonnegative().optional(),
+    from: finiteNumberSchema.optional(),
+    to: finiteNumberSchema.optional(),
+    property: z.enum(ANIMATABLE_PROPERTIES).optional(),
+    x: finiteNumberSchema.optional(),
+    y: finiteNumberSchema.optional(),
+    scale: finiteNumberSchema.positive().optional(),
+    rotation: finiteNumberSchema.optional(),
+  })
+  .strict();
+
+export const GeneratedContentOwnershipSchema = z
+  .object({
+    trackId: identifierSchema,
+    targetId: identifierSchema,
+    property: z.enum(ANIMATABLE_PROPERTIES),
+    keyframeIds: z
+      .array(identifierSchema)
+      .max(PROJECT_LIMITS.maxKeyframesPerTrack),
+    startMs: finiteNumberSchema
+      .nonnegative()
+      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+    endMs: finiteNumberSchema
+      .nonnegative()
+      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+  })
+  .strict()
+  .superRefine((ownership, context) => {
+    if (ownership.endMs < ownership.startMs) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['endMs'],
+        message: 'endMs must be greater than or equal to startMs',
+      });
+    }
+  });
+
+export const AnimationActionSchema = z
+  .object({
+    id: identifierSchema,
+    type: z.enum(ANIMATION_ACTION_TYPES),
+    preset: identifierSchema.optional(),
+    targetIds: z
+      .array(identifierSchema)
+      .min(1)
+      .max(PROJECT_LIMITS.maxSceneElements),
+    timing: AnimationActionTimingSchema,
+    easing: z.enum(EASING_TYPES),
+    parameters: AnimationActionParametersSchema,
+    ownership: z
+      .array(GeneratedContentOwnershipSchema)
+      .max(PROJECT_LIMITS.maxTracks),
+    generatedHash: identifierSchema,
+    status: z.enum(ANIMATION_ACTION_STATUSES),
+  })
+  .strict()
+  .superRefine((action, context) => {
+    if (new Set(action.targetIds).size !== action.targetIds.length) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['targetIds'],
+        message: 'Action target IDs must be unique',
+      });
+    }
+  });
+
+export const ProjectAuthoringSchema = z
+  .object({
+    version: z.literal(1),
+    documentRevision: z.number().int().nonnegative(),
+    timelineRevision: z.number().int().nonnegative(),
+    actions: z.array(AnimationActionSchema).max(PROJECT_LIMITS.maxTracks),
+  })
+  .strict()
+  .superRefine((authoring, context) => {
+    const actionIds = new Set<string>();
+    for (const [actionIndex, action] of authoring.actions.entries()) {
+      if (actionIds.has(action.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['actions', actionIndex, 'id'],
+          message: `Duplicate action id "${action.id}"`,
+        });
+      }
+      actionIds.add(action.id);
     }
   });
 
@@ -239,7 +365,7 @@ export const ProjectDocumentSchema = z
     scene: ProjectSceneSchema,
     timeline: AnimationTimelineSchema,
     playback: PlaybackSchema,
-    authoring: z.record(z.unknown()).optional(),
+    authoring: ProjectAuthoringSchema.optional(),
     preferredWorkspace: z.enum(PREFERRED_WORKSPACES).optional(),
   })
   .strict()
@@ -283,7 +409,7 @@ const legacyTransferSchema = z
       .optional(),
     cameraFrame: CameraFrameSchema.nullish(),
     playback: PlaybackSchema.optional(),
-    authoring: z.record(z.unknown()).optional(),
+    authoring: ProjectAuthoringSchema.optional(),
     preferredWorkspace: z.enum(PREFERRED_WORKSPACES).optional(),
   })
   .passthrough();
@@ -292,9 +418,18 @@ export type AnimatableProperty = (typeof ANIMATABLE_PROPERTIES)[number];
 export type EasingType = (typeof EASING_TYPES)[number];
 export type AspectRatio = (typeof ASPECT_RATIOS)[number];
 export type PreferredWorkspace = (typeof PREFERRED_WORKSPACES)[number];
+export type AnimationActionType = (typeof ANIMATION_ACTION_TYPES)[number];
+export type AnimationActionStatus = (typeof ANIMATION_ACTION_STATUSES)[number];
+export type ActionStartMode = (typeof ACTION_START_MODES)[number];
+export type SlideDirection = (typeof SLIDE_DIRECTIONS)[number];
 export type Keyframe = z.infer<typeof KeyframeSchema>;
 export type AnimationTrack = z.infer<typeof AnimationTrackSchema>;
 export type AnimationTimeline = z.infer<typeof AnimationTimelineSchema>;
+export type AnimationActionTiming = z.infer<typeof AnimationActionTimingSchema>;
+export type AnimationActionParameters = z.infer<typeof AnimationActionParametersSchema>;
+export type GeneratedContentOwnership = z.infer<typeof GeneratedContentOwnershipSchema>;
+export type AnimationAction = z.infer<typeof AnimationActionSchema>;
+export type ProjectAuthoring = z.infer<typeof ProjectAuthoringSchema>;
 export type CameraFrame = z.infer<typeof CameraFrameSchema>;
 export type Playback = z.infer<typeof PlaybackSchema>;
 export type ProjectScene = z.infer<typeof ProjectSceneSchema>;
@@ -307,7 +442,7 @@ export interface ProjectContent {
   scene: ProjectScene;
   timeline: AnimationTimeline;
   playback: Playback;
-  authoring?: Record<string, unknown>;
+  authoring?: ProjectAuthoring;
   preferredWorkspace?: PreferredWorkspace;
 }
 
@@ -507,6 +642,68 @@ function validateProjectRelationships(
         path: ['timeline', 'tracks', trackIndex, 'targetId'],
         message: `Track references missing scene element "${track.targetId}"`,
       });
+    }
+  }
+
+  if (!project.authoring) return;
+  const tracksById = new Map(
+    project.timeline.tracks.map((track) => [track.id, track]),
+  );
+  for (const [actionIndex, action] of project.authoring.actions.entries()) {
+    for (const [ownershipIndex, ownership] of action.ownership.entries()) {
+      const track = tracksById.get(ownership.trackId);
+      if (!track) {
+        if (action.status === 'managed' || action.status === 'customized') {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [
+              'authoring',
+              'actions',
+              actionIndex,
+              'ownership',
+              ownershipIndex,
+              'trackId',
+            ],
+            message: `Action references missing generated track "${ownership.trackId}"`,
+          });
+        }
+        continue;
+      }
+      if (
+        track.targetId !== ownership.targetId ||
+        track.property !== ownership.property
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [
+            'authoring',
+            'actions',
+            actionIndex,
+            'ownership',
+            ownershipIndex,
+          ],
+          message: 'Action ownership does not match its generated track',
+        });
+      }
+      const keyframeIds = new Set(track.keyframes.map((keyframe) => keyframe.id));
+      if (
+        ownership.keyframeIds.some(
+          (keyframeId) => !keyframeIds.has(keyframeId),
+        )
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [
+            'authoring',
+            'actions',
+            actionIndex,
+            'ownership',
+            ownershipIndex,
+            'keyframeIds',
+          ],
+          message: 'Action references a missing generated keyframe',
+        });
+      }
     }
   }
 }

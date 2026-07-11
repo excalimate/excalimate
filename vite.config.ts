@@ -11,6 +11,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': '/src',
+      '@excalimate/animation-core': fileURLToPath(
+        new URL('./packages/animation-core/src/index.ts', import.meta.url),
+      ),
       '@excalimate/project-schema': fileURLToPath(
         new URL('./packages/project-schema/src/index.ts', import.meta.url),
       ),
@@ -33,7 +36,7 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}', 'packages/**/*.test.ts'],
     coverage: {
       reporter: ['text', 'lcov'],
-      include: ['src/**/*.{ts,tsx}', 'packages/project-schema/src/**/*.ts'],
+      include: ['src/**/*.{ts,tsx}', 'packages/*/src/**/*.ts'],
       exclude: ['src/**/*.test.{ts,tsx}', 'src/test-setup.ts', 'src/vite-env.d.ts'],
     },
   },

@@ -136,9 +136,47 @@ describe('shared project schema contracts', () => {
     const project = createSyntheticV2Project();
     const circular: Record<string, unknown> = {};
     circular['self'] = circular;
-    project.authoring = circular;
-    expect(() => parseProjectDocument(project)).toThrow(
+    expect(() => parseProjectDocument({ ...project, authoring: circular })).toThrow(
       'circular reference',
+    );
+  });
+
+  it('rejects managed ownership that references a missing generated track', () => {
+    const project = createSyntheticV2Project();
+    project.authoring = {
+      version: 1,
+      documentRevision: 1,
+      timelineRevision: 1,
+      actions: [
+        {
+          id: 'action-1',
+          type: 'fade',
+          targetIds: ['element-1'],
+          timing: {
+            startMs: 0,
+            durationMs: 500,
+            staggerMs: 0,
+            startMode: 'absolute',
+          },
+          easing: 'easeOut',
+          parameters: {},
+          ownership: [
+            {
+              trackId: 'missing-track',
+              targetId: 'element-1',
+              property: 'opacity',
+              keyframeIds: ['missing-keyframe'],
+              startMs: 0,
+              endMs: 500,
+            },
+          ],
+          generatedHash: 'hash',
+          status: 'managed',
+        },
+      ],
+    };
+    expect(() => parseProjectDocument(project)).toThrow(
+      'missing generated track',
     );
   });
 });

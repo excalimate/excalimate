@@ -67,7 +67,10 @@ export function createSyntheticV2Project(): ProjectDocument {
   return {
     ...migrateV1Project(structuredClone(SYNTHETIC_V1_PROJECT)),
     authoring: {
-      note: 'Synthetic test metadata',
+      version: 1,
+      documentRevision: 0,
+      timelineRevision: 0,
+      actions: [],
     },
     preferredWorkspace: 'sequence',
   };

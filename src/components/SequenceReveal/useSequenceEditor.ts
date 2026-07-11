@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { nanoid } from 'nanoid';
 import type { AnimatableTarget } from '../../types/excalidraw';
 import { usePlaybackStore } from '../../stores/playbackStore';
-import { useUndoRedoStore } from '../../stores/undoRedoStore';
 import { CAMERA_FRAME_TARGET_ID } from '../../stores/projectStore';
-import { computeFrameAtTime } from '../../core/engine/playbackSingleton';
+import { deleteAction } from '../../services/AnimationCommandService';
 import { applySequenceKeyframes } from './sequenceKeyframeGenerator';
 import {
   getSequences,
-  setSequences,
   useSequences,
   type RevealSequence,
 } from './sequenceStore';
@@ -57,11 +54,10 @@ export function useSequenceEditor(params: {
   const createSequence = useCallback(() => {
     if (draftOrder.length === 0) return;
 
-    useUndoRedoStore.getState().pushState();
     const startTime = Math.round(usePlaybackStore.getState().currentTime);
 
     const seq: RevealSequence = {
-      id: nanoid(8),
+      id: '',
       name: `Sequence ${sequences.length + 1}`,
       elementIds: [...draftOrder],
       property: draftProperty,
@@ -70,10 +66,9 @@ export function useSequenceEditor(params: {
       duration: draftDuration,
     };
 
-    applySequenceKeyframes(seq, targets);
-    setSequences([...getSequences(), seq]);
+    const result = applySequenceKeyframes(seq, targets);
+    if (!result.ok) return;
     setDraftOrder([]);
-    computeFrameAtTime(startTime);
   }, [draftOrder, draftDelay, draftDuration, draftProperty, sequences.length, targets]);
 
   const startEditing = (seq: RevealSequence) => {
@@ -89,8 +84,6 @@ export function useSequenceEditor(params: {
     const existing = getSequences().find((s) => s.id === editingId);
     if (!existing) return;
 
-    useUndoRedoStore.getState().pushState();
-
     const updated: RevealSequence = {
       ...existing,
       elementIds: [...draftOrder],
@@ -99,14 +92,15 @@ export function useSequenceEditor(params: {
       property: draftProperty,
     };
 
-    applySequenceKeyframes(updated, targets);
-    setSequences(getSequences().map((s) => (s.id === editingId ? updated : s)));
+    const result = applySequenceKeyframes(updated, targets);
+    if (!result.ok) return;
     setEditingId(null);
     setDraftOrder([]);
   }, [editingId, draftOrder, draftDelay, draftDuration, draftProperty, targets]);
 
   const deleteSequence = (id: string) => {
-    setSequences(getSequences().filter((s) => s.id !== id));
+    const result = deleteAction(id);
+    if (!result.ok) return;
     if (editingId === id) {
       setEditingId(null);
       setDraftOrder([]);

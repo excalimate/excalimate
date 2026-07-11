@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "npm run build --workspace @excalimate/project-schema && tsc -b && vite build",
+    "build": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && tsc -b && vite build",
+    "benchmark:animation": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run benchmark --workspace @excalimate/animation-core",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -23,6 +24,7 @@
   "dependencies": {
     "@dotlottie/dotlottie-js": "^1.6.3",
     "@excalidraw/excalidraw": "^0.18.0",
+    "@excalimate/animation-core": "*",
     "@excalimate/project-schema": "*",
     "@mantine/core": "^8.3.17",
     "@mantine/dropzone": "^8.3.17",

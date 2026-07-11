@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
+import type { AnimationAction } from '@excalimate/project-schema';
+import { useAnimationStore } from '../../stores/animationStore';
 
 export interface RevealSequence {
   id: string;
@@ -10,29 +12,38 @@ export interface RevealSequence {
   duration: number;
 }
 
-let _sequences: RevealSequence[] = [];
-let _listeners: Array<() => void> = [];
-
-export function getSequences(): RevealSequence[] {
-  return _sequences;
+function actionToSequence(
+  action: AnimationAction,
+  index: number,
+): RevealSequence | null {
+  if (action.type !== 'sequence') return null;
+  const property = action.parameters.property;
+  if (property !== 'opacity' && property !== 'drawProgress') return null;
+  return {
+    id: action.id,
+    name: `Sequence ${index + 1}`,
+    elementIds: [...action.targetIds],
+    property,
+    startTime: action.timing.startMs,
+    delay: action.timing.staggerMs,
+    duration: action.timing.durationMs,
+  };
 }
 
-export function setSequences(seqs: RevealSequence[]): void {
-  _sequences = seqs;
-  _listeners.forEach((fn) => fn());
+export function getSequences(): RevealSequence[] {
+  return useAnimationStore
+    .getState()
+    .actions.map(actionToSequence)
+    .filter((sequence): sequence is RevealSequence => sequence !== null);
 }
 
 export function useSequences(): RevealSequence[] {
-  const [, forceUpdate] = useState(0);
-
-  useEffect(() => {
-    const listener = () => forceUpdate((n) => n + 1);
-    _listeners.push(listener);
-
-    return () => {
-      _listeners = _listeners.filter((l) => l !== listener);
-    };
-  }, []);
-
-  return _sequences;
+  const actions = useAnimationStore((state) => state.actions);
+  return useMemo(
+    () =>
+      actions
+      .map(actionToSequence)
+      .filter((sequence): sequence is RevealSequence => sequence !== null),
+    [actions],
+  );
 }

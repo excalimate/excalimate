@@ -9,6 +9,11 @@ import type {
   EasingType,
   Keyframe,
 } from '@excalimate/project-schema';
+import { PROPERTY_DEFAULTS } from '@excalimate/animation-core';
+import type {
+  ElementAnimationState,
+  FrameState,
+} from '@excalimate/animation-core';
 
 export type {
   AnimatableProperty,
@@ -16,31 +21,10 @@ export type {
   AnimationTrack,
   EasingType,
   Keyframe,
+  ElementAnimationState,
+  FrameState,
 };
-
-export interface ElementAnimationState {
-  targetId: string;
-  opacity: number;
-  translateX: number;
-  translateY: number;
-  scaleX: number;
-  scaleY: number;
-  rotation: number; // degrees
-  drawProgress: number; // 0-1, for stroke-dashoffset draw animation
-}
-
-export type FrameState = Map<string, ElementAnimationState>;
-
-// Property defaults (used when no keyframe exists)
-export const PROPERTY_DEFAULTS: Record<AnimatableProperty, number> = {
-  opacity: 1,
-  translateX: 0,
-  translateY: 0,
-  scaleX: 1,
-  scaleY: 1,
-  rotation: 0,
-  drawProgress: 1, // fully drawn by default
-};
+export { PROPERTY_DEFAULTS };
 
 // All valid easing types for validation
 export { ANIMATABLE_PROPERTIES, EASING_TYPES };
