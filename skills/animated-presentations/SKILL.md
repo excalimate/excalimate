@@ -26,10 +26,10 @@ Instead of traditional slides, use **one large Excalidraw canvas** where each "s
 2. **Calculate layout**: Position scenes on canvas using layout patterns
 3. **Create ALL elements**: Use `create_scene` to add all text, shapes, arrows
 4. **Set initial camera**: Position camera at scene 1 with `set_camera_frame({x,y,width,aspectRatio:"16:9"})`
-5. **Animate elements**: Add reveal animations per scene (opacity, scale, position)
-6. **Add camera keyframes**: Create smooth transitions between scenes
+5. **Animate elements**: Prefer `upsert_action_sequence` or presets for reveal actions
+6. **Add camera actions**: Use `create_camera_move`; use raw camera keyframes only for unsupported paths
 7. **Set clip range**: Define total animation duration
-8. **Save or share**: Use `save_checkpoint` to persist state, or `share_project` for an E2E encrypted share URL
+8. **Save**: Use `save_checkpoint`, then import and share from the authenticated browser UI
 
 ## Scene Layout Strategy
 
@@ -155,7 +155,6 @@ add_camera_keyframes_batch([
 // 5. Set total duration and save
 set_clip_range({ startTime: 0, endTime: 15000 })
 save_checkpoint("phoenix-presentation")
-// or: share_project()
 ```
 
 ## Best Practices

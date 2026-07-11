@@ -214,7 +214,7 @@ Call `set_camera_frame` to fit both panels with padding:
 
 ### Step 4: Finalize
 
-Call `set_clip_range` with `{ "startMs": 0, "endMs": 5000 }` and `save_checkpoint` (or `share_project` for an E2E encrypted share URL).
+Call `set_clip_range` with `{ "start": 0, "end": 5000 }` and `save_checkpoint`. Import the V2 project and share from the authenticated browser UI if needed.
 
 ## Key Rules
 

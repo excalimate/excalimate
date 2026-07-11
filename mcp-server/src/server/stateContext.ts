@@ -1,311 +1,617 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { createDefaultState } from '../state.js';
-import type { ServerState } from '../types.js';
+import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { getRequestId } from '../requestContext.js';
+import {
+  createDefaultState,
+  parseServerState,
+  reconcileManagedActionMutations,
+  serializeServerState,
+} from '../state.js';
+import type { AnimationAction, ServerState } from '../types.js';
+import {
+  assertInputWithinLimits,
+  assertStateWithinLimits,
+  mergeResourceLimits,
+} from './limits.js';
+import type { ResourceLimits } from './limits.js';
 
-/**
- * Delta message format sent over SSE.
- * Instead of full state areas, we send fine-grained changes:
- * - Scene: only added/updated/removed elements
- * - Timeline: only upserted/removed tracks
- * - Clip and cameraFrame: sent as-is (small payloads)
- */
+type DirtyArea =
+  | 'scene'
+  | 'timeline'
+  | 'clip'
+  | 'cameraFrame'
+  | 'authoring'
+  | 'project';
+
 export interface StateDelta {
+  revision: number;
+  sequence: number;
+  baseRevision: number;
   scene?: {
-    /** Elements that were added or have changed properties */
     upsert: any[];
-    /** Element IDs that were removed */
     removed: string[];
+    appState?: Record<string, unknown>;
+    files?: Record<string, unknown>;
   };
   timeline?: {
-    /** Tracks that were added or have changed keyframes */
     upsertedTracks: any[];
-    /** Track IDs that were removed */
     removedTrackIds: string[];
-    /** Timeline metadata (duration, fps) — only sent if changed */
-    meta?: { duration: number; fps: number };
+    meta?: {
+      id: string;
+      name: string;
+      duration: number;
+      fps: number;
+    };
+  };
+  authoring?: {
+    upsertedActions: AnimationAction[];
+    removedActionIds: string[];
+    meta: {
+      version: 1;
+      documentRevision: number;
+      timelineRevision: number;
+    };
+  };
+  project?: {
+    version: ServerState['version'];
+    metadata: ServerState['metadata'];
+    preferredWorkspace?: ServerState['preferredWorkspace'];
   };
   clipStart?: number;
   clipEnd?: number;
-  cameraFrame?: ServerState['cameraFrame'];
+  cameraFrame?: ServerState['playback']['cameraFrame'];
 }
 
 export type StateChangeListener = (delta: StateDelta) => void;
 
-let _activeState: ServerState = createDefaultState();
-let _activeServerId: string | null = null;
-let _stateVersion = 0;
-
-export function getSharedState(): ServerState { return _activeState; }
-
-/**
- * Cached JSON serialization of state areas.
- * Invalidated by version counter — avoids re-serializing unchanged state
- * on repeated get_scene / get_timeline / /state calls.
- */
-const _jsonCache = {
-  fullState: { version: -1, json: '' },
-  sceneElements: { version: -1, json: '' },
-  timeline: { version: -1, json: '' },
+export type StateSnapshot = ServerState & {
+  clipStart: number;
+  clipEnd: number;
+  cameraFrame: ServerState['playback']['cameraFrame'];
+  revision: number;
+  sequence: number;
 };
 
-/** Get the full state as a JSON string, using cache when unchanged. */
-export function getSharedStateJSON(): string {
-  if (_jsonCache.fullState.version === _stateVersion) return _jsonCache.fullState.json;
-  const json = JSON.stringify(_activeState);
-  _jsonCache.fullState = { version: _stateVersion, json };
-  return json;
-}
-
-/** Get scene elements as a pretty JSON string, using cache when unchanged. */
-export function getSceneElementsJSON(): string {
-  if (_jsonCache.sceneElements.version === _stateVersion) return _jsonCache.sceneElements.json;
-  const json = JSON.stringify(_activeState.scene.elements, null, 2);
-  _jsonCache.sceneElements = { version: _stateVersion, json };
-  return json;
-}
-
-/** Get timeline + clip + camera as a pretty JSON string, using cache when unchanged. */
-export function getTimelineJSON(): string {
-  if (_jsonCache.timeline.version === _stateVersion) return _jsonCache.timeline.json;
-  const json = JSON.stringify({
-    timeline: _activeState.timeline,
-    clipStart: _activeState.clipStart,
-    clipEnd: _activeState.clipEnd,
-    cameraFrame: _activeState.cameraFrame,
-  }, null, 2);
-  _jsonCache.timeline = { version: _stateVersion, json };
-  return json;
+export interface StateContextOptions {
+  resourceLimits?: Partial<ResourceLimits>;
 }
 
 export interface StateContext {
+  readonly limits: ResourceLimits;
   getState: () => ServerState;
+  getRevision: () => number;
+  getSequence: () => number;
+  getSnapshot: () => StateSnapshot;
+  getStateJSON: () => string;
+  getSceneElementsJSON: () => string;
+  getTimelineJSON: () => string;
   updateState: (newState: ServerState) => void;
   emitChange: () => void;
-  /** Mark a state area as dirty for delta broadcasting. */
-  markDirty: (area: 'scene' | 'timeline' | 'clip' | 'cameraFrame' | 'all') => void;
+  close: () => void;
+  markDirty: (area: DirtyArea | 'all') => void;
+  tool: (
+    name: string,
+    description: string,
+    schema: any,
+    handler: (args: any) => Promise<any>,
+  ) => void;
   mutatingTool: (
     name: string,
     description: string,
     schema: any,
-    handler: (args: any) => Promise<{ content: { type: 'text'; text: string }[] }>,
-    /** Which state areas this tool modifies (for delta broadcasting). Defaults to 'all'. */
-    dirtyAreas?: Array<'scene' | 'timeline' | 'clip' | 'cameraFrame'>,
+    handler: (args: any) => Promise<any>,
+    dirtyAreas?: DirtyArea[],
   ) => void;
 }
 
-// ── Delta computation helpers ──────────────────────────────────
+const ALL_DIRTY_AREAS: readonly DirtyArea[] = [
+  'scene',
+  'timeline',
+  'clip',
+  'cameraFrame',
+  'authoring',
+  'project',
+];
 
-/** Snapshot the minimal data needed to compute scene deltas. */
-function snapshotElementIds(state: ServerState): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const el of state.scene.elements) {
-    // Use version (or versionNonce) as a change indicator
-    map.set(el.id, el.version ?? 0);
-  }
-  return map;
-}
-
-/** Snapshot track IDs and their keyframe counts for change detection. */
-function snapshotTracks(state: ServerState): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const t of state.timeline.tracks) {
-    map.set(t.id, t.keyframes.length);
-  }
-  return map;
-}
-
-/**
- * Properties stripped from elements in SSE deltas to reduce payload size.
- * These are non-visual metadata that the client can re-fetch on reconnect
- * via the /state endpoint (which sends full elements).
- */
 const STRIP_ELEMENT_KEYS = new Set([
-  'seed', 'versionNonce', 'updated', 'link', 'locked',
-  'roundness', 'boundElements', 'lastCommittedPoint',
-  'startBinding', 'endBinding', 'originalText', 'autoResize', 'baseline',
+  'seed',
+  'versionNonce',
+  'updated',
+  'link',
+  'locked',
+  'roundness',
+  'boundElements',
+  'lastCommittedPoint',
+  'startBinding',
+  'endBinding',
+  'originalText',
+  'autoResize',
+  'baseline',
 ]);
 
-function stripElement(el: any): any {
+function stripElement(element: any): any {
   const stripped: any = {};
-  for (const key of Object.keys(el)) {
-    if (!STRIP_ELEMENT_KEYS.has(key)) stripped[key] = el[key];
+  for (const key of Object.keys(element)) {
+    if (!STRIP_ELEMENT_KEYS.has(key)) stripped[key] = element[key];
   }
   return stripped;
 }
 
+function fingerprint(value: unknown): string {
+  return JSON.stringify(value);
+}
+
 function computeSceneDelta(
-  prevElements: Map<string, number>,
+  previous: ServerState,
   current: ServerState,
 ): StateDelta['scene'] | undefined {
-  const upsert: any[] = [];
+  const previousElements = new Map(
+    previous.scene.elements.map((element) => [
+      element.id,
+      fingerprint(element),
+    ]),
+  );
   const currentIds = new Set<string>();
+  const upsert: any[] = [];
 
-  for (const el of current.scene.elements) {
-    currentIds.add(el.id);
-    const prevVersion = prevElements.get(el.id);
-    if (prevVersion === undefined || prevVersion !== (el.version ?? 0)) {
-      upsert.push(stripElement(el));
+  for (const element of current.scene.elements) {
+    currentIds.add(element.id);
+    if (previousElements.get(element.id) !== fingerprint(element)) {
+      upsert.push(stripElement(element));
     }
   }
 
-  const removed: string[] = [];
-  for (const id of prevElements.keys()) {
-    if (!currentIds.has(id)) removed.push(id);
+  const removed = [...previousElements.keys()].filter(
+    (id) => !currentIds.has(id),
+  );
+  const appStateChanged =
+    fingerprint(previous.scene.appState) !== fingerprint(current.scene.appState);
+  const filesChanged =
+    fingerprint(previous.scene.files) !== fingerprint(current.scene.files);
+  if (
+    upsert.length === 0 &&
+    removed.length === 0 &&
+    !appStateChanged &&
+    !filesChanged
+  ) {
+    return undefined;
   }
-
-  if (upsert.length === 0 && removed.length === 0) return undefined;
-  return { upsert, removed };
+  return {
+    upsert,
+    removed,
+    ...(appStateChanged ? { appState: current.scene.appState } : {}),
+    ...(filesChanged ? { files: current.scene.files } : {}),
+  };
 }
 
 function computeTimelineDelta(
-  prevTracks: Map<string, number>,
-  prevDuration: number,
-  prevFps: number,
+  previous: ServerState,
   current: ServerState,
 ): StateDelta['timeline'] | undefined {
-  const upsertedTracks: any[] = [];
+  const previousTracks = new Map(
+    previous.timeline.tracks.map((track) => [track.id, fingerprint(track)]),
+  );
   const currentTrackIds = new Set<string>();
+  const upsertedTracks = [];
 
   for (const track of current.timeline.tracks) {
     currentTrackIds.add(track.id);
-    const prevKfCount = prevTracks.get(track.id);
-    if (prevKfCount === undefined || prevKfCount !== track.keyframes.length) {
+    if (previousTracks.get(track.id) !== fingerprint(track)) {
       upsertedTracks.push(track);
     }
   }
 
-  const removedTrackIds: string[] = [];
-  for (const id of prevTracks.keys()) {
-    if (!currentTrackIds.has(id)) removedTrackIds.push(id);
+  const removedTrackIds = [...previousTracks.keys()].filter(
+    (id) => !currentTrackIds.has(id),
+  );
+  const previousMeta = {
+    id: previous.timeline.id,
+    name: previous.timeline.name,
+    duration: previous.timeline.duration,
+    fps: previous.timeline.fps,
+  };
+  const currentMeta = {
+    id: current.timeline.id,
+    name: current.timeline.name,
+    duration: current.timeline.duration,
+    fps: current.timeline.fps,
+  };
+  const metaChanged = fingerprint(previousMeta) !== fingerprint(currentMeta);
+
+  if (
+    upsertedTracks.length === 0 &&
+    removedTrackIds.length === 0 &&
+    !metaChanged
+  ) {
+    return undefined;
   }
-
-  const metaChanged = current.timeline.duration !== prevDuration || current.timeline.fps !== prevFps;
-
-  if (upsertedTracks.length === 0 && removedTrackIds.length === 0 && !metaChanged) return undefined;
-
-  const result: StateDelta['timeline'] = { upsertedTracks, removedTrackIds };
-  if (metaChanged) {
-    result.meta = { duration: current.timeline.duration, fps: current.timeline.fps };
-  }
-  return result;
+  return {
+    upsertedTracks,
+    removedTrackIds,
+    ...(metaChanged ? { meta: currentMeta } : {}),
+  };
 }
 
-// ── State context factory ──────────────────────────────────────
+function computeAuthoringDelta(
+  previous: ServerState,
+  current: ServerState,
+): StateDelta['authoring'] | undefined {
+  const previousAuthoring = previous.authoring;
+  const currentAuthoring = current.authoring;
+  if (!previousAuthoring && !currentAuthoring) return undefined;
+
+  const previousActions = new Map(
+    (previousAuthoring?.actions ?? []).map((action) => [
+      action.id,
+      fingerprint(action),
+    ]),
+  );
+  const currentActionIds = new Set<string>();
+  const upsertedActions: AnimationAction[] = [];
+  for (const action of currentAuthoring?.actions ?? []) {
+    currentActionIds.add(action.id);
+    if (previousActions.get(action.id) !== fingerprint(action)) {
+      upsertedActions.push(action);
+    }
+  }
+  const removedActionIds = [...previousActions.keys()].filter(
+    (id) => !currentActionIds.has(id),
+  );
+  const meta = {
+    version: 1 as const,
+    documentRevision: currentAuthoring?.documentRevision ?? 0,
+    timelineRevision: currentAuthoring?.timelineRevision ?? 0,
+  };
+  const previousMeta = {
+    version: 1 as const,
+    documentRevision: previousAuthoring?.documentRevision ?? 0,
+    timelineRevision: previousAuthoring?.timelineRevision ?? 0,
+  };
+  if (
+    upsertedActions.length === 0 &&
+    removedActionIds.length === 0 &&
+    fingerprint(meta) === fingerprint(previousMeta)
+  ) {
+    return undefined;
+  }
+  return { upsertedActions, removedActionIds, meta };
+}
+
+function computeProjectDelta(
+  previous: ServerState,
+  current: ServerState,
+): StateDelta['project'] | undefined {
+  const previousProject = {
+    version: previous.version,
+    metadata: previous.metadata,
+    preferredWorkspace: previous.preferredWorkspace,
+  };
+  const currentProject = {
+    version: current.version,
+    metadata: current.metadata,
+    preferredWorkspace: current.preferredWorkspace,
+  };
+  return fingerprint(previousProject) === fingerprint(currentProject)
+    ? undefined
+    : currentProject;
+}
+
+export function computeStateDelta(
+  previous: ServerState,
+  current: ServerState,
+  metadata: Pick<StateDelta, 'revision' | 'sequence' | 'baseRevision'>,
+  areas: ReadonlySet<DirtyArea> = new Set(ALL_DIRTY_AREAS),
+): StateDelta | null {
+  const delta: StateDelta = { ...metadata };
+  if (areas.has('scene')) delta.scene = computeSceneDelta(previous, current);
+  if (areas.has('timeline')) {
+    delta.timeline = computeTimelineDelta(previous, current);
+  }
+  if (areas.has('authoring')) {
+    delta.authoring = computeAuthoringDelta(previous, current);
+  }
+  if (areas.has('project')) {
+    delta.project = computeProjectDelta(previous, current);
+  }
+  if (
+    areas.has('clip') &&
+    (previous.playback.clipStart !== current.playback.clipStart ||
+      previous.playback.clipEnd !== current.playback.clipEnd)
+  ) {
+    delta.clipStart = current.playback.clipStart;
+    delta.clipEnd = current.playback.clipEnd;
+  }
+  if (
+    areas.has('cameraFrame') &&
+    fingerprint(previous.playback.cameraFrame) !==
+      fingerprint(current.playback.cameraFrame)
+  ) {
+    delta.cameraFrame = current.playback.cameraFrame;
+  }
+
+  return delta.scene ||
+    delta.timeline ||
+    delta.authoring ||
+    delta.project ||
+    delta.clipStart !== undefined ||
+    delta.cameraFrame
+    ? delta
+    : null;
+}
+
+function cloneState(state: ServerState): ServerState {
+  return parseServerState(JSON.parse(serializeServerState(state)));
+}
+
+function isMcpError(error: unknown): error is McpError {
+  return error instanceof McpError;
+}
 
 export function createStateContext(
-  serverId: string,
   server: McpServer,
   onStateChange?: StateChangeListener,
+  options: StateContextOptions = {},
 ): StateContext {
-  if (_activeServerId !== null) {
-    console.warn(
-      `[excalimate] New server ${serverId} replacing active server ${_activeServerId}. ` +
-      'Concurrent MCP sessions share the same state (single-tenant design).',
-    );
-  }
-  _activeServerId = serverId;
+  const limits = mergeResourceLimits(options.resourceLimits);
+  let state = createDefaultState();
+  let lastPublishedState = cloneState(state);
+  let revision = 0;
+  let sequence = 0;
+  let closed = false;
+  let pendingDirtyAreas = new Set<DirtyArea>();
+  const mutationTimestamps: number[] = [];
+  let stateJsonCache: {
+    revision: number;
+    sequence: number;
+    json: string;
+  } | null = null;
+  let mutationQueue: Promise<void> = Promise.resolve();
 
-  // ── Delta broadcasting with debounce ───────────────────────────
-  let _emitTimer: ReturnType<typeof setTimeout> | null = null;
-  const _dirty = { scene: false, timeline: false, clip: false, cameraFrame: false };
+  assertStateWithinLimits(state, limits);
 
-  // Snapshots taken before each tool call for delta computation
-  let _prevElementSnapshot: Map<string, number> = snapshotElementIds(_activeState);
-  let _prevTrackSnapshot: Map<string, number> = snapshotTracks(_activeState);
-  let _prevDuration: number = _activeState.timeline.duration;
-  let _prevFps: number = _activeState.timeline.fps;
-
-  function markDirty(area: 'scene' | 'timeline' | 'clip' | 'cameraFrame' | 'all') {
+  function markDirty(area: DirtyArea | 'all'): void {
     if (area === 'all') {
-      _dirty.scene = _dirty.timeline = _dirty.clip = _dirty.cameraFrame = true;
+      pendingDirtyAreas = new Set(ALL_DIRTY_AREAS);
     } else {
-      _dirty[area] = true;
+      pendingDirtyAreas.add(area);
     }
   }
 
-  const emitChange = () => {
-    if (!_dirty.scene && !_dirty.timeline && !_dirty.clip && !_dirty.cameraFrame) {
-      markDirty('all');
+  function publishChange(
+    previous: ServerState,
+    areas: ReadonlySet<DirtyArea>,
+  ): void {
+    const nextRevision = revision + 1;
+    const nextSequence = sequence + 1;
+    const delta = computeStateDelta(
+      previous,
+      state,
+      {
+        revision: nextRevision,
+        sequence: nextSequence,
+        baseRevision: revision,
+      },
+      areas,
+    );
+    if (!delta) return;
+
+    revision = nextRevision;
+    sequence = nextSequence;
+    stateJsonCache = null;
+    lastPublishedState = cloneState(state);
+    try {
+      onStateChange?.(structuredClone(delta));
+    } catch {
+      const requestId = getRequestId();
+      console.error(
+        `[excalimate] State listener failed (request ID: ${requestId})`,
+      );
     }
+  }
 
-    if (_emitTimer) clearTimeout(_emitTimer);
-    _emitTimer = setTimeout(() => {
-      _emitTimer = null;
-      try {
-        if (!onStateChange) return;
+  function emitChange(): void {
+    assertStateWithinLimits(state, limits);
+    const areas =
+      pendingDirtyAreas.size > 0
+        ? new Set(pendingDirtyAreas)
+        : new Set<DirtyArea>(ALL_DIRTY_AREAS);
+    pendingDirtyAreas.clear();
+    publishChange(lastPublishedState, areas);
+  }
 
-        const delta: StateDelta = {};
-        let hasContent = false;
+  function assertMutationAllowed(): void {
+    const now = Date.now();
+    while (
+      mutationTimestamps.length > 0 &&
+      mutationTimestamps[0] <= now - limits.mutationWindowMs
+    ) {
+      mutationTimestamps.shift();
+    }
+    if (mutationTimestamps.length >= limits.maxMutationsPerWindow) {
+      throw new McpError(
+        ErrorCode.InvalidRequest,
+        `Mutation rate limit exceeded; retry after ${limits.mutationWindowMs}ms`,
+      );
+    }
+    mutationTimestamps.push(now);
+  }
 
-        if (_dirty.scene) {
-          delta.scene = computeSceneDelta(_prevElementSnapshot, _activeState);
-          _prevElementSnapshot = snapshotElementIds(_activeState);
-          if (delta.scene) hasContent = true;
-        }
-        if (_dirty.timeline) {
-          delta.timeline = computeTimelineDelta(_prevTrackSnapshot, _prevDuration, _prevFps, _activeState);
-          _prevTrackSnapshot = snapshotTracks(_activeState);
-          _prevDuration = _activeState.timeline.duration;
-          _prevFps = _activeState.timeline.fps;
-          if (delta.timeline) hasContent = true;
-        }
-        if (_dirty.clip) {
-          delta.clipStart = _activeState.clipStart;
-          delta.clipEnd = _activeState.clipEnd;
-          hasContent = true;
-        }
-        if (_dirty.cameraFrame) {
-          delta.cameraFrame = _activeState.cameraFrame;
-          hasContent = true;
-        }
+  function bumpDocumentRevisions(previous: ServerState): void {
+    const timelineChanged =
+      fingerprint(previous.timeline) !== fingerprint(state.timeline);
+    const previousAuthoring = previous.authoring ?? {
+      version: 1 as const,
+      documentRevision: 0,
+      timelineRevision: 0,
+      actions: [],
+    };
+    const currentAuthoring = state.authoring ?? {
+      version: 1 as const,
+      documentRevision: 0,
+      timelineRevision: 0,
+      actions: [],
+    };
+    state = {
+      ...state,
+      metadata: {
+        ...state.metadata,
+        updatedAt: new Date().toISOString(),
+      },
+      authoring: {
+        ...currentAuthoring,
+        documentRevision: previousAuthoring.documentRevision + 1,
+        timelineRevision:
+          previousAuthoring.timelineRevision + (timelineChanged ? 1 : 0),
+      },
+    };
+  }
 
-        // Reset dirty flags
-        _dirty.scene = _dirty.timeline = _dirty.clip = _dirty.cameraFrame = false;
+  async function runSafely<T>(
+    name: string,
+    handler: () => Promise<T>,
+  ): Promise<T> {
+    if (closed) {
+      throw new McpError(ErrorCode.ConnectionClosed, 'MCP session is closed');
+    }
+    try {
+      return await handler();
+    } catch (error) {
+      if (isMcpError(error)) throw error;
+      const requestId = getRequestId();
+      console.error(
+        `[excalimate] Tool "${name}" failed (request ID: ${requestId})`,
+      );
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Internal tool error (request ID: ${requestId})`,
+      );
+    }
+  }
 
-        if (!hasContent) return;
-        onStateChange(delta);
-      } catch (err) {
-        console.error('emitChange failed:', err);
-      }
-    }, 50);
+  const tool: StateContext['tool'] = (
+    name,
+    description,
+    schema,
+    handler,
+  ) => {
+    server.tool(name, description, schema, async (args: any) =>
+      runSafely(name, async () => {
+        assertInputWithinLimits(args, limits);
+        return handler(args);
+      }),
+    );
   };
 
-  (server as any).__getState = () => _activeState;
-
-  const updateState = (newState: ServerState) => {
-    _activeState = newState;
-    _stateVersion++;
-  };
-
-  const mutatingTool: StateContext['mutatingTool'] = (name, description, schema, handler, dirtyAreas) => {
+  const mutatingTool: StateContext['mutatingTool'] = (
+    name,
+    description,
+    schema,
+    handler,
+    dirtyAreas,
+  ) => {
     server.tool(name, description, schema, async (args: any) => {
-      // Snapshot before the tool mutates state
-      if (!dirtyAreas || dirtyAreas.includes('scene')) {
-        _prevElementSnapshot = snapshotElementIds(_activeState);
-      }
-      if (!dirtyAreas || dirtyAreas.includes('timeline')) {
-        _prevTrackSnapshot = snapshotTracks(_activeState);
-        _prevDuration = _activeState.timeline.duration;
-        _prevFps = _activeState.timeline.fps;
-      }
+      const operation = mutationQueue.then(() =>
+        runSafely(name, async () => {
+          assertMutationAllowed();
+          assertInputWithinLimits(args, limits);
+          const previous = cloneState(state);
+          const previousJson = serializeServerState(previous);
+          pendingDirtyAreas.clear();
 
-      const result = await handler(args);
-      // Bump version after mutation — invalidates JSON cache
-      _stateVersion++;
-      if (dirtyAreas) {
-        for (const area of dirtyAreas) markDirty(area);
-      }
-      emitChange();
-      return result;
+          try {
+            const result = await handler(args);
+            if (closed) {
+              throw new McpError(
+                ErrorCode.ConnectionClosed,
+                'MCP session is closed',
+              );
+            }
+            state = reconcileManagedActionMutations(state);
+            if (serializeServerState(state) !== previousJson) {
+              bumpDocumentRevisions(previous);
+              assertStateWithinLimits(state, limits);
+              const areas = dirtyAreas
+                ? new Set(dirtyAreas)
+                : pendingDirtyAreas.size > 0
+                  ? new Set(pendingDirtyAreas)
+                  : new Set<DirtyArea>(ALL_DIRTY_AREAS);
+              publishChange(previous, areas);
+            }
+            pendingDirtyAreas.clear();
+            return result;
+          } catch (error) {
+            state = previous;
+            pendingDirtyAreas.clear();
+            throw error;
+          }
+        }),
+      );
+      mutationQueue = operation.then(
+        () => undefined,
+        () => undefined,
+      );
+      return operation;
     });
   };
 
+  function getSnapshot(): StateSnapshot {
+    const project = cloneState(state);
+    return {
+      ...project,
+      clipStart: project.playback.clipStart,
+      clipEnd: project.playback.clipEnd,
+      cameraFrame: project.playback.cameraFrame,
+      revision,
+      sequence,
+    };
+  }
+
   return {
-    getState: () => _activeState,
-    updateState,
+    limits,
+    getState: () => state,
+    getRevision: () => revision,
+    getSequence: () => sequence,
+    getSnapshot,
+    getStateJSON: () => {
+      if (
+        stateJsonCache &&
+        stateJsonCache.revision === revision &&
+        stateJsonCache.sequence === sequence
+      ) {
+        return stateJsonCache.json;
+      }
+      const json = JSON.stringify(getSnapshot());
+      stateJsonCache = { revision, sequence, json };
+      return json;
+    },
+    getSceneElementsJSON: () =>
+      JSON.stringify(state.scene.elements, null, 2),
+    getTimelineJSON: () =>
+      JSON.stringify(
+        {
+          timeline: state.timeline,
+          clipStart: state.playback.clipStart,
+          clipEnd: state.playback.clipEnd,
+          cameraFrame: state.playback.cameraFrame,
+          authoring: state.authoring,
+          revision,
+          sequence,
+        },
+        null,
+        2,
+      ),
+    updateState: (newState) => {
+      state = parseServerState(newState);
+    },
     emitChange,
+    close: () => {
+      closed = true;
+      mutationTimestamps.length = 0;
+      pendingDirtyAreas.clear();
+    },
     markDirty,
+    tool,
     mutatingTool,
   };
 }

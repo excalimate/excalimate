@@ -13,29 +13,65 @@ import { groupTracksByProperty, buildTransform } from './keyframeConverter';
 export function buildGroupLayers(
   targets: AnimatableTarget[],
   tracks: AnimationTrack[],
+  sceneToComp: Readonly<{
+    scaleX: number;
+    scaleY: number;
+    left: number;
+    top: number;
+  }>,
   fps: number,
   clipStart: number,
+  clipEnd: number,
   ip: number,
   op: number,
   startIndex: number,
-): { groupLayers: LottieNullLayer[]; parentMap: Map<string, number> } {
+): {
+  groupLayers: LottieNullLayer[];
+  parentMap: Map<string, number>;
+  parentOffsetMap: Map<string, { x: number; y: number }>;
+} {
   const groupLayers: LottieNullLayer[] = [];
   /** Maps group ID → Lottie layer index */
   const groupIndexMap = new Map<string, number>();
   /** Maps element/group ID → parent layer index */
   const parentMap = new Map<string, number>();
+  const parentOffsetMap = new Map<string, { x: number; y: number }>();
 
   let layerIdx = startIndex;
 
   // Create null layers for each group target
   const groupTargets = targets.filter(t => t.type === 'group');
+  const groupCenters = new Map(
+    groupTargets.map((group) => [
+      group.id,
+      {
+        x: (group.originalBounds.centerX - sceneToComp.left) * sceneToComp.scaleX,
+        y: (group.originalBounds.centerY - sceneToComp.top) * sceneToComp.scaleY,
+      },
+    ]),
+  );
 
   for (const group of groupTargets) {
     const props = groupTracksByProperty(tracks, group.id);
-    const cx = group.originalBounds.centerX;
-    const cy = group.originalBounds.centerY;
+    const scaledProps = {
+      ...props,
+      translateX: props.translateX.map((keyframe) => ({
+        ...keyframe,
+        value: keyframe.value * sceneToComp.scaleX,
+      })),
+      translateY: props.translateY.map((keyframe) => ({
+        ...keyframe,
+        value: keyframe.value * sceneToComp.scaleY,
+      })),
+    };
+    const center = groupCenters.get(group.id) ?? { x: 0, y: 0 };
+    const parentCenter = group.parentGroupId
+      ? groupCenters.get(group.parentGroupId)
+      : undefined;
+    const cx = center.x - (parentCenter?.x ?? 0);
+    const cy = center.y - (parentCenter?.y ?? 0);
 
-    const transform = buildTransform(cx, cy, 0, 100, props, fps, clipStart);
+    const transform = buildTransform(cx, cy, 0, 100, scaledProps, fps, clipStart, clipEnd);
 
     const nullLayer: LottieNullLayer = {
       ty: 3,
@@ -56,6 +92,8 @@ export function buildGroupLayers(
   for (const target of targets) {
     if (target.parentGroupId && groupIndexMap.has(target.parentGroupId)) {
       parentMap.set(target.id, groupIndexMap.get(target.parentGroupId)!);
+      const parentCenter = groupCenters.get(target.parentGroupId);
+      if (parentCenter) parentOffsetMap.set(target.id, parentCenter);
     }
   }
 
@@ -67,5 +105,5 @@ export function buildGroupLayers(
     }
   }
 
-  return { groupLayers, parentMap };
+  return { groupLayers, parentMap, parentOffsetMap };
 }

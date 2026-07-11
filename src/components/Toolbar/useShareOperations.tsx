@@ -9,6 +9,9 @@ import {
 } from '../../services/encryption';
 import { trackShare } from '../../services/analytics/posthog';
 import { captureProjectDocument } from '../../services/ProjectDocumentService';
+import { generatePlayerPackage } from '../../services/playerPackage';
+import { createShareEnvelope } from '../../services/shareEnvelope';
+import { buildHostedPlayerUrl } from '../../services/shareTransport';
 
 const SHARE_API_URL = import.meta.env.VITE_SHARE_API_URL ?? 'https://share.excalimate.com';
 
@@ -27,8 +30,13 @@ export function useShareOperations() {
     }
     try {
       setLoading(true);
-      const payload = captureProjectDocument();
-      if (!payload) throw new Error('No project to share');
+      const projectDocument = captureProjectDocument();
+      if (!projectDocument) throw new Error('No project to share');
+      const playerPackage = await generatePlayerPackage(
+        projectDocument,
+        useProjectStore.getState().targets,
+      );
+      const payload = createShareEnvelope(projectDocument, playerPackage);
 
       const key = await generateEncryptionKey();
       const encrypted = await encryptData(payload, key);
@@ -46,7 +54,10 @@ export function useShareOperations() {
       }
       const { id } = await response.json() as { id: string };
 
-      const shareUrl = `${window.location.origin}${window.location.pathname}#share=${id},${keyStr}`;
+      const shareUrl = buildHostedPlayerUrl(window.location.origin, {
+        shareId: id,
+        keyString: keyStr,
+      });
       await navigator.clipboard.writeText(shareUrl);
       trackShare();
       notifications.show({

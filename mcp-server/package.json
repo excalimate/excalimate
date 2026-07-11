@@ -1,6 +1,6 @@
 {
   "name": "@excalimate/mcp-server",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "license": "MIT",
   "description": "Excalimate MCP server for creating Excalidraw designs and animating them with keyframes",
   "keywords": [
@@ -30,6 +30,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
+    "test": "npm run build && tsx --test test/mcp.test.ts",
     "prepublishOnly": "npm run build",
     "bench": "tsx bench/run.ts",
     "bench:json": "tsx bench/run.ts --json"
@@ -39,8 +40,9 @@
     "provenance": true
   },
   "dependencies": {
+    "@excalimate/animation-core": "^0.1.0",
+    "@excalimate/project-schema": "^0.1.0",
     "@modelcontextprotocol/sdk": "^1.25.0",
-    "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
@@ -48,7 +50,6 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "tsx": "^4.22.4",

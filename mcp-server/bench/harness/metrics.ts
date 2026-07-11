@@ -1,6 +1,5 @@
 import type { ToolCallResult } from './McpTestClient.js';
 import type { TrafficReport } from './SseTrafficMonitor.js';
-import { getSharedStateJSON } from '../../src/server/stateContext.js';
 
 export interface BenchmarkResult {
   scenario: string;
@@ -16,6 +15,7 @@ export interface BenchmarkResult {
   elementCount: number;
   trackCount: number;
   keyframeCount: number;
+  actionCount: number;
   peakMemoryMB: number;
 }
 
@@ -25,9 +25,14 @@ export function collectMetrics(
   toolResults: ToolCallResult[],
   totalTimeMs: number,
   traffic: TrafficReport,
-  state: { elementCount: number; trackCount: number; keyframeCount: number },
+  state: {
+    elementCount: number;
+    trackCount: number;
+    keyframeCount: number;
+    actionCount?: number;
+  },
+  stateJson: string,
 ): BenchmarkResult {
-  const stateJson = getSharedStateJSON();
   const memUsage = process.memoryUsage();
 
   return {
@@ -44,6 +49,7 @@ export function collectMetrics(
     elementCount: state.elementCount,
     trackCount: state.trackCount,
     keyframeCount: state.keyframeCount,
+    actionCount: state.actionCount ?? 0,
     peakMemoryMB: Math.round(memUsage.rss / 1024 / 1024 * 10) / 10,
   };
 }
@@ -58,6 +64,7 @@ export function formatTable(results: BenchmarkResult[]): string {
     { key: 'sseRawBytes', label: 'Raw(B)', width: 10 },
     { key: 'sseGzipBytes', label: 'Gzip(B)', width: 10 },
     { key: 'stateJsonBytes', label: 'State(B)', width: 10 },
+    { key: 'actionCount', label: 'Actions', width: 7 },
     { key: 'peakMemoryMB', label: 'Mem(MB)', width: 8 },
   ];
 

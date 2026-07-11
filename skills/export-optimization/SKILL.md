@@ -19,7 +19,7 @@ Follow these steps in order before every export:
 1. **Verify visibility** — call `items_visible_in_camera({time: 0})` and check at key animation times. All important elements should appear in the results.
 2. **Verify centering** — call `is_camera_centered({axis: "both"})`. If off-center, adjust camera position with `set_camera_frame`.
 3. **Set clip range** — call `set_clip_range({start: 0, end: lastKeyframeTime + 500})`. The padding gives breathing room after the last animation.
-4. **Save or share** — call `save_checkpoint()` to persist the final state, or `share_project()` to generate an E2E encrypted share URL.
+4. **Save** — call `save_checkpoint()` to persist the final V2 state. Import and share from the authenticated browser UI if needed.
 5. **Export from web app** — the user selects format and downloads from the Excalimate web interface.
 
 > **Always verify before exporting.** A missing element or clipped animation is the most common export issue.
@@ -182,7 +182,7 @@ Verify that key elements have the expected keyframes and that the last animation
 | All elements visible | `items_visible_in_camera` | Key elements present at relevant times |
 | Camera centered | `is_camera_centered` | Centered on both axes |
 | Clip covers animation | `set_clip_range` | End ≥ last keyframe + 500ms |
-| Checkpoint saved | `save_checkpoint` / `share_project` | State persisted or share URL generated |
+| Checkpoint saved | `save_checkpoint` | V2 state persisted for import |
 
 ---
 
@@ -211,7 +211,6 @@ See [platform-requirements.md](references/platform-requirements.md) for detailed
 set_camera_frame({ x: 0, y: 0, width: 1600, aspectRatio: "16:9" })
 set_clip_range({ start: 0, end: totalAnimationTime + 1000 })
 save_checkpoint()
-// or: share_project()
 // Export as MP4 for embedded video, or GIF for auto-play in slides
 ```
 
@@ -221,7 +220,6 @@ save_checkpoint()
 set_camera_frame({ x: centerX - 500, y: centerY - 500, width: 1000, aspectRatio: "1:1" })
 set_clip_range({ start: 0, end: totalAnimationTime + 500 })
 save_checkpoint()
-// or: share_project()
 // Export as MP4 for Twitter, GIF for other platforms
 ```
 
@@ -231,7 +229,6 @@ save_checkpoint()
 set_camera_frame({ x: contentLeft - 50, y: contentTop - 50, width: contentWidth + 100, aspectRatio: "16:9" })
 set_clip_range({ start: 0, end: totalAnimationTime + 500 })
 save_checkpoint()
-// or: share_project()
 // Export as GIF for README, WebM for docs sites, SVG for technical docs
 ```
 
@@ -244,7 +241,7 @@ save_checkpoint()
 - **Match aspect ratio to platform** — 16:9 for video/presentations, 1:1 for social, 9:16 for mobile
 - **MP4 is the safe default** — use it when unsure about the destination
 - **GIF for universal auto-play** — but accept larger files and lower quality
-- **Save checkpoint before export** — `save_checkpoint()` persists the state; `share_project()` is the sharing alternative
+- **Save checkpoint before export** — `save_checkpoint()` persists the V2 state; sharing is completed after import in the authenticated browser UI
 
 ---
 
