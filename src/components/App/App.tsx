@@ -15,6 +15,7 @@ import { useAnimationStore } from '../../stores/animationStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useAppHotkeys } from '../../hooks/useAppHotkeys';
+import { useAutoSave } from '../../hooks/useAutoSave';
 import { ConsentBanner } from '../ConsentBanner';
 import { getPlaybackController } from '../../core/engine/playbackSingleton';
 import { useShareLoader } from './useShareLoader';
@@ -37,7 +38,12 @@ export function App() {
   useAppHotkeys();
 
   getPlaybackController();
-  useShareLoader();
+  const shareLoadState = useShareLoader();
+  const recoveryReady = useAutoSave({
+    restoreLocal: shareLoadState === 'idle',
+    enabled: shareLoadState !== 'loading',
+  });
+  const startupReady = shareLoadState !== 'loading' && recoveryReady;
 
   // Prevent browser zoom on Ctrl+Scroll anywhere in the app.
   // The Excalidraw canvas handles its own zoom internally.
@@ -122,7 +128,7 @@ export function App() {
         <NavigationProgress />
         {activePage === 'mcp-guide' ? (
           <McpSetupGuide />
-        ) : (
+        ) : startupReady ? (
         <div className="flex flex-col h-screen w-screen bg-surface text-text">
           {/* Top toolbar */}
           <Toolbar />
@@ -264,7 +270,7 @@ export function App() {
       </div>
       )}
     </div>
-        )}
+        ) : null}
         <ConsentBanner />
         </ModalsProvider>
       </MantineProvider>

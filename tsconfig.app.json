@@ -19,7 +19,8 @@
     /* Path aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@excalimate/project-schema": ["packages/project-schema/src/index.ts"]
     },
 
     /* Linting */
@@ -30,5 +31,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src", "packages/project-schema/src"]
 }

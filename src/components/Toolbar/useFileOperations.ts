@@ -2,6 +2,8 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useAnimationStore } from '../../stores/animationStore';
 import type { ExcalidrawSceneData } from '../../types/excalidraw';
 import type { AspectRatio } from '../../stores/projectStore';
+import { createTimeline } from '../../core/models/Timeline';
+import { fromProjectDocument } from '../../core/models/Project';
 import {
   parseExcalidrawFileBlob,
   parseProjectFileBlob,
@@ -11,18 +13,18 @@ import {
   saveProjectFile,
 } from '../../services/FileService';
 import { extractTargets } from '../Canvas/extractTargets';
-import { computeFrameAtTime } from '../../core/engine/playbackSingleton';
-import { useUIStore } from '../../stores/uiStore';
+import {
+  captureProjectDocument,
+  loadProjectDocumentIntoStores,
+} from '../../services/ProjectDocumentService';
 import { trackNewProject, trackSaveProject, trackLoadProject, trackImport } from '../../services/analytics/posthog';
 
 function resetTimeline() {
-  useAnimationStore.getState().setTimeline({
-    id: crypto.randomUUID?.() ?? Date.now().toString(),
-    name: 'Animation 1',
-    duration: 30000,
-    fps: 60,
-    tracks: [],
-  });
+  const timeline = createTimeline();
+  useAnimationStore.getState().setTimeline(timeline);
+  useAnimationStore
+    .getState()
+    .setClipRange(0, Math.min(10_000, timeline.duration));
 }
 
 function importScene(name: string, scene: ExcalidrawSceneData) {
@@ -52,17 +54,9 @@ export function useFileOperations() {
       return;
     }
     try {
-      const timeline = useAnimationStore.getState().timeline;
-      const { clipStart, clipEnd } = useAnimationStore.getState();
-      const cameraFrame = useProjectStore.getState().cameraFrame;
-      await saveProjectFile({
-        ...project,
-        timeline,
-        clipStart,
-        clipEnd,
-        cameraFrame,
-        updatedAt: new Date().toISOString(),
-      });
+      const document = captureProjectDocument();
+      if (!document) throw new Error('No project to save');
+      await saveProjectFile(fromProjectDocument(document));
       useProjectStore.getState().markClean();
       trackSaveProject();
     } catch (e) {
@@ -86,54 +80,19 @@ export function useFileOperations() {
   /** Load a .excanim project file (from drag & drop) */
   const handleLoadProjectFile = async (file: File) => {
     const project = await parseProjectFileBlob(file);
-    useProjectStore.getState().loadProject(project);
-    if (project.cameraFrame) {
-      useProjectStore.getState().setCameraFrame(project.cameraFrame);
-    }
-    const targets = extractTargets(project.scene.elements);
-    useProjectStore.getState().setTargets(targets);
-    useAnimationStore.getState().setTimeline(project.timeline);
-    if (project.clipStart !== undefined && project.clipEnd !== undefined) {
-      useAnimationStore.getState().setClipRange(project.clipStart, project.clipEnd);
-    }
-    useUIStore.getState().setMode('animate');
-    computeFrameAtTime(0);
+    loadProjectDocumentIntoStores(project);
     trackLoadProject('file');
   };
 
   /** Load an MCP checkpoint file (from drag & drop) */
   const handleLoadCheckpointFile = async (file: File) => {
-    const checkpoint = await parseMcpCheckpointBlob(file);
-    useProjectStore.getState().createNewProject('MCP Checkpoint', checkpoint.scene);
-    const targets = extractTargets(checkpoint.scene.elements);
-    useProjectStore.getState().setTargets(targets);
-    if (checkpoint.timeline) {
-      useAnimationStore.getState().setTimeline(checkpoint.timeline);
-    } else {
-      resetTimeline();
-    }
-    if (checkpoint.cameraFrame) {
-      useProjectStore.getState().setCameraFrame(checkpoint.cameraFrame);
-    }
-    useAnimationStore.getState().setClipRange(checkpoint.clipStart, checkpoint.clipEnd);
-    useUIStore.getState().setMode('animate');
-    computeFrameAtTime(0);
+    loadProjectDocumentIntoStores(await parseMcpCheckpointBlob(file));
     trackLoadProject('checkpoint');
   };
 
   /** Load from an E2E encrypted share URL */
   const handleLoadShareUrl = async (url: string) => {
-    const data = await loadShareUrl(url);
-    useProjectStore.getState().createNewProject('Shared Animation', data.scene);
-    const targets = extractTargets(data.scene.elements);
-    useProjectStore.getState().setTargets(targets);
-    if (data.timeline) useAnimationStore.getState().setTimeline(data.timeline);
-    if (data.cameraFrame) useProjectStore.getState().setCameraFrame(data.cameraFrame);
-    if (data.clipStart !== undefined && data.clipEnd !== undefined) {
-      useAnimationStore.getState().setClipRange(data.clipStart, data.clipEnd);
-    }
-    useUIStore.getState().setMode('animate');
-    computeFrameAtTime(0);
+    loadProjectDocumentIntoStores(await loadShareUrl(url));
     trackLoadProject('share_url');
   };
 

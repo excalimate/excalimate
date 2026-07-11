@@ -4,9 +4,12 @@
   "license": "MIT",
   "description": "Excalimate — Create keyframe animations from Excalidraw designs, with an MCP server for AI-driven animation",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run build --workspace @excalimate/project-schema && tsc -b && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -20,6 +23,7 @@
   "dependencies": {
     "@dotlottie/dotlottie-js": "^1.6.3",
     "@excalidraw/excalidraw": "^0.18.0",
+    "@excalimate/project-schema": "*",
     "@mantine/core": "^8.3.17",
     "@mantine/dropzone": "^8.3.17",
     "@mantine/form": "^8.3.17",
@@ -55,6 +59,7 @@
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "fake-indexeddb": "^6.2.5",
     "globals": "^17.4.0",
     "happy-dom": "^20.8.4",
     "prettier": "^3.8.1",

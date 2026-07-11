@@ -1,20 +1,15 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
+import type {
+  AspectRatio,
+  CameraFrame,
+} from '@excalimate/project-schema';
+import { CAMERA_FRAME_TARGET_ID } from '@excalimate/project-schema';
 import type { AnimationProject } from '../core/models/Project';
 import { createProject } from '../core/models/Project';
 import type { ExcalidrawSceneData, AnimatableTarget } from '../types/excalidraw';
 
-export type AspectRatio = '16:9' | '4:3' | '1:1' | '3:2';
-
-export interface CameraFrame {
-  aspectRatio: AspectRatio;
-  /** Width in scene coordinate units. Height derived from aspect ratio. */
-  width: number;
-  /** Center X in scene coordinates */
-  x: number;
-  /** Center Y in scene coordinates */
-  y: number;
-}
+export type { AspectRatio, CameraFrame };
 
 export const ASPECT_RATIOS: Record<AspectRatio, number> = {
   '16:9': 16 / 9,
@@ -31,7 +26,7 @@ export const EXPORT_WIDTHS: Record<AspectRatio, number> = {
   '3:2': 1620,
 };
 
-export const CAMERA_FRAME_TARGET_ID = '__camera_frame__';
+export { CAMERA_FRAME_TARGET_ID };
 
 export function getFrameHeight(frame: CameraFrame): number {
   return frame.width / ASPECT_RATIOS[frame.aspectRatio];
@@ -75,18 +70,33 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   cameraFrame: { aspectRatio: '16:9', width: 1280, x: 640, y: 360 },
 
   createNewProject: (name: string, scene: ExcalidrawSceneData): void => {
-    set({ project: createProject(name, scene), isDirty: false });
+    const project = createProject(name, scene);
+    set({
+      project,
+      cameraFrame: project.playback.cameraFrame,
+      isDirty: false,
+    });
   },
 
   loadProject: (project: AnimationProject): void => {
-    set({ project, isDirty: false });
+    set({
+      project,
+      cameraFrame: project.playback.cameraFrame,
+      isDirty: false,
+    });
   },
 
   updateScene: (scene: ExcalidrawSceneData): void => {
     const { project } = get();
     if (!project) return;
+    const updatedAt = new Date().toISOString();
     set({
-      project: { ...project, scene, updatedAt: new Date().toISOString() },
+      project: {
+        ...project,
+        scene,
+        updatedAt,
+        metadata: { ...project.metadata, updatedAt },
+      },
       isDirty: true,
     });
   },
@@ -94,8 +104,14 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   updateProjectName: (name: string): void => {
     const { project } = get();
     if (!project) return;
+    const updatedAt = new Date().toISOString();
     set({
-      project: { ...project, name, updatedAt: new Date().toISOString() },
+      project: {
+        ...project,
+        name,
+        updatedAt,
+        metadata: { ...project.metadata, name, updatedAt },
+      },
       isDirty: true,
     });
   },

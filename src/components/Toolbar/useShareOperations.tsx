@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import { useProjectStore } from '../../stores/projectStore';
-import { useAnimationStore } from '../../stores/animationStore';
 import {
   encryptData,
   exportKeyToString,
   generateEncryptionKey,
 } from '../../services/encryption';
 import { trackShare } from '../../services/analytics/posthog';
+import { captureProjectDocument } from '../../services/ProjectDocumentService';
 
 const SHARE_API_URL = import.meta.env.VITE_SHARE_API_URL ?? 'https://share.excalimate.com';
 
@@ -27,18 +27,8 @@ export function useShareOperations() {
     }
     try {
       setLoading(true);
-      const timeline = useAnimationStore.getState().timeline;
-      const { clipStart, clipEnd } = useAnimationStore.getState();
-      const cameraFrame = useProjectStore.getState().cameraFrame;
-
-      const payload = {
-        name: project.name,
-        scene: project.scene,
-        timeline,
-        clipStart,
-        clipEnd,
-        cameraFrame,
-      };
+      const payload = captureProjectDocument();
+      if (!payload) throw new Error('No project to share');
 
       const key = await generateEncryptionKey();
       const encrypted = await encryptData(payload, key);
