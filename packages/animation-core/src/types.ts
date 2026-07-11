@@ -19,7 +19,14 @@ export type {
   GeneratedContentOwnership,
   Keyframe,
   ProjectAuthoring,
+  SceneElementMapping,
+  SceneState,
+  SceneStateElement,
+  SceneTransition,
+  SceneTransitionStatus,
   SlideDirection,
+  SmartTransitionSettings,
+  TransitionPropertyRecipe,
 } from '@excalimate/project-schema';
 
 export interface ElementAnimationState {
@@ -75,8 +82,5 @@ export interface CompiledTrack {
 export interface CompiledTimeline {
   source: AnimationTimeline;
   revision: number;
-  tracksByTarget: ReadonlyMap<
-    string,
-    ReadonlyMap<AnimatableProperty, CompiledTrack>
-  >;
+  tracksByTarget: ReadonlyMap<string, ReadonlyMap<AnimatableProperty, CompiledTrack>>;
 }

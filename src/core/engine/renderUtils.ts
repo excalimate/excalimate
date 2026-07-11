@@ -3,10 +3,24 @@
  * Used by both the canvas preview and the export pipeline.
  */
 
-import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import type {
+  ExcalidrawElement,
+  NonDeletedExcalidrawElement,
+} from '@excalidraw/excalidraw/element/types';
 import type { FrameState } from '../../types/animation';
 import type { AnimatableTarget } from '../../types/excalidraw';
 import { CAMERA_FRAME_TARGET_ID } from '../../stores/projectStore';
+
+export function getRenderableAnimationElements(
+  elements: readonly ExcalidrawElement[],
+  animatedOpacityTargetIds: ReadonlySet<string>,
+): NonDeletedExcalidrawElement[] {
+  return elements.flatMap((element) => {
+    if (!element.isDeleted) return [element as NonDeletedExcalidrawElement];
+    if (!animatedOpacityTargetIds.has(element.id)) return [];
+    return [{ ...element, isDeleted: false } as NonDeletedExcalidrawElement];
+  });
+}
 
 /**
  * Build a map of element ID → accumulated animation state,
@@ -16,7 +30,10 @@ export function buildElementAnimationStates(
   frameState: FrameState,
   targets: AnimatableTarget[],
 ): Map<string, { tx: number; ty: number; sx: number; sy: number; rot: number; opacity: number }> {
-  const elStates = new Map<string, { tx: number; ty: number; sx: number; sy: number; rot: number; opacity: number }>();
+  const elStates = new Map<
+    string,
+    { tx: number; ty: number; sx: number; sy: number; rot: number; opacity: number }
+  >();
 
   // Pre-build target lookup map for O(1) access
   const targetById = new Map<string, AnimatableTarget>();
@@ -32,7 +49,14 @@ export function buildElementAnimationStates(
 
   for (const [tid, state] of frameState) {
     if (tid === CAMERA_FRAME_TARGET_ID) continue;
-    const { translateX: tx, translateY: ty, scaleX: sx, scaleY: sy, rotation: rot, opacity } = state;
+    const {
+      translateX: tx,
+      translateY: ty,
+      scaleX: sx,
+      scaleY: sy,
+      rotation: rot,
+      opacity,
+    } = state;
     if (tx === 0 && ty === 0 && sx === 1 && sy === 1 && rot === 0 && opacity === 1) continue;
 
     // Skip group entries — their transforms are already composed into
@@ -41,9 +65,12 @@ export function buildElementAnimationStates(
 
     const p = elStates.get(tid) ?? { tx: 0, ty: 0, sx: 1, sy: 1, rot: 0, opacity: 1 };
     elStates.set(tid, {
-      tx: p.tx + tx, ty: p.ty + ty,
-      sx: p.sx * sx, sy: p.sy * sy,
-      rot: p.rot + rot, opacity: p.opacity * opacity,
+      tx: p.tx + tx,
+      ty: p.ty + ty,
+      sx: p.sx * sx,
+      sy: p.sy * sy,
+      rot: p.rot + rot,
+      opacity: p.opacity * opacity,
     });
   }
 
@@ -66,6 +93,7 @@ export function applyAnimationToElements(
   elements: NonDeletedExcalidrawElement[],
   frameState: FrameState,
   targets: AnimatableTarget[],
+  absoluteOpacityTargetIds: ReadonlySet<string> = new Set(),
 ): ExcalidrawElement[] {
   const elStates = buildElementAnimationStates(frameState, targets);
 
@@ -125,9 +153,11 @@ export function applyAnimationToElements(
     c.y = el.y + a.ty;
     if (a.sx !== 1) c.width = el.width * a.sx;
     if (a.sy !== 1) c.height = el.height * a.sy;
-    if (a.rot !== 0) c.angle = (el.angle ?? 0) + (a.rot * Math.PI / 180);
+    if (a.rot !== 0) c.angle = (el.angle ?? 0) + (a.rot * Math.PI) / 180;
     // Always apply animation opacity (even when 1.0) to override element's base opacity
-    c.opacity = Math.round((el.opacity ?? 100) * a.opacity);
+    c.opacity = Math.round(
+      absoluteOpacityTargetIds.has(el.id) ? a.opacity * 100 : (el.opacity ?? 100) * a.opacity,
+    );
     // Scale points for arrows/lines
     if (c.points) {
       c.points = (c.points as number[][]).map(([px, py]: number[]) => [
@@ -158,7 +188,10 @@ export function applyAnimationToElements(
             if (Math.abs(relTx) > 0.1 || Math.abs(relTy) > 0.1) {
               // Shift start point and adjust all subsequent points to compensate
               // (move arrow origin to follow bound shape)
-              if (!modified) { points[0] = [...points[0]]; modified = true; }
+              if (!modified) {
+                points[0] = [...points[0]];
+                modified = true;
+              }
               c.x += relTx;
               c.y += relTy;
               // Adjust all points except first to compensate for origin shift
@@ -179,12 +212,12 @@ export function applyAnimationToElements(
             if (Math.abs(relTx) > 0.1 || Math.abs(relTy) > 0.1) {
               // Shift the last point to follow the bound shape
               const lastIdx = points.length - 1;
-              points[lastIdx] = [
-                points[lastIdx][0] + relTx,
-                points[lastIdx][1] + relTy,
-              ];
+              points[lastIdx] = [points[lastIdx][0] + relTx, points[lastIdx][1] + relTy];
               // Update width/height to reflect new extent
-              let minPx = Infinity, maxPx = -Infinity, minPy = Infinity, maxPy = -Infinity;
+              let minPx = Infinity,
+                maxPx = -Infinity,
+                minPy = Infinity,
+                maxPy = -Infinity;
               for (const [px, py] of points) {
                 if (px < minPx) minPx = px;
                 if (px > maxPx) maxPx = px;

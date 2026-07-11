@@ -72,6 +72,8 @@ describe('AnimationCommandService', () => {
     useAnimationStore.setState({
       timeline: createTimeline('Test', 10_000, 60),
       actions: [],
+      sceneStates: [],
+      sceneTransitions: [],
       timelineRevision: 0,
       documentRevision: 0,
       selectedTrackId: null,
@@ -172,9 +174,7 @@ describe('AnimationCommandService', () => {
     ).toBe(true);
 
     expect(
-      useAnimationStore.getState().timeline.tracks.find(
-        (track) => track.id === 'custom-track',
-      ),
+      useAnimationStore.getState().timeline.tracks.find((track) => track.id === 'custom-track'),
     ).toEqual(customTimeline.tracks[0]);
   });
 
@@ -198,19 +198,15 @@ describe('AnimationCommandService', () => {
       ok: false,
       error: { code: 'ACTION_CUSTOMIZED' },
     });
-    expect(
-      useAnimationStore.getState().timeline.tracks[0]?.keyframes[0]?.value,
-    ).toBe(0.3);
+    expect(useAnimationStore.getState().timeline.tracks[0]?.keyframes[0]?.value).toBe(0.3);
   });
 
   it('detaches customized ownership before its generated track is removed', () => {
     expect(createAction(fadeDraft('action-1')).ok).toBe(true);
     const generatedTrack = useAnimationStore.getState().timeline.tracks[0]!;
-    useAnimationStore.getState().updateKeyframe(
-      generatedTrack.id,
-      generatedTrack.keyframes[0]!.id,
-      { value: 0.3 },
-    );
+    useAnimationStore
+      .getState()
+      .updateKeyframe(generatedTrack.id, generatedTrack.keyframes[0]!.id, { value: 0.3 });
 
     useAnimationStore.getState().removeTrack(generatedTrack.id);
 
@@ -225,15 +221,12 @@ describe('AnimationCommandService', () => {
     const trackId = useAnimationStore.getState().timeline.tracks[0]!.id;
     expect(detachAction('action-1').ok).toBe(true);
     expect(deleteAction('action-1').ok).toBe(true);
+    expect(useAnimationStore.getState().timeline.tracks.some((track) => track.id === trackId)).toBe(
+      true,
+    );
     expect(
-      useAnimationStore.getState().timeline.tracks.some(
-        (track) => track.id === trackId,
-      ),
-    ).toBe(true);
-    expect(
-      useAnimationStore.getState().timeline.tracks.find(
-        (track) => track.id === trackId,
-      )?.managedActionId,
+      useAnimationStore.getState().timeline.tracks.find((track) => track.id === trackId)
+        ?.managedActionId,
     ).toBeUndefined();
   });
 
@@ -276,14 +269,12 @@ describe('AnimationCommandService', () => {
     expect(presetId).toBeDefined();
     expect(disableAction(presetId!).ok).toBe(true);
     expect(
-      useAnimationStore
-        .getState()
-        .timeline.tracks.some((track) =>
-          useAnimationStore
-            .getState()
-            .actions.find((action) => action.id === presetId)
-            ?.ownership.some((ownership) => ownership.trackId === track.id),
-        ),
+      useAnimationStore.getState().timeline.tracks.some((track) =>
+        useAnimationStore
+          .getState()
+          .actions.find((action) => action.id === presetId)
+          ?.ownership.some((ownership) => ownership.trackId === track.id),
+      ),
     ).toBe(false);
   });
 
@@ -310,9 +301,7 @@ describe('AnimationCommandService', () => {
 
     expect(result.ok).toBe(true);
     expect(
-      useAnimationStore
-        .getState()
-        .timeline.tracks.some((track) => track.property === property),
+      useAnimationStore.getState().timeline.tracks.some((track) => track.property === property),
     ).toBe(true);
   });
 
@@ -443,12 +432,8 @@ describe('AnimationCommandService', () => {
       enabled: false,
     });
     expect(state.timeline.tracks[1]?.id).not.toBe('custom-track');
-    expect(state.timeline.tracks[1]?.keyframes[0]?.id).not.toBe(
-      'custom-keyframe',
-    );
-    expect(duplicate.ok ? duplicate.value.track?.id : undefined).toBe(
-      state.timeline.tracks[1]?.id,
-    );
+    expect(state.timeline.tracks[1]?.keyframes[0]?.id).not.toBe('custom-keyframe');
+    expect(duplicate.ok ? duplicate.value.track?.id : undefined).toBe(state.timeline.tracks[1]?.id);
   });
 
   it('creates a camera hold through the managed compiler command', () => {

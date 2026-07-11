@@ -17,6 +17,8 @@ export function captureProjectDocument(): ProjectDocument | null {
     clipStart,
     clipEnd,
     actions,
+    sceneStates,
+    sceneTransitions,
     timelineRevision,
     documentRevision,
   } = useAnimationStore.getState();
@@ -35,6 +37,8 @@ export function captureProjectDocument(): ProjectDocument | null {
       authoring: {
         version: 1,
         actions,
+        ...(sceneStates.length > 0 ? { sceneStates } : {}),
+        ...(sceneTransitions.length > 0 ? { sceneTransitions } : {}),
         timelineRevision,
         documentRevision,
       },
@@ -44,7 +48,7 @@ export function captureProjectDocument(): ProjectDocument | null {
 
 export function loadProjectDocumentIntoStores(
   project: AnimationProject | ProjectDocument,
-  options: { activateAnimationMode?: boolean } = {},
+  options: { activateAnimationMode?: boolean; pushUndo?: boolean } = {},
 ): AnimationProject {
   const result = replaceProject(project, options);
   if (!result.ok) throw new Error(result.error.message);

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AnimationTimeline } from '../types/animation';
-import type { AnimationAction } from '@excalimate/project-schema';
+import type { AnimationAction, SceneState, SceneTransition } from '@excalimate/project-schema';
 import type { ExcalidrawSceneData, AnimatableTarget } from '../types/excalidraw';
 import { useAnimationStore } from './animationStore';
 import { usePlaybackStore } from './playbackStore';
@@ -15,6 +15,8 @@ interface Snapshot {
   scene?: ExcalidrawSceneData;
   targets?: AnimatableTarget[];
   actions: AnimationAction[];
+  sceneStates: SceneState[];
+  sceneTransitions: SceneTransition[];
   timelineRevision: number;
   documentRevision: number;
 }
@@ -85,15 +87,20 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
     }
 
     set((state) => {
-      const newPast = [...state.past, {
-        timeline: currentTimeline,
-        time: currentTime,
-        scene: currentScene,
-        targets: currentTargets,
-        actions: structuredClone(animationState.actions),
-        timelineRevision: animationState.timelineRevision,
-        documentRevision: animationState.documentRevision,
-      }];
+      const newPast = [
+        ...state.past,
+        {
+          timeline: currentTimeline,
+          time: currentTime,
+          scene: currentScene,
+          targets: currentTargets,
+          actions: structuredClone(animationState.actions),
+          sceneStates: structuredClone(animationState.sceneStates),
+          sceneTransitions: structuredClone(animationState.sceneTransitions),
+          timelineRevision: animationState.timelineRevision,
+          documentRevision: animationState.documentRevision,
+        },
+      ];
       if (newPast.length > MAX_HISTORY) newPast.shift();
       return {
         past: newPast,
@@ -131,7 +138,8 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
     let currentTargets: AnimatableTarget[] | undefined;
     if (prev.scene || prev.targets) {
       const ps = useProjectStore.getState();
-      if (ps.project?.scene) currentScene = structuredClone(ps.project.scene) as ExcalidrawSceneData;
+      if (ps.project?.scene)
+        currentScene = structuredClone(ps.project.scene) as ExcalidrawSceneData;
       currentTargets = structuredClone(ps.targets) as AnimatableTarget[];
     }
 
@@ -139,6 +147,8 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
       useAnimationStore.setState({
         timeline: prev.timeline,
         actions: prev.actions,
+        sceneStates: prev.sceneStates,
+        sceneTransitions: prev.sceneTransitions,
         timelineRevision: prev.timelineRevision,
         documentRevision: prev.documentRevision,
       });
@@ -148,15 +158,20 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
 
     set({
       past: newPast,
-      future: [{
-        timeline: currentTimeline,
-        time: currentTime,
-        scene: currentScene,
-        targets: currentTargets,
-        actions: structuredClone(animationState.actions),
-        timelineRevision: animationState.timelineRevision,
-        documentRevision: animationState.documentRevision,
-      }, ...get().future],
+      future: [
+        {
+          timeline: currentTimeline,
+          time: currentTime,
+          scene: currentScene,
+          targets: currentTargets,
+          actions: structuredClone(animationState.actions),
+          sceneStates: structuredClone(animationState.sceneStates),
+          sceneTransitions: structuredClone(animationState.sceneTransitions),
+          timelineRevision: animationState.timelineRevision,
+          documentRevision: animationState.documentRevision,
+        },
+        ...get().future,
+      ],
       canUndo: newPast.length > 0,
       canRedo: true,
     });
@@ -179,7 +194,8 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
     let currentTargets: AnimatableTarget[] | undefined;
     if (next.scene || next.targets) {
       const ps = useProjectStore.getState();
-      if (ps.project?.scene) currentScene = structuredClone(ps.project.scene) as ExcalidrawSceneData;
+      if (ps.project?.scene)
+        currentScene = structuredClone(ps.project.scene) as ExcalidrawSceneData;
       currentTargets = structuredClone(ps.targets) as AnimatableTarget[];
     }
 
@@ -187,6 +203,8 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
       useAnimationStore.setState({
         timeline: next.timeline,
         actions: next.actions,
+        sceneStates: next.sceneStates,
+        sceneTransitions: next.sceneTransitions,
         timelineRevision: next.timelineRevision,
         documentRevision: next.documentRevision,
       });
@@ -195,15 +213,20 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
     if (next.targets) useProjectStore.getState().setTargets(next.targets);
 
     set({
-      past: [...get().past, {
-        timeline: currentTimeline,
-        time: currentTime,
-        scene: currentScene,
-        targets: currentTargets,
-        actions: structuredClone(animationState.actions),
-        timelineRevision: animationState.timelineRevision,
-        documentRevision: animationState.documentRevision,
-      }],
+      past: [
+        ...get().past,
+        {
+          timeline: currentTimeline,
+          time: currentTime,
+          scene: currentScene,
+          targets: currentTargets,
+          actions: structuredClone(animationState.actions),
+          sceneStates: structuredClone(animationState.sceneStates),
+          sceneTransitions: structuredClone(animationState.sceneTransitions),
+          timelineRevision: animationState.timelineRevision,
+          documentRevision: animationState.documentRevision,
+        },
+      ],
       future: newFuture,
       canUndo: true,
       canRedo: newFuture.length > 0,

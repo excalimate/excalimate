@@ -21,6 +21,10 @@ export const PROJECT_LIMITS = Object.freeze({
   maxVisitedValues: 1_000_000,
   maxAbsoluteNumber: Number.MAX_SAFE_INTEGER,
   maxAnimationValue: 1_000_000_000_000,
+  maxSceneStates: 50,
+  maxSceneTransitions: 100,
+  maxSceneMappings: 10_000,
+  maxTransitionRecipes: 60_000,
 });
 
 export const EASING_TYPES = [
@@ -63,25 +67,15 @@ export const ANIMATION_ACTION_TYPES = [
   'pop',
   'sequence',
   'cameraMove',
+  'smartTransition',
 ] as const;
-export const ANIMATION_ACTION_STATUSES = [
-  'managed',
-  'customized',
-  'disabled',
-  'detached',
-] as const;
-export const ACTION_START_MODES = [
-  'absolute',
-  'afterPrevious',
-  'withPrevious',
-] as const;
+export const ANIMATION_ACTION_STATUSES = ['managed', 'customized', 'disabled', 'detached'] as const;
+export const ACTION_START_MODES = ['absolute', 'afterPrevious', 'withPrevious'] as const;
 export const SLIDE_DIRECTIONS = ['left', 'right', 'up', 'down'] as const;
 export const CAMERA_ACTION_MODES = ['move', 'hold'] as const;
+export const SCENE_TRANSITION_STATUSES = ['draft', 'accepted', 'customized', 'detached'] as const;
 
-const identifierSchema = z
-  .string()
-  .min(1)
-  .max(PROJECT_LIMITS.maxIdentifierLength);
+const identifierSchema = z.string().min(1).max(PROJECT_LIMITS.maxIdentifierLength);
 const nameSchema = z.string().max(PROJECT_LIMITS.maxNameLength);
 const finiteNumberSchema = z
   .number()
@@ -92,9 +86,7 @@ const finiteNumberSchema = z
 export const KeyframeSchema = z
   .object({
     id: identifierSchema,
-    time: finiteNumberSchema
-      .nonnegative()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+    time: finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs),
     value: finiteNumberSchema,
     easing: z.enum(EASING_TYPES),
   })
@@ -107,9 +99,7 @@ export const AnimationTrackSchema = z
     targetType: z.enum(['element', 'group']),
     property: z.enum(ANIMATABLE_PROPERTIES),
     managedActionId: identifierSchema.optional(),
-    keyframes: z
-      .array(KeyframeSchema)
-      .max(PROJECT_LIMITS.maxKeyframesPerTrack),
+    keyframes: z.array(KeyframeSchema).max(PROJECT_LIMITS.maxKeyframesPerTrack),
     enabled: z.boolean(),
   })
   .strict()
@@ -131,9 +121,7 @@ export const AnimationTimelineSchema = z
   .object({
     id: identifierSchema,
     name: nameSchema,
-    duration: finiteNumberSchema
-      .positive()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+    duration: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs),
     fps: finiteNumberSchema.int().min(1).max(240),
     tracks: z.array(AnimationTrackSchema).max(PROJECT_LIMITS.maxTracks),
   })
@@ -152,7 +140,6 @@ export const AnimationTimelineSchema = z
       }
       trackIds.add(track.id);
       totalKeyframes += track.keyframes.length;
-
     }
 
     if (totalKeyframes > PROJECT_LIMITS.maxTotalKeyframes) {
@@ -166,16 +153,20 @@ export const AnimationTimelineSchema = z
 
 export const AnimationActionTimingSchema = z
   .object({
-    startMs: finiteNumberSchema
-      .nonnegative()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs),
-    durationMs: finiteNumberSchema
-      .positive()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs),
-    staggerMs: finiteNumberSchema
-      .nonnegative()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+    startMs: finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs),
+    durationMs: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs),
+    staggerMs: finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs),
     startMode: z.enum(ACTION_START_MODES),
+  })
+  .strict();
+
+export const TransitionPropertyRecipeSchema = z
+  .object({
+    targetId: identifierSchema,
+    property: z.enum(ANIMATABLE_PROPERTIES),
+    from: finiteNumberSchema,
+    to: finiteNumberSchema,
+    delayMs: finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs),
   })
   .strict();
 
@@ -195,6 +186,10 @@ export const AnimationActionParametersSchema = z
     scale: finiteNumberSchema.positive().optional(),
     rotation: finiteNumberSchema.optional(),
     cameraMode: z.enum(CAMERA_ACTION_MODES).optional(),
+    transitionRecipes: z
+      .array(TransitionPropertyRecipeSchema)
+      .max(PROJECT_LIMITS.maxTransitionRecipes)
+      .optional(),
   })
   .strict();
 
@@ -203,15 +198,9 @@ export const GeneratedContentOwnershipSchema = z
     trackId: identifierSchema,
     targetId: identifierSchema,
     property: z.enum(ANIMATABLE_PROPERTIES),
-    keyframeIds: z
-      .array(identifierSchema)
-      .max(PROJECT_LIMITS.maxKeyframesPerTrack),
-    startMs: finiteNumberSchema
-      .nonnegative()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs),
-    endMs: finiteNumberSchema
-      .nonnegative()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+    keyframeIds: z.array(identifierSchema).max(PROJECT_LIMITS.maxKeyframesPerTrack),
+    startMs: finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs),
+    endMs: finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs),
   })
   .strict()
   .superRefine((ownership, context) => {
@@ -229,18 +218,14 @@ export const AnimationActionSchema = z
     id: identifierSchema,
     type: z.enum(ANIMATION_ACTION_TYPES),
     preset: identifierSchema.optional(),
-    targetIds: z
-      .array(identifierSchema)
-      .min(1)
-      .max(PROJECT_LIMITS.maxSceneElements),
+    targetIds: z.array(identifierSchema).min(1).max(PROJECT_LIMITS.maxSceneElements),
     timing: AnimationActionTimingSchema,
     easing: z.enum(EASING_TYPES),
     parameters: AnimationActionParametersSchema,
-    ownership: z
-      .array(GeneratedContentOwnershipSchema)
-      .max(PROJECT_LIMITS.maxTracks),
+    ownership: z.array(GeneratedContentOwnershipSchema).max(PROJECT_LIMITS.maxTracks),
     generatedHash: identifierSchema,
     status: z.enum(ANIMATION_ACTION_STATUSES),
+    transitionId: identifierSchema.optional(),
   })
   .strict()
   .superRefine((action, context) => {
@@ -251,6 +236,147 @@ export const AnimationActionSchema = z
         message: 'Action target IDs must be unique',
       });
     }
+    if (
+      action.type === 'smartTransition' &&
+      (!action.transitionId ||
+        !action.parameters.transitionRecipes ||
+        action.parameters.transitionRecipes.length === 0)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['parameters', 'transitionRecipes'],
+        message: 'Smart Transition actions require a transition id and at least one recipe',
+      });
+    }
+    if (action.type !== 'smartTransition' && action.parameters.transitionRecipes !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['parameters', 'transitionRecipes'],
+        message: 'Transition recipes are only supported by Smart Transition actions',
+      });
+    }
+    if (action.type !== 'smartTransition' && action.transitionId !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['transitionId'],
+        message: 'Transition IDs are only supported by Smart Transition actions',
+      });
+    }
+  });
+
+export const CameraFrameSchema = z
+  .object({
+    aspectRatio: z.enum(ASPECT_RATIOS),
+    width: finiteNumberSchema.positive(),
+    x: finiteNumberSchema,
+    y: finiteNumberSchema,
+  })
+  .strict();
+
+export const SceneStateElementSchema = z
+  .object({
+    id: identifierSchema,
+    type: identifierSchema,
+    x: finiteNumberSchema,
+    y: finiteNumberSchema,
+    width: finiteNumberSchema.nonnegative(),
+    height: finiteNumberSchema.nonnegative(),
+    angle: finiteNumberSchema,
+    opacity: finiteNumberSchema.min(0).max(1),
+    present: z.boolean(),
+    groupIds: z.array(identifierSchema).max(64),
+    boundElementIds: z.array(identifierSchema).max(256),
+    containerId: identifierSchema.optional(),
+    fileId: identifierSchema.optional(),
+    label: z.string().max(PROJECT_LIMITS.maxNameLength).optional(),
+  })
+  .strict();
+
+export const SceneStateSchema = z
+  .object({
+    id: identifierSchema,
+    name: nameSchema,
+    createdAt: z.string().datetime({ offset: true }),
+    elements: z.array(SceneStateElementSchema).max(PROJECT_LIMITS.maxSceneElements),
+    cameraFrame: CameraFrameSchema.optional(),
+  })
+  .strict()
+  .superRefine((state, context) => {
+    const ids = new Set<string>();
+    for (const [index, element] of state.elements.entries()) {
+      if (ids.has(element.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['elements', index, 'id'],
+          message: `Duplicate scene-state element id "${element.id}"`,
+        });
+      }
+      ids.add(element.id);
+    }
+  });
+
+export const SceneElementMappingSchema = z
+  .object({
+    fromElementId: identifierSchema,
+    toElementId: identifierSchema,
+  })
+  .strict();
+
+export const SmartTransitionSettingsSchema = z
+  .object({
+    durationMs: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs),
+    easing: z.enum(EASING_TYPES),
+    staggerMs: finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs),
+    includeCamera: z.boolean(),
+  })
+  .strict();
+
+export const SceneTransitionSchema = z
+  .object({
+    id: identifierSchema,
+    fromStateId: identifierSchema,
+    toStateId: identifierSchema,
+    mappings: z.array(SceneElementMappingSchema).max(PROJECT_LIMITS.maxSceneMappings),
+    settings: SmartTransitionSettingsSchema,
+    status: z.enum(SCENE_TRANSITION_STATUSES),
+    managedActionId: identifierSchema.optional(),
+  })
+  .strict()
+  .superRefine((transition, context) => {
+    const fromIds = new Set<string>();
+    const toIds = new Set<string>();
+    for (const [index, mapping] of transition.mappings.entries()) {
+      if (fromIds.has(mapping.fromElementId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['mappings', index, 'fromElementId'],
+          message: 'Each source element can be mapped only once',
+        });
+      }
+      if (toIds.has(mapping.toElementId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['mappings', index, 'toElementId'],
+          message: 'Each target element can be mapped only once',
+        });
+      }
+      fromIds.add(mapping.fromElementId);
+      toIds.add(mapping.toElementId);
+    }
+    if (transition.status !== 'draft' && !transition.managedActionId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['managedActionId'],
+        message: 'Accepted or customized transitions require a managed action',
+      });
+    }
+    if (transition.status === 'draft' && transition.managedActionId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['managedActionId'],
+        message: 'Draft transitions cannot own a managed action',
+      });
+    }
   });
 
 export const ProjectAuthoringSchema = z
@@ -259,6 +385,11 @@ export const ProjectAuthoringSchema = z
     documentRevision: z.number().int().nonnegative(),
     timelineRevision: z.number().int().nonnegative(),
     actions: z.array(AnimationActionSchema).max(PROJECT_LIMITS.maxTracks),
+    sceneStates: z.array(SceneStateSchema).max(PROJECT_LIMITS.maxSceneStates).optional(),
+    sceneTransitions: z
+      .array(SceneTransitionSchema)
+      .max(PROJECT_LIMITS.maxSceneTransitions)
+      .optional(),
   })
   .strict()
   .superRefine((authoring, context) => {
@@ -273,25 +404,34 @@ export const ProjectAuthoringSchema = z
       }
       actionIds.add(action.id);
     }
+    const stateIds = new Set<string>();
+    for (const [stateIndex, state] of (authoring.sceneStates ?? []).entries()) {
+      if (stateIds.has(state.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['sceneStates', stateIndex, 'id'],
+          message: `Duplicate scene state id "${state.id}"`,
+        });
+      }
+      stateIds.add(state.id);
+    }
+    const transitionIds = new Set<string>();
+    for (const [transitionIndex, transition] of (authoring.sceneTransitions ?? []).entries()) {
+      if (transitionIds.has(transition.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['sceneTransitions', transitionIndex, 'id'],
+          message: `Duplicate scene transition id "${transition.id}"`,
+        });
+      }
+      transitionIds.add(transition.id);
+    }
   });
-
-export const CameraFrameSchema = z
-  .object({
-    aspectRatio: z.enum(ASPECT_RATIOS),
-    width: finiteNumberSchema.positive(),
-    x: finiteNumberSchema,
-    y: finiteNumberSchema,
-  })
-  .strict();
 
 export const PlaybackSchema = z
   .object({
-    clipStart: finiteNumberSchema
-      .nonnegative()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs),
-    clipEnd: finiteNumberSchema
-      .positive()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs),
+    clipStart: finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs),
+    clipEnd: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs),
     cameraFrame: CameraFrameSchema,
   })
   .strict()
@@ -314,9 +454,7 @@ const sceneElementSchema = z
 
 export const ProjectSceneSchema = z
   .object({
-    elements: z
-      .array(sceneElementSchema)
-      .max(PROJECT_LIMITS.maxSceneElements),
+    elements: z.array(sceneElementSchema).max(PROJECT_LIMITS.maxSceneElements),
     appState: z.record(z.unknown()).default({}),
     files: z.record(z.unknown()).default({}),
   })
@@ -334,11 +472,7 @@ export const ProjectSceneSchema = z
       elementIds.add(element.id);
 
       const fileId = element['fileId'];
-      if (
-        typeof fileId === 'string' &&
-        fileId.length > 0 &&
-        !Object.hasOwn(scene.files, fileId)
-      ) {
+      if (typeof fileId === 'string' && fileId.length > 0 && !Object.hasOwn(scene.files, fileId)) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['elements', elementIndex, 'fileId'],
@@ -391,10 +525,7 @@ export const V1ProjectDocumentSchema = z
       .nonnegative()
       .max(PROJECT_LIMITS.maxTimelineDurationMs)
       .optional(),
-    clipEnd: finiteNumberSchema
-      .positive()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs)
-      .optional(),
+    clipEnd: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs).optional(),
     cameraFrame: CameraFrameSchema.optional(),
     createdAt: z.string().datetime({ offset: true }),
     updatedAt: z.string().datetime({ offset: true }),
@@ -410,10 +541,7 @@ const legacyTransferSchema = z
       .nonnegative()
       .max(PROJECT_LIMITS.maxTimelineDurationMs)
       .optional(),
-    clipEnd: finiteNumberSchema
-      .positive()
-      .max(PROJECT_LIMITS.maxTimelineDurationMs)
-      .optional(),
+    clipEnd: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs).optional(),
     cameraFrame: CameraFrameSchema.nullish(),
     playback: PlaybackSchema.optional(),
     authoring: ProjectAuthoringSchema.optional(),
@@ -434,8 +562,15 @@ export type AnimationTrack = z.infer<typeof AnimationTrackSchema>;
 export type AnimationTimeline = z.infer<typeof AnimationTimelineSchema>;
 export type AnimationActionTiming = z.infer<typeof AnimationActionTimingSchema>;
 export type AnimationActionParameters = z.infer<typeof AnimationActionParametersSchema>;
+export type TransitionPropertyRecipe = z.infer<typeof TransitionPropertyRecipeSchema>;
 export type GeneratedContentOwnership = z.infer<typeof GeneratedContentOwnershipSchema>;
 export type AnimationAction = z.infer<typeof AnimationActionSchema>;
+export type SceneStateElement = z.infer<typeof SceneStateElementSchema>;
+export type SceneState = z.infer<typeof SceneStateSchema>;
+export type SceneElementMapping = z.infer<typeof SceneElementMappingSchema>;
+export type SmartTransitionSettings = z.infer<typeof SmartTransitionSettingsSchema>;
+export type SceneTransitionStatus = (typeof SCENE_TRANSITION_STATUSES)[number];
+export type SceneTransition = z.infer<typeof SceneTransitionSchema>;
 export type ProjectAuthoring = z.infer<typeof ProjectAuthoringSchema>;
 export type CameraFrame = z.infer<typeof CameraFrameSchema>;
 export type Playback = z.infer<typeof PlaybackSchema>;
@@ -472,9 +607,7 @@ export function assertInputByteLimit(
     throw new ProjectValidationError(`${label} has an invalid byte length`);
   }
   if (byteLength > limit) {
-    throw new ProjectValidationError(
-      `${label} exceeds the ${formatBytes(limit)} limit`,
-    );
+    throw new ProjectValidationError(`${label} exceeds the ${formatBytes(limit)} limit`);
   }
 }
 
@@ -488,9 +621,7 @@ export function encodeProjectDocument(project: ProjectDocument): string {
   try {
     json = JSON.stringify(project);
   } catch (error) {
-    throw new ProjectValidationError(
-      `Project could not be serialized: ${getErrorMessage(error)}`,
-    );
+    throw new ProjectValidationError(`Project could not be serialized: ${getErrorMessage(error)}`);
   }
 
   assertInputByteLimit(
@@ -500,10 +631,7 @@ export function encodeProjectDocument(project: ProjectDocument): string {
   );
   const validated = parseProjectDocument(parseJson(json, 'project'));
   const encoded = JSON.stringify(validated);
-  assertInputByteLimit(
-    new TextEncoder().encode(encoded).byteLength,
-    PROJECT_LIMITS.maxInputBytes,
-  );
+  assertInputByteLimit(new TextEncoder().encode(encoded).byteLength, PROJECT_LIMITS.maxInputBytes);
   return encoded;
 }
 
@@ -518,9 +646,7 @@ export function parseProjectDocument(input: unknown): ProjectDocument {
     return migrateV1Project(input);
   }
 
-  throw new ProjectValidationError(
-    `Unsupported project version "${version ?? 'missing'}"`,
-  );
+  throw new ProjectValidationError(`Unsupported project version "${version ?? 'missing'}"`);
 }
 
 export function migrateV1Project(input: unknown): ProjectDocument {
@@ -535,11 +661,7 @@ export function migrateV1Project(input: unknown): ProjectDocument {
     );
   }
 
-  const legacy = parseWithSchema(
-    V1ProjectDocumentSchema,
-    input,
-    'Invalid V1 project',
-  );
+  const legacy = parseWithSchema(V1ProjectDocumentSchema, input, 'Invalid V1 project');
   const clipStart = legacy.clipStart ?? 0;
   const clipEnd = legacy.clipEnd ?? legacy.timeline.duration;
   const migrated: ProjectDocument = {
@@ -557,15 +679,10 @@ export function migrateV1Project(input: unknown): ProjectDocument {
       clipEnd,
       cameraFrame: legacy.cameraFrame ?? createDefaultCameraFrame(),
     },
-    preferredWorkspace:
-      legacy.timeline.tracks.length > 0 ? 'studio' : 'magic',
+    preferredWorkspace: legacy.timeline.tracks.length > 0 ? 'studio' : 'magic',
   };
 
-  return parseWithSchema(
-    ProjectDocumentSchema,
-    migrated,
-    'Migrated project is invalid',
-  );
+  return parseWithSchema(ProjectDocumentSchema, migrated, 'Migrated project is invalid');
 }
 
 export function parseProjectContent(input: unknown): ProjectContent {
@@ -583,11 +700,7 @@ export function parseProjectContent(input: unknown): ProjectContent {
     };
   }
 
-  const transfer = parseWithSchema(
-    legacyTransferSchema,
-    input,
-    'Invalid project transfer payload',
-  );
+  const transfer = parseWithSchema(legacyTransferSchema, input, 'Invalid project transfer payload');
   const timeline = transfer.timeline ?? createDefaultTimeline();
   const playback =
     transfer.playback ??
@@ -633,13 +746,8 @@ export function createDefaultCameraFrame(): CameraFrame {
   };
 }
 
-function validateProjectRelationships(
-  project: ProjectDocument,
-  context: z.RefinementCtx,
-): void {
-  const sceneElementIds = new Set(
-    project.scene.elements.map((element) => element.id),
-  );
+function validateProjectRelationships(project: ProjectDocument, context: z.RefinementCtx): void {
+  const sceneElementIds = new Set(project.scene.elements.map((element) => element.id));
   for (const [trackIndex, track] of project.timeline.tracks.entries()) {
     if (
       track.targetType === 'element' &&
@@ -655,9 +763,7 @@ function validateProjectRelationships(
   }
 
   if (!project.authoring) return;
-  const tracksById = new Map(
-    project.timeline.tracks.map((track) => [track.id, track]),
-  );
+  const tracksById = new Map(project.timeline.tracks.map((track) => [track.id, track]));
   for (const [actionIndex, action] of project.authoring.actions.entries()) {
     for (const [ownershipIndex, ownership] of action.ownership.entries()) {
       const track = tracksById.get(ownership.trackId);
@@ -665,54 +771,109 @@ function validateProjectRelationships(
         if (action.status === 'managed' || action.status === 'customized') {
           context.addIssue({
             code: z.ZodIssueCode.custom,
-            path: [
-              'authoring',
-              'actions',
-              actionIndex,
-              'ownership',
-              ownershipIndex,
-              'trackId',
-            ],
+            path: ['authoring', 'actions', actionIndex, 'ownership', ownershipIndex, 'trackId'],
             message: `Action references missing generated track "${ownership.trackId}"`,
           });
         }
         continue;
       }
-      if (
-        track.targetId !== ownership.targetId ||
-        track.property !== ownership.property
-      ) {
+      if (track.targetId !== ownership.targetId || track.property !== ownership.property) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          path: [
-            'authoring',
-            'actions',
-            actionIndex,
-            'ownership',
-            ownershipIndex,
-          ],
+          path: ['authoring', 'actions', actionIndex, 'ownership', ownershipIndex],
           message: 'Action ownership does not match its generated track',
         });
       }
       const keyframeIds = new Set(track.keyframes.map((keyframe) => keyframe.id));
-      if (
-        ownership.keyframeIds.some(
-          (keyframeId) => !keyframeIds.has(keyframeId),
-        )
-      ) {
+      if (ownership.keyframeIds.some((keyframeId) => !keyframeIds.has(keyframeId))) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          path: [
-            'authoring',
-            'actions',
-            actionIndex,
-            'ownership',
-            ownershipIndex,
-            'keyframeIds',
-          ],
+          path: ['authoring', 'actions', actionIndex, 'ownership', ownershipIndex, 'keyframeIds'],
           message: 'Action references a missing generated keyframe',
         });
       }
+    }
+  }
+
+  const sceneStates = project.authoring.sceneStates ?? [];
+  const stateById = new Map(sceneStates.map((state) => [state.id, state]));
+  for (const [stateIndex, state] of sceneStates.entries()) {
+    for (const [elementIndex, element] of state.elements.entries()) {
+      if (element.fileId && !Object.hasOwn(project.scene.files, element.fileId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['authoring', 'sceneStates', stateIndex, 'elements', elementIndex, 'fileId'],
+          message: `Scene state references missing shared file "${element.fileId}"`,
+        });
+      }
+    }
+  }
+
+  const actionById = new Map(project.authoring.actions.map((action) => [action.id, action]));
+  const transitions = project.authoring.sceneTransitions ?? [];
+  const transitionById = new Map(transitions.map((transition) => [transition.id, transition]));
+  for (const [transitionIndex, transition] of transitions.entries()) {
+    const fromState = stateById.get(transition.fromStateId);
+    const toState = stateById.get(transition.toStateId);
+    if (!fromState || !toState) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['authoring', 'sceneTransitions', transitionIndex],
+        message: 'Scene transition references a missing scene state',
+      });
+      continue;
+    }
+    const fromElementIds = new Set(fromState.elements.map((element) => element.id));
+    const toElementIds = new Set(toState.elements.map((element) => element.id));
+    for (const [mappingIndex, mapping] of transition.mappings.entries()) {
+      if (!fromElementIds.has(mapping.fromElementId) || !toElementIds.has(mapping.toElementId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['authoring', 'sceneTransitions', transitionIndex, 'mappings', mappingIndex],
+          message: 'Scene transition mapping references a missing state element',
+        });
+      }
+    }
+    if (transition.managedActionId) {
+      const action = actionById.get(transition.managedActionId);
+      if (!action || action.type !== 'smartTransition' || action.transitionId !== transition.id) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['authoring', 'sceneTransitions', transitionIndex, 'managedActionId'],
+          message: 'Scene transition references a stale managed action',
+        });
+      }
+    }
+  }
+  for (const [actionIndex, action] of project.authoring.actions.entries()) {
+    if (!action.transitionId) continue;
+    const transition = transitionById.get(action.transitionId);
+    if (!transition) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['authoring', 'actions', actionIndex, 'transitionId'],
+        message: 'Smart Transition action references a missing transition',
+      });
+      continue;
+    }
+    if (transition.managedActionId !== action.id) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['authoring', 'actions', actionIndex, 'transitionId'],
+        message: 'Smart Transition action is missing its reciprocal transition ownership',
+      });
+    }
+    const compatibleStatus =
+      (transition.status === 'accepted' &&
+        (action.status === 'managed' || action.status === 'disabled')) ||
+      (transition.status === 'customized' && action.status === 'customized') ||
+      (transition.status === 'detached' && action.status === 'detached');
+    if (!compatibleStatus) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['authoring', 'actions', actionIndex, 'status'],
+        message: 'Smart Transition action and transition statuses are inconsistent',
+      });
     }
   }
 }
@@ -732,11 +893,7 @@ function validateContentRelationships(content: ProjectContent): void {
     authoring: content.authoring,
     preferredWorkspace: content.preferredWorkspace,
   };
-  parseWithSchema(
-    ProjectDocumentSchema,
-    syntheticProject,
-    'Invalid project transfer payload',
-  );
+  parseWithSchema(ProjectDocumentSchema, syntheticProject, 'Invalid project transfer payload');
 }
 
 function assertResourceSafety(input: unknown): void {
@@ -769,13 +926,8 @@ function assertResourceSafety(input: unknown): void {
       continue;
     }
     if (typeof value === 'number') {
-      if (
-        !Number.isFinite(value) ||
-        Math.abs(value) > PROJECT_LIMITS.maxAbsoluteNumber
-      ) {
-        throw new ProjectValidationError(
-          'Project contains an invalid numeric value',
-        );
+      if (!Number.isFinite(value) || Math.abs(value) > PROJECT_LIMITS.maxAbsoluteNumber) {
+        throw new ProjectValidationError('Project contains an invalid numeric value');
       }
       continue;
     }

@@ -2,6 +2,7 @@ import posthog, { type PostHog } from 'posthog-js';
 import { CONSENT_KEY, type StoredConsent } from './consent';
 import type { AutoAnimateConfidenceBand, AutoAnimateStrategy } from '@excalimate/animation-core';
 import type { WorkspaceMode } from '../../types/ui';
+import type { TemplateCategory } from '../../templates/schema';
 
 /**
  * PostHog configuration — reads from Vite env vars.
@@ -62,7 +63,30 @@ export interface CreatorAnalyticsEventMap {
     source: 'switcher' | 'escalation' | 'project-load' | 'query';
   };
   creator_project_started: {
-    path: 'draw' | 'import-excalidraw' | 'open-project' | 'mcp' | 'template-teaser';
+    path: 'draw' | 'import-excalidraw' | 'open-project' | 'mcp' | 'template';
+  };
+  creator_template_gallery: {
+    action: 'open' | 'search' | 'category';
+    category?: TemplateCategory | 'all';
+  };
+  creator_template_used: {
+    category: TemplateCategory;
+    aspect_ratio: '16:9' | '4:3' | '1:1' | '3:2';
+  };
+  creator_scene_state_captured: {
+    element_count_bucket: '0' | '1-10' | '11-100' | '101-1000' | '1001+';
+  };
+  creator_smart_transition_previewed: {
+    change_count_bucket: '0' | '1-10' | '11-100' | '101-1000' | '1001+';
+    ambiguous_mapping_count_bucket: '0' | '1' | '2-5' | '6+';
+    camera_included: boolean;
+  };
+  creator_smart_transition_decided: {
+    decision: 'accepted' | 'rejected';
+    ambiguous_mapping_count_bucket: '0' | '1' | '2-5' | '6+';
+  };
+  creator_smart_transition_escalated: {
+    action: 'customized' | 'open-studio';
   };
   creator_auto_animate_previewed: {
     scope: 'selection' | 'diagram';
@@ -121,46 +145,33 @@ export interface CreatorAnalyticsEventMap {
 const CREATOR_PROPERTY_ALLOWLIST = {
   creator_workspace_changed: ['workspace', 'source'],
   creator_project_started: ['path'],
-  creator_auto_animate_previewed: [
-    'scope',
-    'strategy',
-    'confidence_band',
-    'target_count',
+  creator_template_gallery: ['action', 'category'],
+  creator_template_used: ['category', 'aspect_ratio'],
+  creator_scene_state_captured: ['element_count_bucket'],
+  creator_smart_transition_previewed: [
+    'change_count_bucket',
+    'ambiguous_mapping_count_bucket',
+    'camera_included',
   ],
-  creator_auto_animate_applied: [
-    'scope',
-    'strategy',
-    'confidence_band',
-    'recipe_count',
-  ],
+  creator_smart_transition_decided: ['decision', 'ambiguous_mapping_count_bucket'],
+  creator_smart_transition_escalated: ['action'],
+  creator_auto_animate_previewed: ['scope', 'strategy', 'confidence_band', 'target_count'],
+  creator_auto_animate_applied: ['scope', 'strategy', 'confidence_band', 'recipe_count'],
   creator_auto_animate_rejected: ['scope', 'strategy', 'confidence_band'],
-  creator_preset_applied: [
-    'preset',
-    'direction',
-    'selection_size',
-    'speed_band',
-  ],
+  creator_preset_applied: ['preset', 'direction', 'selection_size', 'speed_band'],
   creator_first_preview: ['workspace', 'reduced_motion'],
   creator_escalated: ['destination'],
   creator_sequence_opened: ['action_count', 'custom_count'],
   creator_sequence_action_reordered: ['source'],
-  creator_sequence_timing_changed: [
-    'scope',
-    'start_mode',
-    'speed_band',
-  ],
+  creator_sequence_timing_changed: ['scope', 'start_mode', 'speed_band'],
   creator_sequence_actions_grouped: ['action_count'],
   creator_sequence_customized_opened_in_studio: ['status'],
   creator_sequence_bulk_action: ['action', 'action_count'],
 } as const satisfies {
-  [Event in keyof CreatorAnalyticsEventMap]: readonly (
-    keyof CreatorAnalyticsEventMap[Event]
-  )[];
+  [Event in keyof CreatorAnalyticsEventMap]: readonly (keyof CreatorAnalyticsEventMap[Event])[];
 };
 
-export function sanitizeCreatorAnalyticsPayload<
-  Event extends keyof CreatorAnalyticsEventMap,
->(
+export function sanitizeCreatorAnalyticsPayload<Event extends keyof CreatorAnalyticsEventMap>(
   event: Event,
   payload: CreatorAnalyticsEventMap[Event] & Record<string, unknown>,
 ): CreatorAnalyticsEventMap[Event] {
@@ -171,9 +182,10 @@ export function sanitizeCreatorAnalyticsPayload<
   return sanitized as CreatorAnalyticsEventMap[Event];
 }
 
-export function trackCreatorEvent<
-  Event extends keyof CreatorAnalyticsEventMap,
->(event: Event, payload: CreatorAnalyticsEventMap[Event]): void {
+export function trackCreatorEvent<Event extends keyof CreatorAnalyticsEventMap>(
+  event: Event,
+  payload: CreatorAnalyticsEventMap[Event],
+): void {
   trackEvent(
     event,
     sanitizeCreatorAnalyticsPayload(
@@ -240,7 +252,10 @@ export function trackSequenceAction(action: 'create' | 'update' | 'delete'): voi
 }
 
 // Camera
-export function trackCameraAction(action: 'change_aspect_ratio' | 'fit_to_scene', ratio?: string): void {
+export function trackCameraAction(
+  action: 'change_aspect_ratio' | 'fit_to_scene',
+  ratio?: string,
+): void {
   trackEvent('camera_action', { action, ...(ratio ? { ratio } : {}) });
 }
 

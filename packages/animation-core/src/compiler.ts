@@ -12,6 +12,7 @@ import { deterministicId, generatedContentHash } from './ids.js';
 export interface AnimationActionDraft {
   id?: string;
   type: AnimationAction['type'];
+  transitionId?: string;
   preset?: string;
   targetIds: readonly string[];
   timing: AnimationAction['timing'];
@@ -63,11 +64,7 @@ function createGeneratedTrack(
   };
 }
 
-function actionStart(
-  action: AnimationAction,
-  previousStart: number,
-  previousEnd: number,
-): number {
+function actionStart(action: AnimationAction, previousStart: number, previousEnd: number): number {
   if (action.timing.startMode === 'afterPrevious') {
     return previousEnd + action.timing.startMs;
   }
@@ -89,10 +86,7 @@ function pair(
   ];
 }
 
-function recipesForAction(
-  action: AnimationAction,
-  start: number,
-): TrackRecipe[] {
+function recipesForAction(action: AnimationAction, start: number): TrackRecipe[] {
   const duration = action.timing.durationMs;
   const parameters = action.parameters;
   const from = parameters.from;
@@ -102,44 +96,25 @@ function recipesForAction(
     return action.targetIds.map((targetId, index) => ({
       targetId,
       property: 'opacity',
-      values: pair(
-        start + index * action.timing.staggerMs,
-        duration,
-        from ?? 0,
-        to ?? 1,
-      ),
+      values: pair(start + index * action.timing.staggerMs, duration, from ?? 0, to ?? 1),
     }));
   }
   if (action.type === 'slide') {
     const direction = parameters.direction ?? 'left';
     const distance = parameters.distance ?? 100;
-    const property =
-      direction === 'left' || direction === 'right'
-        ? 'translateX'
-        : 'translateY';
-    const offset =
-      direction === 'left' || direction === 'up' ? -distance : distance;
+    const property = direction === 'left' || direction === 'right' ? 'translateX' : 'translateY';
+    const offset = direction === 'left' || direction === 'up' ? -distance : distance;
     return action.targetIds.map((targetId, index) => ({
       targetId,
       property,
-      values: pair(
-        start + index * action.timing.staggerMs,
-        duration,
-        from ?? offset,
-        to ?? 0,
-      ),
+      values: pair(start + index * action.timing.staggerMs, duration, from ?? offset, to ?? 0),
     }));
   }
   if (action.type === 'draw') {
     return action.targetIds.map((targetId, index) => ({
       targetId,
       property: 'drawProgress',
-      values: pair(
-        start + index * action.timing.staggerMs,
-        duration,
-        from ?? 0,
-        to ?? 1,
-      ),
+      values: pair(start + index * action.timing.staggerMs, duration, from ?? 0, to ?? 1),
     }));
   }
   if (action.type === 'pop') {
@@ -148,12 +123,7 @@ function recipesForAction(
       return (['scaleX', 'scaleY'] as const).map((property) => ({
         targetId,
         property,
-        values: pair(
-          targetStart,
-          duration,
-          from ?? 0.8,
-          to ?? 1,
-        ),
+        values: pair(targetStart, duration, from ?? 0.8, to ?? 1),
       }));
     });
   }
@@ -162,12 +132,14 @@ function recipesForAction(
     return action.targetIds.map((targetId, index) => ({
       targetId,
       property,
-      values: pair(
-        start + index * action.timing.staggerMs,
-        duration,
-        from ?? 0,
-        to ?? 1,
-      ),
+      values: pair(start + index * action.timing.staggerMs, duration, from ?? 0, to ?? 1),
+    }));
+  }
+  if (action.type === 'smartTransition') {
+    return (parameters.transitionRecipes ?? []).map((recipe) => ({
+      targetId: recipe.targetId,
+      property: recipe.property,
+      values: pair(start + recipe.delayMs, duration, recipe.from, recipe.to),
     }));
   }
 
@@ -196,10 +168,7 @@ function recipesForAction(
       cameraRecipes.push({
         targetId,
         property,
-        values: cameraPair(
-          parameters.scale,
-          parameters.fromScale ?? from ?? 1,
-        ),
+        values: cameraPair(parameters.scale, parameters.fromScale ?? from ?? 1),
       });
     }
   }
@@ -207,10 +176,7 @@ function recipesForAction(
     cameraRecipes.push({
       targetId,
       property: 'rotation',
-      values: cameraPair(
-        parameters.rotation,
-        parameters.fromRotation ?? from ?? 0,
-      ),
+      values: cameraPair(parameters.rotation, parameters.fromRotation ?? from ?? 0),
     });
   }
   return cameraRecipes;
@@ -246,6 +212,7 @@ export function createAnimationAction(
   return {
     id,
     type: draft.type,
+    ...(draft.transitionId ? { transitionId: draft.transitionId } : {}),
     ...(draft.preset ? { preset: draft.preset } : {}),
     targetIds: [...draft.targetIds],
     timing: { ...draft.timing },
@@ -267,8 +234,7 @@ export function compileManagedActions(
   const removedTrackIds = new Set<string>();
   for (const previous of previousActions) {
     const next = nextById.get(previous.id);
-    const shouldReplace =
-      !next || next.status === 'managed' || next.status === 'disabled';
+    const shouldReplace = !next || next.status === 'managed' || next.status === 'disabled';
     if (previous.status === 'managed' && shouldReplace) {
       for (const ownership of previous.ownership) {
         removedTrackIds.add(ownership.trackId);
@@ -276,9 +242,7 @@ export function compileManagedActions(
     }
   }
 
-  const customTracks = timeline.tracks.filter(
-    (track) => !removedTrackIds.has(track.id),
-  );
+  const customTracks = timeline.tracks.filter((track) => !removedTrackIds.has(track.id));
   const generatedTracks: AnimationTrack[] = [];
   const compiledActions: AnimationAction[] = [];
   let previousStart = 0;
@@ -289,7 +253,12 @@ export function compileManagedActions(
     const actionEnd =
       start +
       action.timing.durationMs +
-      Math.max(0, action.targetIds.length - 1) * action.timing.staggerMs;
+      (action.type === 'smartTransition'
+        ? Math.max(
+            0,
+            ...(action.parameters.transitionRecipes ?? []).map((recipe) => recipe.delayMs),
+          )
+        : Math.max(0, action.targetIds.length - 1) * action.timing.staggerMs);
     previousStart = start;
     previousEnd = actionEnd;
     if (action.status !== 'managed') {
@@ -332,9 +301,7 @@ export function compileManagedActions(
   };
 }
 
-export function detachAction(
-  action: AnimationAction,
-): AnimationAction {
+export function detachAction(action: AnimationAction): AnimationAction {
   return {
     ...action,
     status: 'detached',

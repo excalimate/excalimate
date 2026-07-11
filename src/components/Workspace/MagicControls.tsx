@@ -23,18 +23,13 @@ import {
   IconPlayerPlay,
   IconSparkles,
 } from '@tabler/icons-react';
-import type {
-  AutoAnimateAnalysis,
-  EasingType,
-} from '@excalimate/animation-core';
+import type { AutoAnimateAnalysis, EasingType } from '@excalimate/animation-core';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
-import {
-  applyPreset,
-  applyPresetBatch,
-} from '../../services/AnimationCommandService';
+import { applyPreset, applyPresetBatch } from '../../services/AnimationCommandService';
 import { analyzeAutoAnimateInWorker } from '../../services/AutoAnimateService';
 import { trackCreatorEvent } from '../../services/analytics/posthog';
+import { SceneStateControls } from '../Transitions/SceneStateControls';
 
 type Preset = 'fade' | 'slide' | 'draw' | 'pop';
 type Direction = 'left' | 'right' | 'up' | 'down';
@@ -62,13 +57,8 @@ function strategyLabel(strategy: AutoAnimateAnalysis['strategy']): string {
 export function MagicControls() {
   const project = useProjectStore((state) => state.project);
   const targets = useProjectStore((state) => state.targets);
-  const targetIds = useMemo(
-    () => targets.map((target) => target.id),
-    [targets],
-  );
-  const selectedElementIds = useUIStore(
-    (state) => state.selectedElementIds,
-  );
+  const targetIds = useMemo(() => targets.map((target) => target.id), [targets]);
+  const selectedElementIds = useUIStore((state) => state.selectedElementIds);
   const [direction, setDirection] = useState<Direction>('left');
   const [speed, setSpeed] = useState(1);
   const [staggerMs, setStaggerMs] = useState(80);
@@ -136,9 +126,7 @@ export function MagicControls() {
       notifications.show({
         title: 'Local analysis failed',
         message:
-          error instanceof Error
-            ? error.message
-            : 'The arrangement worker could not complete.',
+          error instanceof Error ? error.message : 'The arrangement worker could not complete.',
         color: 'red',
       });
     } finally {
@@ -157,9 +145,7 @@ export function MagicControls() {
           startMs: Math.round(recipe.startMs / speed),
           durationMs: Math.round(recipe.durationMs / speed),
           staggerMs:
-            recipe.targetIds.length > 1
-              ? recipe.staggerMs
-              : Math.max(recipe.staggerMs, staggerMs),
+            recipe.targetIds.length > 1 ? recipe.staggerMs : Math.max(recipe.staggerMs, staggerMs),
           startMode: 'absolute' as const,
         },
         easing,
@@ -217,14 +203,16 @@ export function MagicControls() {
             <Title order={3} size="h4">
               Animate
             </Title>
-            <Badge variant="light">
-              {hasSelection ? 'Selection' : 'Whole diagram'}
-            </Badge>
+            <Badge variant="light">{hasSelection ? 'Selection' : 'Whole diagram'}</Badge>
           </Group>
           <Text size="sm" c="dimmed">
             Preview every local suggestion before it changes the timeline.
           </Text>
         </Stack>
+
+        <SceneStateControls />
+
+        <Divider label="Quick animation" labelPosition="center" />
 
         <Button
           size="md"
@@ -384,8 +372,8 @@ export function MagicControls() {
             </Group>
             {analysis.ambiguous && (
               <Alert color="orange" title="No single pattern is clearly dominant">
-                This is a deterministic local arrangement suggestion. Review the
-                order before applying it.
+                This is a deterministic local arrangement suggestion. Review the order before
+                applying it.
               </Alert>
             )}
             <Stack gap={4}>
@@ -396,9 +384,8 @@ export function MagicControls() {
               ))}
             </Stack>
             <Text size="sm" c="dimmed" aria-live="polite">
-              {analysis.recipes.length} steps for{' '}
-              {analysis.semanticTargets.length} semantic groups. Labels stay with
-              their shapes, and outbound arrows follow their source nodes.
+              {analysis.recipes.length} steps for {analysis.semanticTargets.length} semantic groups.
+              Labels stay with their shapes, and outbound arrows follow their source nodes.
             </Text>
             <Group justify="flex-end">
               <Button variant="default" onClick={rejectAnalysis}>

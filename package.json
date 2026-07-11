@@ -9,9 +9,13 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && tsc -b && vite build",
+    "build": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run templates:validate:built && tsc -b && vite build",
     "benchmark:animation": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run benchmark --workspace @excalimate/animation-core",
+    "benchmark:scene-diff": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run benchmark:scene-diff --workspace @excalimate/animation-core",
     "benchmark:sequence": "vitest bench src/components/Sequence/sequenceModel.bench.ts --run",
+    "templates:generate": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && node scripts/generate-templates.mjs",
+    "templates:validate": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run templates:validate:built",
+    "templates:validate:built": "node scripts/validate-templates.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -46,7 +50,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "webm-muxer": "^5.1.4",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.11",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.28.0",

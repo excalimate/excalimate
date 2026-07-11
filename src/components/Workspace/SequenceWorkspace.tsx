@@ -1,11 +1,5 @@
 import { lazy, Suspense } from 'react';
-import {
-  ActionIcon,
-  Box,
-  Group,
-  Paper,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Box, Group, Paper, Stack, Tooltip } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconArrowBackUp } from '@tabler/icons-react';
 import { FileControls } from '../Toolbar/FileControls';
@@ -22,6 +16,7 @@ import { useUndoRedoStore } from '../../stores/undoRedoStore';
 import { useSceneChangeSync } from '../App/useSceneChangeSync';
 import { computeFrameAtTime } from '../../core/engine/playbackSingleton';
 import { getWorkspaceMinimumWidth } from '../../core/workspace/workspaceLayout';
+import { SceneStateControls } from '../Transitions/SceneStateControls';
 
 const AnimateCanvasWrapper = lazy(() =>
   import('../App/AnimateCanvasWrapper').then((module) => ({
@@ -30,14 +25,9 @@ const AnimateCanvasWrapper = lazy(() =>
 );
 
 export function SequenceWorkspace() {
-  const isSupported = useMediaQuery(
-    `(min-width: ${getWorkspaceMinimumWidth('sequence')}px)`,
-    true,
-  );
+  const isSupported = useMediaQuery(`(min-width: ${getWorkspaceMinimumWidth('sequence')}px)`, true);
   const theme = useUIStore((state) => state.theme);
-  const selectedElementIds = useUIStore(
-    (state) => state.selectedElementIds,
-  );
+  const selectedElementIds = useUIStore((state) => state.selectedElementIds);
   const project = useProjectStore((state) => state.project);
   const targets = useProjectStore((state) => state.targets);
   const cameraFrame = useProjectStore((state) => state.cameraFrame);
@@ -68,11 +58,7 @@ export function SequenceWorkspace() {
         <Group justify="space-between" gap="xs" wrap="wrap">
           <Group gap="xs" wrap="wrap">
             <img
-              src={
-                theme === 'dark'
-                  ? '/excalimate_logo_dark.svg'
-                  : '/excalimate_logo.svg'
-              }
+              src={theme === 'dark' ? '/excalimate_logo_dark.svg' : '/excalimate_logo.svg'}
               alt="Excalimate logo"
               style={{ height: 22 }}
             />
@@ -101,13 +87,7 @@ export function SequenceWorkspace() {
         </Group>
       </Paper>
 
-      <Group
-        align="stretch"
-        gap="sm"
-        p="sm"
-        wrap="nowrap"
-        style={{ flex: 1, minHeight: 0 }}
-      >
+      <Group align="stretch" gap="sm" p="sm" wrap="nowrap" style={{ flex: 1, minHeight: 0 }}>
         <Box
           component="main"
           aria-label="Sequence preview canvas"
@@ -122,20 +102,14 @@ export function SequenceWorkspace() {
         >
           <ErrorBoundary
             fallback={
-              <Box
-                h="100%"
-                style={{ display: 'grid', placeItems: 'center' }}
-              >
+              <Box h="100%" style={{ display: 'grid', placeItems: 'center' }}>
                 Canvas error
               </Box>
             }
           >
             <Suspense
               fallback={
-                <Box
-                  h="100%"
-                  style={{ display: 'grid', placeItems: 'center' }}
-                >
+                <Box h="100%" style={{ display: 'grid', placeItems: 'center' }}>
                   Loading preview...
                 </Box>
               }
@@ -162,7 +136,12 @@ export function SequenceWorkspace() {
           miw={340}
           style={{ overflow: 'hidden' }}
         >
-          <ActionList />
+          <Stack gap={0} h="100%">
+            <SceneStateControls compact />
+            <Box style={{ flex: 1, minHeight: 0 }}>
+              <ActionList />
+            </Box>
+          </Stack>
         </Paper>
       </Group>
     </Box>

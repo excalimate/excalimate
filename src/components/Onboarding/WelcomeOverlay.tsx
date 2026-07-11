@@ -17,16 +17,18 @@ import {
   IconFileImport,
   IconFolderOpen,
   IconPencil,
-  IconSparkles,
+  IconTemplate,
 } from '@tabler/icons-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useFileOperations } from '../Toolbar/useFileOperations';
 import { useMcpLive } from '../../hooks/useMcpLive';
 import { trackCreatorEvent } from '../../services/analytics/posthog';
+import { TemplateGalleryModal } from '../Templates/TemplateGalleryModal';
 
 export function WelcomeOverlay() {
   const [loading, setLoading] = useState(false);
+  const [templatesOpened, setTemplatesOpened] = useState(false);
   const project = useProjectStore((state) => state.project);
   const workspace = useUIStore((state) => state.workspace);
   const canvasMode = useUIStore((state) => state.canvasMode);
@@ -34,36 +36,22 @@ export function WelcomeOverlay() {
   const theme = useUIStore((state) => state.theme);
   const { handleImportFile, handleLoadProjectFile } = useFileOperations();
   const { connected, connect } = useMcpLive();
-  const hasElements =
-    project?.scene.elements.some((element) => !element.isDeleted) ?? false;
+  const hasElements = project?.scene.elements.some((element) => !element.isDeleted) ?? false;
 
-  if (
-    workspace !== 'magic' ||
-    canvasMode !== 'design' ||
-    hasElements ||
-    dismissed
-  ) {
+  if (workspace !== 'magic' || canvasMode !== 'design' || hasElements || dismissed) {
     return null;
   }
 
   const finishStart = (
-    path:
-      | 'draw'
-      | 'import-excalidraw'
-      | 'open-project'
-      | 'mcp'
-      | 'template-teaser',
+    path: 'draw' | 'import-excalidraw' | 'open-project' | 'mcp' | 'template',
   ) => {
-    if (path === 'draw' || path === 'mcp' || path === 'template-teaser') {
+    if (path === 'draw' || path === 'mcp' || path === 'template') {
       trackCreatorEvent('creator_project_started', { path });
     }
     useUIStore.getState().setStartSurfaceDismissed(true);
   };
 
-  const runFileAction = async (
-    file: File | null,
-    kind: 'import' | 'open',
-  ) => {
+  const runFileAction = async (file: File | null, kind: 'import' | 'open') => {
     if (!file) return;
     try {
       setLoading(true);
@@ -77,8 +65,7 @@ export function WelcomeOverlay() {
     } catch (error) {
       notifications.show({
         title: kind === 'open' ? 'Could not open project' : 'Could not import file',
-        message:
-          error instanceof Error ? error.message : 'The selected file is invalid.',
+        message: error instanceof Error ? error.message : 'The selected file is invalid.',
         color: 'red',
       });
     } finally {
@@ -112,11 +99,7 @@ export function WelcomeOverlay() {
         <Stack gap="lg">
           <Stack gap={6} align="center">
             <img
-              src={
-                theme === 'dark'
-                  ? '/excalimate_logo_dark.svg'
-                  : '/excalimate_logo.svg'
-              }
+              src={theme === 'dark' ? '/excalimate_logo_dark.svg' : '/excalimate_logo.svg'}
               alt="Excalimate"
               style={{ height: 38, maxWidth: '70%' }}
             />
@@ -124,8 +107,8 @@ export function WelcomeOverlay() {
               Start with the canvas
             </Title>
             <Text c="dimmed" ta="center" maw={520}>
-              Draw freely, bring in an Excalidraw scene, or open an Excalimate
-              project. Animation controls appear as soon as the canvas has content.
+              Draw freely, bring in an Excalidraw scene, or open an Excalimate project. Animation
+              controls appear as soon as the canvas has content.
             </Text>
           </Stack>
 
@@ -192,9 +175,7 @@ export function WelcomeOverlay() {
                   notifications.show({
                     title: 'MCP connection failed',
                     message:
-                      error instanceof Error
-                        ? error.message
-                        : 'Check the MCP server settings.',
+                      error instanceof Error ? error.message : 'Check the MCP server settings.',
                     color: 'red',
                   });
                 }
@@ -223,11 +204,7 @@ export function WelcomeOverlay() {
             }
           >
             <Group justify="center" gap="xs" mih={54}>
-              <IconFileImport
-                size={22}
-                color="var(--mantine-color-dimmed)"
-                aria-hidden="true"
-              />
+              <IconFileImport size={22} color="var(--mantine-color-dimmed)" aria-hidden="true" />
               <Text size="sm" c="dimmed" ta="center">
                 Drop an Excalidraw or Excalimate file here
               </Text>
@@ -236,22 +213,21 @@ export function WelcomeOverlay() {
 
           <Button
             variant="subtle"
-            disabled
-            leftSection={<IconSparkles size={18} aria-hidden="true" />}
-            aria-describedby="template-teaser-description"
+            leftSection={<IconTemplate size={18} aria-hidden="true" />}
+            onClick={() => setTemplatesOpened(true)}
           >
             Start from a template
           </Button>
-          <Text
-            id="template-teaser-description"
-            size="xs"
-            c="dimmed"
-            ta="center"
-          >
-            Templates are coming in a later release.
-          </Text>
         </Stack>
       </Paper>
+      <TemplateGalleryModal
+        opened={templatesOpened}
+        onClose={() => setTemplatesOpened(false)}
+        onTemplateUsed={() => {
+          setTemplatesOpened(false);
+          finishStart('template');
+        }}
+      />
     </Box>
   );
 }

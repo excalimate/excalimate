@@ -16,7 +16,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "benchmark": "node ./benchmarks/playback.mjs && node ./benchmarks/auto-animate.mjs"
+    "benchmark": "node ./benchmarks/playback.mjs && node ./benchmarks/auto-animate.mjs && node ./benchmarks/scene-diff.mjs",
+    "benchmark:scene-diff": "node ./benchmarks/scene-diff.mjs"
   },
   "dependencies": {
     "@excalimate/project-schema": "*"
