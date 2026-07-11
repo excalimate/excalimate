@@ -14,7 +14,6 @@ interface HintDef {
 
 const EDIT_HINTS: HintDef[] = [
   { attr: 'file', label: 'New, import & save', offset: [-40, 80], anchor: 'bottom' },
-  { attr: 'tools', label: 'Sequence reveal', offset: [30, 110], anchor: 'bottom' },
   { attr: 'mode', label: 'Pick a mode &\nStart animating!', offset: [0, 160], anchor: 'bottom' },
   { attr: 'ghost', label: 'Preview hidden\nelements', offset: [-50, 110], anchor: 'bottom' },
   { attr: 'live', label: 'Connect to AI', offset: [20, 80], anchor: 'bottom' },
@@ -231,4 +230,3 @@ function HintArrow({ hint }: { hint: HintPos }) {
     </g>
   );
 }
-

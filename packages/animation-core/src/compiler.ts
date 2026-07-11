@@ -52,6 +52,7 @@ function createGeneratedTrack(
     targetId: recipe.targetId,
     targetType,
     property: recipe.property,
+    managedActionId: action.id,
     enabled: true,
     keyframes: recipe.values.map(([time, value], keyframeIndex) => ({
       id: deterministicId('keyframe', trackId, keyframeIndex),
@@ -172,18 +173,22 @@ function recipesForAction(
 
   const targetId = action.targetIds[0] ?? '__camera_frame__';
   const cameraRecipes: TrackRecipe[] = [];
+  const cameraPair = (value: number, initial: number) =>
+    action.parameters.cameraMode === 'hold'
+      ? pair(start, duration, value, value)
+      : pair(start, duration, initial, value);
   if (parameters.x !== undefined) {
     cameraRecipes.push({
       targetId,
       property: 'translateX',
-      values: pair(start, duration, from ?? 0, parameters.x),
+      values: cameraPair(parameters.x, parameters.fromX ?? from ?? 0),
     });
   }
   if (parameters.y !== undefined) {
     cameraRecipes.push({
       targetId,
       property: 'translateY',
-      values: pair(start, duration, from ?? 0, parameters.y),
+      values: cameraPair(parameters.y, parameters.fromY ?? from ?? 0),
     });
   }
   if (parameters.scale !== undefined) {
@@ -191,7 +196,10 @@ function recipesForAction(
       cameraRecipes.push({
         targetId,
         property,
-        values: pair(start, duration, from ?? 1, parameters.scale),
+        values: cameraPair(
+          parameters.scale,
+          parameters.fromScale ?? from ?? 1,
+        ),
       });
     }
   }
@@ -199,7 +207,10 @@ function recipesForAction(
     cameraRecipes.push({
       targetId,
       property: 'rotation',
-      values: pair(start, duration, from ?? 0, parameters.rotation),
+      values: cameraPair(
+        parameters.rotation,
+        parameters.fromRotation ?? from ?? 0,
+      ),
     });
   }
   return cameraRecipes;

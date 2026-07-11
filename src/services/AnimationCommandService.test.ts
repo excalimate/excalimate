@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { AnimatableTarget } from '../types/excalidraw';
 import { createTimeline } from '../core/models/Timeline';
 import {
+  computeFrameAtTime,
   getPlaybackController,
   invalidatePlaybackCache,
 } from '../core/engine/playbackSingleton';
@@ -14,11 +15,18 @@ import {
   applyPresetBatch,
   createAction,
   createCameraMove,
+  deleteActions,
   deleteAction,
   disableAction,
+  duplicateAction,
+  duplicateUnmanagedTrack,
+  enableAction,
   detachAction,
   reorderActions,
+  setActionsEnabled,
+  setUnmanagedTrackEnabled,
   updateActionTiming,
+  updateActionTimings,
 } from './AnimationCommandService';
 
 function target(id: string): AnimatableTarget {
@@ -112,6 +120,20 @@ describe('AnimationCommandService', () => {
 
     expect(useAnimationStore.getState().actions).toEqual([]);
     expect(useAnimationStore.getState().timeline.tracks).toEqual([]);
+  });
+
+  it('recomputes exactly once when undoing an action-list command', () => {
+    expect(createAction(fadeDraft('action-1')).ok).toBe(true);
+    let frameRecomputes = 0;
+    const unsubscribe = usePlaybackStore.subscribe((state, previous) => {
+      if (state.frameState !== previous.frameState) frameRecomputes += 1;
+    });
+
+    const result = useUndoRedoStore.getState().undo();
+    computeFrameAtTime(result?.time ?? 0);
+
+    unsubscribe();
+    expect(frameRecomputes).toBe(1);
   });
 
   it('reorders and retimes managed content without touching a custom track', () => {
@@ -208,6 +230,11 @@ describe('AnimationCommandService', () => {
         (track) => track.id === trackId,
       ),
     ).toBe(true);
+    expect(
+      useAnimationStore.getState().timeline.tracks.find(
+        (track) => track.id === trackId,
+      )?.managedActionId,
+    ).toBeUndefined();
   });
 
   it('returns a typed error for invalid target references', () => {
@@ -320,5 +347,129 @@ describe('AnimationCommandService', () => {
     useUndoRedoStore.getState().undo();
     expect(useAnimationStore.getState().actions).toEqual([]);
     expect(useAnimationStore.getState().timeline.tracks).toEqual([]);
+  });
+
+  it('duplicates and re-enables managed actions through one command each', () => {
+    expect(createAction(fadeDraft('action-1')).ok).toBe(true);
+    expect(disableAction('action-1').ok).toBe(true);
+    expect(useAnimationStore.getState().actions[0]?.status).toBe('disabled');
+
+    const duplicate = duplicateAction('action-1');
+    expect(duplicate.ok).toBe(true);
+    const duplicateId = duplicate.ok ? duplicate.value.action?.id : undefined;
+    expect(duplicateId).toBeDefined();
+    expect(useAnimationStore.getState().actions).toHaveLength(2);
+    expect(useAnimationStore.getState().actions[1]?.status).toBe('disabled');
+
+    expect(enableAction(duplicateId!).ok).toBe(true);
+    expect(useAnimationStore.getState().actions[1]?.status).toBe('managed');
+  });
+
+  it('applies bulk timing, enable, and delete as single transactions', () => {
+    expect(createAction(fadeDraft('action-1')).ok).toBe(true);
+    expect(createAction(fadeDraft('action-2', 1000)).ok).toBe(true);
+    useUndoRedoStore.getState().clearHistory();
+    let animationTransactions = 0;
+    const unsubscribe = useAnimationStore.subscribe(() => {
+      animationTransactions += 1;
+    });
+
+    expect(
+      updateActionTimings([
+        {
+          actionId: 'action-1',
+          timing: {
+            startMs: 0,
+            durationMs: 300,
+            staggerMs: 0,
+            startMode: 'absolute',
+          },
+        },
+        {
+          actionId: 'action-2',
+          timing: {
+            startMs: 0,
+            durationMs: 300,
+            staggerMs: 0,
+            startMode: 'withPrevious',
+          },
+        },
+      ]).ok,
+    ).toBe(true);
+    expect(setActionsEnabled(['action-1', 'action-2'], false).ok).toBe(true);
+    expect(deleteActions(['action-1', 'action-2']).ok).toBe(true);
+
+    unsubscribe();
+    expect(animationTransactions).toBe(3);
+    expect(useUndoRedoStore.getState().past).toHaveLength(3);
+    expect(useAnimationStore.getState().actions).toEqual([]);
+  });
+
+  it('duplicates and toggles unmanaged tracks without compiling them into actions', () => {
+    useAnimationStore.setState({
+      timeline: {
+        ...useAnimationStore.getState().timeline,
+        tracks: [
+          {
+            id: 'custom-track',
+            targetId: 'element-1',
+            targetType: 'element',
+            property: 'rotation',
+            enabled: true,
+            keyframes: [
+              {
+                id: 'custom-keyframe',
+                time: 250,
+                value: 0.5,
+                easing: 'linear',
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(setUnmanagedTrackEnabled('custom-track', false).ok).toBe(true);
+    const duplicate = duplicateUnmanagedTrack('custom-track');
+    expect(duplicate.ok).toBe(true);
+
+    const state = useAnimationStore.getState();
+    expect(state.actions).toEqual([]);
+    expect(state.timeline.tracks).toHaveLength(2);
+    expect(state.timeline.tracks[0]?.enabled).toBe(false);
+    expect(state.timeline.tracks[1]).toMatchObject({
+      targetId: 'element-1',
+      property: 'rotation',
+      enabled: false,
+    });
+    expect(state.timeline.tracks[1]?.id).not.toBe('custom-track');
+    expect(state.timeline.tracks[1]?.keyframes[0]?.id).not.toBe(
+      'custom-keyframe',
+    );
+    expect(duplicate.ok ? duplicate.value.track?.id : undefined).toBe(
+      state.timeline.tracks[1]?.id,
+    );
+  });
+
+  it('creates a camera hold through the managed compiler command', () => {
+    const result = createCameraMove({
+      timing: {
+        startMs: 100,
+        durationMs: 500,
+        staggerMs: 0,
+        startMode: 'absolute',
+      },
+      x: 20,
+      y: 40,
+      scale: 1.2,
+      mode: 'hold',
+      preset: 'camera-hold',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(useAnimationStore.getState().actions[0]).toMatchObject({
+      preset: 'camera-hold',
+      parameters: { cameraMode: 'hold' },
+    });
   });
 });

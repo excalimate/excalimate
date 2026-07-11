@@ -1,26 +1,17 @@
 import { lazy, Suspense, useCallback } from 'react';
 import {
   ActionIcon,
-  Button,
-  Center,
   CloseButton,
-  Paper,
-  Stack,
-  Text,
-  Title,
   Tooltip,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
   IconChevronUp,
-  IconDeviceDesktop,
   IconLayoutSidebarLeftExpand,
-  IconWand,
 } from '@tabler/icons-react';
 import { Toolbar } from '../Toolbar';
 import { ToolbarHints } from '../Onboarding/ToolbarHints';
 import { LayersPanel } from '../Layers/LayersPanel';
-import { SequenceRevealPanel } from '../SequenceReveal/SequenceRevealPanel';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { useAnimationStore } from '../../stores/animationStore';
 import { useProjectStore } from '../../stores/projectStore';
@@ -30,8 +21,8 @@ import { useSelectionDerivedState } from '../App/useSelectionDerivedState';
 import { useKeyframeActions } from '../App/useKeyframeActions';
 import { TimelinePanelWrapper } from '../App/TimelinePanelWrapper';
 import { PropertyPanelWrapper } from '../App/PropertyPanelWrapper';
-import { trackCreatorEvent } from '../../services/analytics/posthog';
 import { getWorkspaceMinimumWidth } from '../../core/workspace/workspaceLayout';
+import { WorkspaceUnsupportedMessage } from './WorkspaceUnsupportedMessage';
 
 const ExcalidrawEditor = lazy(() =>
   import('../Canvas/ExcalidrawEditor').then((module) => ({
@@ -49,51 +40,14 @@ export function StudioWorkspace({
 }: {
   legacyShell?: boolean;
 }) {
-  const workspace = useUIStore((state) => state.workspace);
-  const minimumWidth = getWorkspaceMinimumWidth(
-    workspace === 'studio' ? 'studio' : 'sequence',
-  );
+  const minimumWidth = getWorkspaceMinimumWidth('studio');
   const isSupported = useMediaQuery(
     `(min-width: ${minimumWidth}px)`,
     true,
   );
 
   if (!legacyShell && !isSupported) {
-    return (
-      <Center h="100vh" p="xl">
-        <Paper withBorder shadow="md" radius="lg" p="xl" maw={520}>
-          <Stack align="center" gap="md">
-            <IconDeviceDesktop
-              size={44}
-              stroke={1.5}
-              color="var(--mantine-color-indigo-6)"
-              aria-hidden="true"
-            />
-            <Title order={2} ta="center">
-              {workspace === 'studio'
-                ? 'Studio needs a larger screen'
-                : 'Sequence works best on a tablet or desktop'}
-            </Title>
-            <Text c="dimmed" ta="center">
-              Your project and timeline are unchanged. Open Magic to keep editing
-              on this device, or return on a wider screen.
-            </Text>
-            <Button
-              leftSection={<IconWand size={18} aria-hidden="true" />}
-              onClick={() => {
-                useUIStore.getState().setWorkspace('magic');
-                trackCreatorEvent('creator_workspace_changed', {
-                  workspace: 'magic',
-                  source: 'escalation',
-                });
-              }}
-            >
-              Open Magic
-            </Button>
-          </Stack>
-        </Paper>
-      </Center>
-    );
+    return <WorkspaceUnsupportedMessage workspace="studio" />;
   }
 
   return <StudioShell legacyShell={legacyShell} />;
@@ -103,9 +57,6 @@ function StudioShell({ legacyShell }: { legacyShell: boolean }) {
   const mode = useUIStore((state) => state.mode);
   const selectedElementIds = useUIStore(
     (state) => state.selectedElementIds,
-  );
-  const sequenceRevealOpen = useUIStore(
-    (state) => state.sequenceRevealOpen,
   );
   const layersPanelOpen = useUIStore((state) => state.layersPanelOpen);
   const timelinePanelOpen = useUIStore((state) => state.timelinePanelOpen);
@@ -215,12 +166,6 @@ function StudioShell({ legacyShell }: { legacyShell: boolean }) {
               )}
             </Suspense>
           </ErrorBoundary>
-          {mode === 'animate' && sequenceRevealOpen && (
-            <SequenceRevealPanel
-              targets={targets}
-              selectedElementIds={selectedElementIds}
-            />
-          )}
           {mode === 'animate' && !layersPanelOpen && (
             <div className="absolute top-2 left-2 z-20">
               <Tooltip label="Show layers" position="right">

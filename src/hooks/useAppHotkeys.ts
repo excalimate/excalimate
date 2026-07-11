@@ -8,6 +8,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { getPlaybackController, computeFrameAtTime } from '../core/engine/playbackSingleton';
 import { trackGroupAction } from '../services/analytics/posthog';
 import { trackCreatorEvent } from '../services/analytics/posthog';
+import { requestFocusedSequenceMove } from '../components/Sequence/sequenceHotkeys';
 
 const FRAME_DURATION = 1000 / 60;
 
@@ -152,6 +153,10 @@ export function useAppHotkeys() {
     ['mod+1', () => switchWorkspace('magic')],
     ['mod+2', () => switchWorkspace('sequence')],
     ['mod+3', () => switchWorkspace('studio')],
+    ['alt+ArrowUp', () => requestFocusedSequenceMove('up')],
+    ['alt+ArrowDown', () => requestFocusedSequenceMove('down')],
+    ['alt+Home', () => requestFocusedSequenceMove('top')],
+    ['alt+End', () => requestFocusedSequenceMove('bottom')],
 
     // Close property panel / deselect
     ['Escape', () => {

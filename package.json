@@ -11,6 +11,7 @@
     "dev": "vite",
     "build": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && tsc -b && vite build",
     "benchmark:animation": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run benchmark --workspace @excalimate/animation-core",
+    "benchmark:sequence": "vitest bench src/components/Sequence/sequenceModel.bench.ts --run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

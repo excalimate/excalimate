@@ -8,6 +8,7 @@ import {
   compileManagedActions,
   createAnimationAction,
 } from './compiler.js';
+import { compileTimeline, computeCompiledFrame } from './runtime.js';
 
 function timeline(tracks: AnimationTrack[] = []): AnimationTimeline {
   return {
@@ -136,6 +137,36 @@ describe('managed action compiler', () => {
     ).toEqual([100, 350, 600]);
   });
 
+  it('compiles camera holds as constant values without synthesizing a move', () => {
+    const compiled = compileManagedActions(
+      timeline(),
+      [],
+      [
+        action({
+          type: 'cameraMove',
+          targetIds: ['__camera_frame__'],
+          parameters: {
+            x: 120,
+            y: -40,
+            scale: 1.4,
+            cameraMode: 'hold',
+          },
+        }),
+      ],
+    );
+
+    expect(
+      compiled.timeline.tracks.map((track) =>
+        track.keyframes.map((keyframe) => keyframe.value),
+      ),
+    ).toEqual([
+      [120, 120],
+      [-40, -40],
+      [1.4, 1.4],
+      [1.4, 1.4],
+    ]);
+  });
+
   it('never removes unrelated target/property keyframes', () => {
     const customTrack: AnimationTrack = {
       id: 'custom-opacity',
@@ -189,6 +220,75 @@ describe('managed action compiler', () => {
       [customizedAction],
     );
     expect(reordered.timeline).toEqual(customizedTimeline);
+  });
+
+  it('plays sequential managed actions for the same target property', () => {
+    const first = action({
+      id: 'action-1',
+      timing: {
+        startMs: 0,
+        durationMs: 500,
+        staggerMs: 0,
+        startMode: 'absolute',
+      },
+    });
+
+    const second = action({
+      id: 'action-2',
+      timing: {
+        startMs: 100,
+        durationMs: 500,
+        staggerMs: 0,
+        startMode: 'afterPrevious',
+      },
+    });
+    const result = compileManagedActions(timeline(), [], [first, second]);
+    const compiled = compileTimeline(result.timeline);
+
+    expect(computeCompiledFrame(compiled, 550).get('element-1')?.opacity).toBe(1);
+    expect(computeCompiledFrame(compiled, 600).get('element-1')?.opacity).toBe(0);
+    expect(
+      computeCompiledFrame(compiled, 850).get('element-1')?.opacity,
+    ).toBeGreaterThan(0.5);
+  });
+
+  it('chains camera moves from the rendered camera state without snapping', () => {
+    const hold = action({
+      id: 'camera-hold',
+      type: 'cameraMove',
+      targetIds: ['__camera_frame__'],
+      timing: {
+        startMs: 0,
+        durationMs: 500,
+        staggerMs: 0,
+        startMode: 'absolute',
+      },
+      parameters: { x: 50, cameraMode: 'hold' },
+    });
+    const move = action({
+      id: 'camera-move',
+      type: 'cameraMove',
+      targetIds: ['__camera_frame__'],
+      timing: {
+        startMs: 100,
+        durationMs: 400,
+        staggerMs: 0,
+        startMode: 'afterPrevious',
+      },
+      parameters: { x: 200, fromX: 50, cameraMode: 'move' },
+    });
+    const result = compileManagedActions(timeline(), [], [hold, move]);
+    const compiled = compileTimeline(result.timeline);
+
+    expect(
+      computeCompiledFrame(compiled, 599).get('__camera_frame__')?.translateX,
+    ).toBe(50);
+    expect(
+      computeCompiledFrame(compiled, 600).get('__camera_frame__')?.translateX,
+    ).toBe(50);
+    expect(
+      computeCompiledFrame(compiled, 800).get('__camera_frame__')?.translateX,
+    ).toBeGreaterThan(50);
   });
 
   it('creates stable action IDs for equal drafts', () => {

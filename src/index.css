@@ -5,6 +5,26 @@
 @import '@mantine/nprogress/styles.css';
 @import 'tailwindcss';
 
+.sequence-action-row:focus-visible {
+  outline: 3px solid var(--mantine-color-indigo-5);
+  outline-offset: 2px;
+}
+
+.sequence-action-row[data-drag-over] {
+  box-shadow: 0 0 0 3px var(--mantine-color-indigo-4);
+}
+
+.sequence-action-row[data-dragging] {
+  opacity: 0.72;
+}
+
+@media (pointer: coarse) {
+  .sequence-action-control {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 /* ── Theme-aware CSS variables (switch on data-theme) ── */
 
 [data-theme='light'] {

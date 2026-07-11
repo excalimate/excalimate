@@ -60,6 +60,7 @@ function compileTrack(track: AnimationTrack): CompiledTrack {
       if (!next) {
         throw new Error(`Track "${track.id}" has an invalid keyframe segment`);
       }
+
       const duration = next.time - keyframe.time;
       return {
         startTime: keyframe.time,
@@ -70,6 +71,31 @@ function compileTrack(track: AnimationTrack): CompiledTrack {
         inverseDuration: duration > 0 ? 1 / duration : 0,
       };
     }),
+  };
+}
+
+function composeManagedTrack(
+  existing: CompiledTrack,
+  track: AnimationTrack,
+): AnimationTrack {
+  const nextKeyframes = sortKeyframes(track.keyframes);
+  const previous = existing.keyframes.at(-1);
+  const next = nextKeyframes[0];
+  const hold =
+    previous && next && next.time > previous.time
+      ? [
+          {
+            id: `!hold_${track.id}`,
+            time: next.time,
+            value: previous.value,
+            easing: 'step' as const,
+          },
+        ]
+      : [];
+  return {
+    ...track,
+    id: `${existing.id}+${track.id}`,
+    keyframes: [...existing.keyframes, ...hold, ...nextKeyframes],
   };
 }
 
@@ -95,7 +121,15 @@ export function compileTimeline(
       properties = new Map();
       mutableTargets.set(track.targetId, properties);
     }
-    properties.set(track.property, compileTrack(track));
+    const existing = properties.get(track.property);
+    properties.set(
+      track.property,
+      compileTrack(
+        existing && track.managedActionId
+          ? composeManagedTrack(existing, track)
+          : track,
+      ),
+    );
   }
   return {
     source: timeline,

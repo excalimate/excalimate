@@ -5,6 +5,7 @@ import type { ExcalidrawSceneData, AnimatableTarget } from '../types/excalidraw'
 import { useAnimationStore } from './animationStore';
 import { usePlaybackStore } from './playbackStore';
 import { useProjectStore } from './projectStore';
+import { runAnimationStoreTransaction } from '../core/engine/playbackSingleton';
 
 const MAX_HISTORY = 50;
 
@@ -134,11 +135,13 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
       currentTargets = structuredClone(ps.targets) as AnimatableTarget[];
     }
 
-    useAnimationStore.setState({
-      timeline: prev.timeline,
-      actions: prev.actions,
-      timelineRevision: prev.timelineRevision,
-      documentRevision: prev.documentRevision,
+    runAnimationStoreTransaction(() => {
+      useAnimationStore.setState({
+        timeline: prev.timeline,
+        actions: prev.actions,
+        timelineRevision: prev.timelineRevision,
+        documentRevision: prev.documentRevision,
+      });
     });
     if (prev.scene) useProjectStore.getState().updateScene(prev.scene);
     if (prev.targets) useProjectStore.getState().setTargets(prev.targets);
@@ -180,11 +183,13 @@ export const useUndoRedoStore = create<UndoRedoState>()((set, get) => ({
       currentTargets = structuredClone(ps.targets) as AnimatableTarget[];
     }
 
-    useAnimationStore.setState({
-      timeline: next.timeline,
-      actions: next.actions,
-      timelineRevision: next.timelineRevision,
-      documentRevision: next.documentRevision,
+    runAnimationStoreTransaction(() => {
+      useAnimationStore.setState({
+        timeline: next.timeline,
+        actions: next.actions,
+        timelineRevision: next.timelineRevision,
+        documentRevision: next.documentRevision,
+      });
     });
     if (next.scene) useProjectStore.getState().updateScene(next.scene);
     if (next.targets) useProjectStore.getState().setTargets(next.targets);

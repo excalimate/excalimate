@@ -76,6 +76,7 @@ export const ACTION_START_MODES = [
   'withPrevious',
 ] as const;
 export const SLIDE_DIRECTIONS = ['left', 'right', 'up', 'down'] as const;
+export const CAMERA_ACTION_MODES = ['move', 'hold'] as const;
 
 const identifierSchema = z
   .string()
@@ -105,6 +106,7 @@ export const AnimationTrackSchema = z
     targetId: identifierSchema,
     targetType: z.enum(['element', 'group']),
     property: z.enum(ANIMATABLE_PROPERTIES),
+    managedActionId: identifierSchema.optional(),
     keyframes: z
       .array(KeyframeSchema)
       .max(PROJECT_LIMITS.maxKeyframesPerTrack),
@@ -182,12 +184,17 @@ export const AnimationActionParametersSchema = z
     direction: z.enum(SLIDE_DIRECTIONS).optional(),
     distance: finiteNumberSchema.nonnegative().optional(),
     from: finiteNumberSchema.optional(),
+    fromX: finiteNumberSchema.optional(),
+    fromY: finiteNumberSchema.optional(),
+    fromScale: finiteNumberSchema.positive().optional(),
+    fromRotation: finiteNumberSchema.optional(),
     to: finiteNumberSchema.optional(),
     property: z.enum(ANIMATABLE_PROPERTIES).optional(),
     x: finiteNumberSchema.optional(),
     y: finiteNumberSchema.optional(),
     scale: finiteNumberSchema.positive().optional(),
     rotation: finiteNumberSchema.optional(),
+    cameraMode: z.enum(CAMERA_ACTION_MODES).optional(),
   })
   .strict();
 

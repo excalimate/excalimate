@@ -59,6 +59,43 @@ describe('compiled playback runtime', () => {
       .toBeCloseTo(0.5);
   });
 
+  it('composes multiple tracks for the same target property chronologically', () => {
+    const compiled = compileTimeline(
+      timeline([
+        {
+          ...track('fade-in', 'element', 'opacity', [
+            { id: 'fade-in-start', time: 0, value: 0, easing: 'linear' },
+            { id: 'fade-in-end', time: 500, value: 1, easing: 'linear' },
+          ]),
+          managedActionId: 'action-1',
+        },
+        {
+          ...track('fade-out', 'element', 'opacity', [
+            { id: 'fade-out-start', time: 1000, value: 1, easing: 'linear' },
+            { id: 'fade-out-end', time: 1500, value: 0, easing: 'linear' },
+          ]),
+          managedActionId: 'action-2',
+        },
+      ]),
+    );
+
+    expect(
+      compiled.tracksByTarget
+        .get('element')
+        ?.get('opacity')
+        ?.keyframes.map((keyframe) => keyframe.id),
+    ).toEqual([
+      'fade-in-start',
+      'fade-in-end',
+      '!hold_fade-out',
+      'fade-out-start',
+      'fade-out-end',
+    ]);
+    expect(computeCompiledFrame(compiled, 750).get('element')?.opacity).toBe(1);
+    expect(computeCompiledFrame(compiled, 1250).get('element')?.opacity)
+      .toBeCloseTo(0.5);
+  });
+
   it('invalidates a same-time frame after a timeline revision changes', () => {
     const engine = new AnimationEngine();
     const firstTimeline = timeline([

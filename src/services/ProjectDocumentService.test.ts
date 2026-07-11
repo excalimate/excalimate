@@ -6,6 +6,7 @@ import {
   captureProjectDocument,
   loadProjectDocumentIntoStores,
 } from './ProjectDocumentService';
+import { applyPreset } from './AnimationCommandService';
 
 describe('ProjectDocumentService', () => {
   beforeEach(() => {
@@ -48,5 +49,36 @@ describe('ProjectDocumentService', () => {
     expect(useAnimationStore.getState().clipEnd).toBe(50);
     expect(captured?.timeline).toEqual(document.timeline);
     expect(captured?.playback).toEqual(document.playback);
+  });
+
+  it('round-trips the persisted Sequence action list and canonical timeline', () => {
+    const document = createSyntheticV2Project();
+    loadProjectDocumentIntoStores(document, {
+      activateAnimationMode: false,
+    });
+    expect(
+      applyPreset({
+        preset: 'fade',
+        targetIds: ['synthetic-rectangle'],
+        timing: {
+          startMs: 120,
+          durationMs: 650,
+          staggerMs: 0,
+          startMode: 'absolute',
+        },
+      }).ok,
+    ).toBe(true);
+    const captured = captureProjectDocument();
+    expect(captured?.authoring?.actions).toHaveLength(1);
+    const expectedActions = structuredClone(captured?.authoring?.actions);
+    const expectedTimeline = structuredClone(captured?.timeline);
+
+    loadProjectDocumentIntoStores(captured!, {
+      activateAnimationMode: false,
+    });
+
+    expect(useAnimationStore.getState().actions).toEqual(expectedActions);
+    expect(useAnimationStore.getState().timeline).toEqual(expectedTimeline);
+    expect(captureProjectDocument()?.preferredWorkspace).toBe('sequence');
   });
 });

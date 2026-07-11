@@ -35,4 +35,22 @@ describe('creator analytics', () => {
       }),
     ).not.toThrow();
   });
+
+  it('keeps sequence analytics privacy-safe', () => {
+    expect(
+      sanitizeCreatorAnalyticsPayload('creator_sequence_timing_changed', {
+        scope: 'bulk',
+        start_mode: 'withPrevious',
+        speed_band: 'custom',
+        label: 'private layer name',
+        action_id: 'private-action-id',
+        project_name: 'private project',
+        url: 'https://private.example',
+      }),
+    ).toEqual({
+      scope: 'bulk',
+      start_mode: 'withPrevious',
+      speed_band: 'custom',
+    });
+  });
 });

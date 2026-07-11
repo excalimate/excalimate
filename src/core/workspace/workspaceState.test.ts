@@ -108,16 +108,28 @@ describe('progressive workspace state', () => {
   it('provides build and query rollback routes to the legacy Studio shell', () => {
     expect(resolveWorkspaceShellFlags('?legacyStudio=1')).toEqual({
       forceStudioShell: true,
+      forceLegacySequence: false,
     });
     expect(resolveWorkspaceShellFlags('?studio=legacy')).toEqual({
       forceStudioShell: true,
+      forceLegacySequence: false,
     });
     expect(resolveWorkspaceShellFlags('', true)).toEqual({
       forceStudioShell: true,
+      forceLegacySequence: false,
     });
     expect(resolveWorkspaceShellFlags('?workspace=sequence')).toEqual({
       forceStudioShell: false,
+      forceLegacySequence: false,
       workspaceOverride: 'sequence',
+    });
+    expect(resolveWorkspaceShellFlags('?legacySequence=1')).toEqual({
+      forceStudioShell: false,
+      forceLegacySequence: true,
+    });
+    expect(resolveWorkspaceShellFlags('', false, true)).toEqual({
+      forceStudioShell: false,
+      forceLegacySequence: true,
     });
   });
 

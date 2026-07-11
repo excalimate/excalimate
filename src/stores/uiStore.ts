@@ -28,7 +28,6 @@ interface UIState {
   panelSizes: PanelSizes;
   timelineViewport: TimelineViewport;
   ghostMode: boolean;
-  sequenceRevealOpen: boolean;
   layersPanelOpen: boolean;
   timelinePanelOpen: boolean;
   liveMode: boolean;
@@ -54,7 +53,6 @@ interface UIState {
   toggleSnap: () => void;
   setSnapInterval: (interval: number) => void;
   toggleGhostMode: () => void;
-  toggleSequenceReveal: () => void;
   toggleLayersPanel: () => void;
   toggleTimelinePanel: () => void;
   setLiveMode: (live: boolean) => void;
@@ -70,7 +68,6 @@ export const useUIStore = create<UIState>()((set, get) => ({
   theme: getInitialTheme(),
   selectedElementIds: [],
   ghostMode: false,
-  sequenceRevealOpen: false,
   layersPanelOpen: true,
   timelinePanelOpen: true,
   liveMode: false,
@@ -111,7 +108,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
 
   setWorkspace: (workspace: WorkspaceMode): void => {
     const canvasMode = get().canvasMode;
-    set((state) => ({
+    set({
       workspace,
       mode:
         workspace === 'magic'
@@ -119,9 +116,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
             ? 'edit'
             : 'animate'
           : 'animate',
-      sequenceRevealOpen:
-        workspace === 'sequence' ? true : state.sequenceRevealOpen,
-    }));
+    });
     useProjectStore.getState().setPreferredWorkspace(workspace);
     if (workspace !== 'magic' || canvasMode === 'preview') {
       computeFrameAtTime(usePlaybackStore.getState().currentTime);
@@ -130,14 +125,12 @@ export const useUIStore = create<UIState>()((set, get) => ({
 
   hydrateWorkspace: (workspace: WorkspaceMode): void => {
     const canvasMode: CanvasMode = 'design';
-    set((state) => ({
+    set({
       workspace,
       canvasMode,
       mode: workspace === 'magic' ? 'edit' : 'animate',
-      sequenceRevealOpen:
-        workspace === 'sequence' ? true : state.sequenceRevealOpen,
       startSurfaceDismissed: false,
-    }));
+    });
     if (workspace !== 'magic') {
       computeFrameAtTime(usePlaybackStore.getState().currentTime);
     }
@@ -211,9 +204,6 @@ export const useUIStore = create<UIState>()((set, get) => ({
 
   toggleGhostMode: (): void => {
     set((state) => ({ ghostMode: !state.ghostMode }));
-  },
-  toggleSequenceReveal: (): void => {
-    set((state) => ({ sequenceRevealOpen: !state.sequenceRevealOpen }));
   },
   toggleLayersPanel: (): void => {
     set((state) => ({ layersPanelOpen: !state.layersPanelOpen }));

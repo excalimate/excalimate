@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button, Menu, ActionIcon, Tooltip, Modal, TextInput, Group, Stack, Alert } from '@mantine/core';
+import { ActionIcon, Alert, Button, Group, Modal, Stack, TextInput, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { nprogress } from '@mantine/nprogress';
 import {
   IconGhost,
   IconBroadcast,
   IconBroadcastOff,
-  IconListDetails,
-  IconChevronDown,
   IconAlertTriangle,
   IconServer,
 } from '@tabler/icons-react';
@@ -22,7 +20,6 @@ import { WorkspaceSwitcher } from '../Workspace/WorkspaceSwitcher';
 
 export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
   const ghostMode = useUIStore((s) => s.ghostMode);
-  const sequenceRevealOpen = useUIStore((s) => s.sequenceRevealOpen);
   const theme = useUIStore((s) => s.theme);
   const { connected, status, connect, disconnect, setLiveUrl, lastError, clearError } = useMcpLive();
   const [manualConnectionError, setManualConnectionError] = useState(false);
@@ -108,24 +105,6 @@ export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
       <div className="flex items-center gap-1 mr-4">
         <img src={theme === 'dark' ? '/excalimate_logo_dark.svg' : '/excalimate_logo.svg'} alt="Excalimate logo" className="w-auto h-5 mr-2" />
         <div data-hint="file"><FileControls /></div>
-        <div data-hint="tools">
-        <Menu shadow="md" width={200} position="bottom-start">
-          <Menu.Target>
-            <Button variant="subtle" color="gray" size="compact-sm" rightSection={<IconChevronDown size={12} />}>
-              Tools
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Item
-              leftSection={<IconListDetails size={16} />}
-              onClick={() => useUIStore.getState().toggleSequenceReveal()}
-              color={sequenceRevealOpen ? 'indigo' : undefined}
-            >
-              Sequence Reveal
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
-        </div>
       </div>
 
       {/* Center section: Mode switcher */}

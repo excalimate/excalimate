@@ -94,6 +94,28 @@ export interface CreatorAnalyticsEventMap {
   creator_escalated: {
     destination: 'sequence' | 'studio';
   };
+  creator_sequence_opened: {
+    action_count: number;
+    custom_count: number;
+  };
+  creator_sequence_action_reordered: {
+    source: 'drag' | 'keyboard';
+  };
+  creator_sequence_timing_changed: {
+    scope: 'single' | 'bulk';
+    start_mode: 'absolute' | 'afterPrevious' | 'withPrevious';
+    speed_band: 'fast' | 'normal' | 'slow' | 'custom';
+  };
+  creator_sequence_actions_grouped: {
+    action_count: number;
+  };
+  creator_sequence_customized_opened_in_studio: {
+    status: 'customized' | 'detached' | 'unmanaged';
+  };
+  creator_sequence_bulk_action: {
+    action: 'enable' | 'disable' | 'delete' | 'timing';
+    action_count: number;
+  };
 }
 
 const CREATOR_PROPERTY_ALLOWLIST = {
@@ -120,6 +142,16 @@ const CREATOR_PROPERTY_ALLOWLIST = {
   ],
   creator_first_preview: ['workspace', 'reduced_motion'],
   creator_escalated: ['destination'],
+  creator_sequence_opened: ['action_count', 'custom_count'],
+  creator_sequence_action_reordered: ['source'],
+  creator_sequence_timing_changed: [
+    'scope',
+    'start_mode',
+    'speed_band',
+  ],
+  creator_sequence_actions_grouped: ['action_count'],
+  creator_sequence_customized_opened_in_studio: ['status'],
+  creator_sequence_bulk_action: ['action', 'action_count'],
 } as const satisfies {
   [Event in keyof CreatorAnalyticsEventMap]: readonly (
     keyof CreatorAnalyticsEventMap[Event]

@@ -9,6 +9,7 @@ import type {
   AnimationAction,
   AnimationActionTiming,
   AnimationTimeline,
+  AnimationTrack,
   EasingType,
   ProjectAuthoring,
   ProjectDocument,
@@ -16,6 +17,7 @@ import type {
 import {
   compileManagedActions,
   createAnimationAction,
+  deterministicId,
   detachAction as detachManagedAction,
   presetDraft,
 } from '@excalimate/animation-core';
@@ -60,6 +62,7 @@ export type AnimationCommandResult<T> =
 
 export interface AnimationCommandValue {
   action?: AnimationAction;
+  track?: AnimationTrack;
   actions: readonly AnimationAction[];
   timelineRevision: number;
   documentRevision: number;
@@ -365,25 +368,220 @@ export function updateActionTiming(
   }));
 }
 
+export function updateActionTimings(
+  updates: readonly {
+    actionId: string;
+    timing: AnimationActionTiming;
+  }[],
+): AnimationCommandResult<AnimationCommandValue> {
+  if (updates.length === 0) {
+    return failure('INVALID_INPUT', 'At least one timing update is required');
+  }
+  const current = useAnimationStore.getState();
+  const updatesById = new Map(
+    updates.map((update) => [update.actionId, update.timing]),
+  );
+  if (updatesById.size !== updates.length) {
+    return failure('INVALID_INPUT', 'Each action can be updated only once');
+  }
+  const actionIds = new Set(current.actions.map((action) => action.id));
+  for (const actionId of updatesById.keys()) {
+    if (!actionIds.has(actionId)) {
+      return failure(
+        'ACTION_NOT_FOUND',
+        `Animation action "${actionId}" was not found`,
+      );
+    }
+  }
+
+  const nextActions: AnimationAction[] = [];
+  for (const action of current.actions) {
+    const timing = updatesById.get(action.id);
+    if (!timing) {
+      nextActions.push(action);
+      continue;
+    }
+    if (action.status === 'customized' || action.status === 'detached') {
+      return failure(
+        'ACTION_CUSTOMIZED',
+        `Animation action "${action.id}" has customized content and cannot be regenerated`,
+      );
+    }
+    const parsed = AnimationActionSchema.safeParse({
+      ...action,
+      timing: { ...timing },
+    });
+    if (!parsed.success) {
+      const details = parsed.error.issues.map((issue) => issue.message);
+      return failure(
+        'INVALID_INPUT',
+        details[0] ?? 'Invalid animation action',
+        details,
+      );
+    }
+    const references = validateReferences(parsed.data);
+    if (!references.ok) return references;
+    nextActions.push(parsed.data);
+  }
+  return compileAndCommit(nextActions);
+}
+
 export function disableAction(
   actionId: string,
 ): AnimationCommandResult<AnimationCommandValue> {
-  return updateAction(actionId, (action) => ({
-    ...action,
-    status: 'disabled',
-  }));
+  return setActionsEnabled([actionId], false);
+}
+
+export function enableAction(
+  actionId: string,
+): AnimationCommandResult<AnimationCommandValue> {
+  return setActionsEnabled([actionId], true);
+}
+
+export function setActionsEnabled(
+  actionIds: readonly string[],
+  enabled: boolean,
+): AnimationCommandResult<AnimationCommandValue> {
+  if (actionIds.length === 0) {
+    return failure('INVALID_INPUT', 'At least one animation action is required');
+  }
+  const requested = new Set(actionIds);
+  if (requested.size !== actionIds.length) {
+    return failure('INVALID_INPUT', 'Action IDs must be unique');
+  }
+  const current = useAnimationStore.getState();
+  for (const actionId of requested) {
+    const action = current.actions.find((candidate) => candidate.id === actionId);
+    if (!action) {
+      return failure(
+        'ACTION_NOT_FOUND',
+        `Animation action "${actionId}" was not found`,
+      );
+    }
+    if (action.status === 'detached') {
+      return failure(
+        'ACTION_CUSTOMIZED',
+        `Animation action "${actionId}" is detached and must be edited in Studio`,
+      );
+    }
+  }
+  const nextActions: AnimationAction[] = current.actions.map((action) =>
+    requested.has(action.id) && action.status !== 'customized'
+      ? { ...action, status: enabled ? 'managed' : 'disabled' }
+      : action,
+  );
+  const customizedTrackIds = new Set(
+    current.actions
+      .filter(
+        (action) =>
+          requested.has(action.id) && action.status === 'customized',
+      )
+      .flatMap((action) =>
+        action.ownership.map((ownership) => ownership.trackId),
+      ),
+  );
+  const compiled = compileManagedActions(
+    current.timeline,
+    current.actions,
+    nextActions,
+    { targetTypes: targetTypes() },
+  );
+  return commitAnimationState(
+    {
+      ...compiled.timeline,
+      tracks: compiled.timeline.tracks.map((track) =>
+        customizedTrackIds.has(track.id) ? { ...track, enabled } : track,
+      ),
+    },
+    compiled.actions,
+  );
 }
 
 export function deleteAction(
   actionId: string,
 ): AnimationCommandResult<AnimationCommandValue> {
+  return deleteActions([actionId]);
+}
+
+export function deleteActions(
+  actionIds: readonly string[],
+): AnimationCommandResult<AnimationCommandValue> {
+  if (actionIds.length === 0) {
+    return failure('INVALID_INPUT', 'At least one animation action is required');
+  }
+  const requested = new Set(actionIds);
+  if (requested.size !== actionIds.length) {
+    return failure('INVALID_INPUT', 'Action IDs must be unique');
+  }
   const current = useAnimationStore.getState();
-  if (!current.actions.some((action) => action.id === actionId)) {
-    return failure('ACTION_NOT_FOUND', `Animation action "${actionId}" was not found`);
+  for (const actionId of requested) {
+    if (!current.actions.some((action) => action.id === actionId)) {
+      return failure(
+        'ACTION_NOT_FOUND',
+        `Animation action "${actionId}" was not found`,
+      );
+    }
   }
   return compileAndCommit(
-    current.actions.filter((action) => action.id !== actionId),
+    current.actions.filter((action) => !requested.has(action.id)),
   );
+}
+
+export function duplicateAction(
+  actionId: string,
+): AnimationCommandResult<AnimationCommandValue> {
+  const current = useAnimationStore.getState();
+  const actionIndex = current.actions.findIndex(
+    (candidate) => candidate.id === actionId,
+  );
+  const action = current.actions[actionIndex];
+  if (!action) {
+    return failure(
+      'ACTION_NOT_FOUND',
+      `Animation action "${actionId}" was not found`,
+    );
+  }
+  if (action.status === 'customized' || action.status === 'detached') {
+    return failure(
+      'ACTION_CUSTOMIZED',
+      `Animation action "${actionId}" has customized content and cannot be duplicated safely`,
+    );
+  }
+
+  const knownIds = new Set(current.actions.map((candidate) => candidate.id));
+  let occurrence = current.actions.length;
+  let duplicate: AnimationAction;
+  do {
+    duplicate = createAnimationAction(
+      {
+        type: action.type,
+        preset: action.preset,
+        targetIds: action.targetIds,
+        timing: action.timing,
+        easing: action.easing,
+        parameters: action.parameters,
+      },
+      occurrence,
+    );
+    occurrence += 1;
+  } while (knownIds.has(duplicate.id));
+  if (action.status === 'disabled') {
+    duplicate = { ...duplicate, status: 'disabled' };
+  }
+
+  const nextActions = [...current.actions];
+  nextActions.splice(actionIndex + 1, 0, duplicate);
+  const result = compileAndCommit(nextActions);
+  if (!result.ok) return result;
+  return {
+    ...result,
+    value: {
+      ...result.value,
+      action: result.value.actions.find(
+        (candidate) => candidate.id === duplicate.id,
+      ),
+    },
+  };
 }
 
 export function detachAction(
@@ -394,9 +592,19 @@ export function detachAction(
   if (!action) {
     return failure('ACTION_NOT_FOUND', `Animation action "${actionId}" was not found`);
   }
+  const ownedTrackIds = new Set(
+    action.ownership.map((ownership) => ownership.trackId),
+  );
   const detached = detachManagedAction(action);
   return commitAnimationState(
-    current.timeline,
+    {
+      ...current.timeline,
+      tracks: current.timeline.tracks.map((track) => {
+        if (!ownedTrackIds.has(track.id)) return track;
+        const { managedActionId: _managedActionId, ...unmanagedTrack } = track;
+        return unmanagedTrack;
+      }),
+    },
     current.actions.map((candidate) =>
       candidate.id === actionId ? detached : candidate,
     ),
@@ -409,19 +617,129 @@ export function createCameraMove(input: {
   y?: number;
   scale?: number;
   rotation?: number;
+  fromX?: number;
+  fromY?: number;
+  fromScale?: number;
+  fromRotation?: number;
+  easing?: EasingType;
+  mode?: 'move' | 'hold';
+  preset?: 'camera-fit-selection' | 'camera-hold' | 'camera-pan-zoom';
 }): AnimationCommandResult<AnimationCommandValue> {
   return createAction({
     type: 'cameraMove',
-    preset: 'camera-move',
+    preset: input.preset ?? 'camera-pan-zoom',
     targetIds: [CAMERA_FRAME_TARGET_ID],
     timing: input.timing,
+    ...(input.easing ? { easing: input.easing } : {}),
     parameters: {
       ...(input.x !== undefined ? { x: input.x } : {}),
       ...(input.y !== undefined ? { y: input.y } : {}),
       ...(input.scale !== undefined ? { scale: input.scale } : {}),
       ...(input.rotation !== undefined ? { rotation: input.rotation } : {}),
+      ...(input.fromX !== undefined ? { fromX: input.fromX } : {}),
+      ...(input.fromY !== undefined ? { fromY: input.fromY } : {}),
+      ...(input.fromScale !== undefined ? { fromScale: input.fromScale } : {}),
+      ...(input.fromRotation !== undefined
+        ? { fromRotation: input.fromRotation }
+        : {}),
+      ...(input.mode ? { cameraMode: input.mode } : {}),
     },
   });
+}
+
+function findUnmanagedTrack(trackId: string): AnimationCommandResult<AnimationTrack> {
+  const current = useAnimationStore.getState();
+  const track = current.timeline.tracks.find((candidate) => candidate.id === trackId);
+  if (!track) {
+    return failure('INVALID_REFERENCE', `Animation track "${trackId}" was not found`);
+  }
+  const owner = current.actions.find((action) =>
+    action.ownership.some((ownership) => ownership.trackId === trackId),
+  );
+  if (owner) {
+    return failure(
+      'INVALID_INPUT',
+      `Animation track "${trackId}" is managed by an action`,
+    );
+  }
+  return { ok: true, value: track };
+}
+
+export function setUnmanagedTrackEnabled(
+  trackId: string,
+  enabled: boolean,
+): AnimationCommandResult<AnimationCommandValue> {
+  const trackResult = findUnmanagedTrack(trackId);
+  if (!trackResult.ok) return trackResult;
+  const current = useAnimationStore.getState();
+  return commitAnimationState(
+    {
+      ...current.timeline,
+      tracks: current.timeline.tracks.map((track) =>
+        track.id === trackId ? { ...track, enabled } : track,
+      ),
+    },
+    current.actions,
+  );
+}
+
+export function deleteUnmanagedTrack(
+  trackId: string,
+): AnimationCommandResult<AnimationCommandValue> {
+  const trackResult = findUnmanagedTrack(trackId);
+  if (!trackResult.ok) return trackResult;
+  const current = useAnimationStore.getState();
+  return commitAnimationState(
+    {
+      ...current.timeline,
+      tracks: current.timeline.tracks.filter((track) => track.id !== trackId),
+    },
+    current.actions,
+  );
+}
+
+export function duplicateUnmanagedTrack(
+  trackId: string,
+): AnimationCommandResult<AnimationCommandValue> {
+  const trackResult = findUnmanagedTrack(trackId);
+  if (!trackResult.ok) return trackResult;
+  const current = useAnimationStore.getState();
+  const knownIds = new Set(current.timeline.tracks.map((track) => track.id));
+  let occurrence = 0;
+  let duplicateId: string;
+  do {
+    duplicateId = deterministicId('custom-track-copy', trackId, occurrence);
+    occurrence += 1;
+  } while (knownIds.has(duplicateId));
+  const {
+    managedActionId: _managedActionId,
+    ...unmanagedSource
+  } = trackResult.value;
+  const duplicate: AnimationTrack = {
+    ...unmanagedSource,
+    id: duplicateId,
+    keyframes: trackResult.value.keyframes.map((keyframe, index) => ({
+      ...keyframe,
+      id: deterministicId('custom-keyframe-copy', duplicateId, index),
+    })),
+  };
+  const index = current.timeline.tracks.findIndex((track) => track.id === trackId);
+  const tracks = [...current.timeline.tracks];
+  tracks.splice(index + 1, 0, duplicate);
+  const result = commitAnimationState(
+    { ...current.timeline, tracks },
+    current.actions,
+  );
+  if (!result.ok) return result;
+  return {
+    ...result,
+    value: {
+      ...result.value,
+      track: useAnimationStore
+        .getState()
+        .timeline.tracks.find((track) => track.id === duplicateId),
+    },
+  };
 }
 
 export function replaceTimeline(

@@ -7,6 +7,7 @@ import { McpSetupGuide } from '../Pages/McpSetupGuide';
 import { ConsentBanner } from '../ConsentBanner';
 import { MagicWorkspace } from '../Workspace/MagicWorkspace';
 import { StudioWorkspace } from '../Workspace/StudioWorkspace';
+import { SequenceWorkspace } from '../Workspace/SequenceWorkspace';
 import { useUIStore } from '../../stores/uiStore';
 import { useAppHotkeys } from '../../hooks/useAppHotkeys';
 import { useAutoSave } from '../../hooks/useAutoSave';
@@ -54,10 +55,13 @@ export function App() {
   const content = activePage === 'mcp-guide' ? (
     <McpSetupGuide />
   ) : startupReady ? (
-    shellFlags.forceStudioShell ? (
+    shellFlags.forceStudioShell ||
+    (workspace === 'sequence' && shellFlags.forceLegacySequence) ? (
       <StudioWorkspace legacyShell />
     ) : workspace === 'magic' ? (
       <MagicWorkspace />
+    ) : workspace === 'sequence' ? (
+      <SequenceWorkspace />
     ) : (
       <StudioWorkspace />
     )
