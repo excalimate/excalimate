@@ -33,7 +33,7 @@ export function registerCheckpointTools(
     },
   );
 
-  server.tool(
+  ctx.tool(
     'list_checkpoints',
     'List all saved checkpoints.',
     {},

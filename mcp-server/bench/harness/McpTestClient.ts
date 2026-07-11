@@ -1,9 +1,10 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createServer } from '../../src/server.js';
+import type { ExcalimateMcpServer } from '../../src/server.js';
 import type { CheckpointStore } from '../../src/checkpoint-store.js';
 import type { StateDelta } from '../../src/server/stateContext.js';
+import type { ServerState } from '../../src/types.js';
 
 export interface ToolCallResult {
   name: string;
@@ -17,13 +18,13 @@ export interface ToolCallResult {
  */
 export class McpTestClient {
   private client: Client;
-  private server: McpServer;
+  private server: ExcalimateMcpServer;
   private clientTransport: InMemoryTransport;
   private serverTransport: InMemoryTransport;
 
   private constructor(
     client: Client,
-    server: McpServer,
+    server: ExcalimateMcpServer,
     clientTransport: InMemoryTransport,
     serverTransport: InMemoryTransport,
   ) {
@@ -76,5 +77,13 @@ export class McpTestClient {
   async close(): Promise<void> {
     await this.clientTransport.close();
     await this.serverTransport.close();
+  }
+
+  getState(): ServerState {
+    return this.server.stateContext.getState();
+  }
+
+  getStateJSON(): string {
+    return this.server.stateContext.getStateJSON();
   }
 }
