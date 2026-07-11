@@ -14,7 +14,12 @@ import {
   exportKeyToString,
   generateEncryptionKey,
 } from './encryption';
-import { SYNTHETIC_V1_PROJECT } from '../test-fixtures/projectDocuments';
+import {
+  SYNTHETIC_V1_PROJECT,
+  createSyntheticV2Project,
+} from '../test-fixtures/projectDocuments';
+import { createPlayerTestPackage } from '../player/playerTestFixture';
+import { createShareEnvelope } from './shareEnvelope';
 
 vi.mock('../vendor/loadScene', () => ({
   loadScene: vi.fn(),
@@ -91,13 +96,31 @@ describe('FileService project ingestion', () => {
     );
 
     const project = await loadShareUrl(
-      `#share=synthetic-share,${keyString}`,
+      `#share=abcdefgh,${keyString}`,
     );
     expect(project.name).toBe('Synthetic share');
     expect(project.timeline).toEqual(SYNTHETIC_V1_PROJECT.timeline);
     expect(project.playback.cameraFrame).toEqual(
       SYNTHETIC_V1_PROJECT.cameraFrame,
     );
+  });
+
+  it('loads the project from a V2 project and player-package envelope', async () => {
+    const key = await generateEncryptionKey();
+    const keyString = await exportKeyToString(key);
+    const project = createSyntheticV2Project();
+    const encrypted = await encryptData(
+      createShareEnvelope(project, createPlayerTestPackage()),
+      key,
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(encrypted, { status: 200 })),
+    );
+
+    const loaded = await loadShareUrl(`#share=abcdefgh,${keyString}`);
+    expect(loaded.name).toBe(project.metadata.name);
+    expect(loaded.timeline).toEqual(project.timeline);
   });
 
   it('rejects encrypted payloads over the centralized byte limit', async () => {

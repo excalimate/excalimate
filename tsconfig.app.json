@@ -21,6 +21,7 @@
     "paths": {
       "@/*": ["src/*"],
       "@excalimate/animation-core": ["packages/animation-core/src/index.ts"],
+      "@excalimate/player-runtime": ["packages/player-runtime/src/index.ts"],
       "@excalimate/project-schema": ["packages/project-schema/src/index.ts"]
     },
 
@@ -32,5 +33,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "packages/project-schema/src", "packages/animation-core/src"]
+  "include": ["src", "packages/project-schema/src", "packages/animation-core/src", "packages/player-runtime/src"]
 }

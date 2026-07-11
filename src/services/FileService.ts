@@ -18,6 +18,11 @@ import {
 } from '../core/utils/serialization';
 import { loadScene } from '../vendor/loadScene';
 import { parseExcalidrawUrl } from '../vendor/parseUrl';
+import { parseShareEnvelope } from './shareEnvelope';
+import {
+  downloadEncryptedShare,
+  parseEditorShareReference,
+} from './shareTransport';
 
 /**
  * Import an Excalidraw file (.excalidraw or .json).
@@ -139,19 +144,10 @@ export type SharedAnimationData = AnimationProject;
 export async function loadShareUrl(
   shareUrl: string,
 ): Promise<SharedAnimationData> {
-  const { importKeyFromString, decryptData } = await import('./encryption');
-  const { shareId, keyString } = parseShareReference(shareUrl);
-  const shareApiUrl =
-    import.meta.env.VITE_SHARE_API_URL ?? 'https://share.excalimate.com';
-  const response = await fetch(
-    `${shareApiUrl}/share/${encodeURIComponent(shareId)}`,
-  );
-  if (!response.ok) throw new Error('Shared animation not found.');
-
-  const encrypted = await readResponseBytes(response, 'Encrypted share');
-  const key = await importKeyFromString(keyString);
-  const data = await decryptData(encrypted, key);
-  const content = parseProjectContent(data);
+  const reference = parseEditorShareReference(shareUrl);
+  const data = await downloadEncryptedShare(reference);
+  const envelope = parseShareEnvelope(data);
+  const content = parseProjectContent(envelope.project);
   return createProjectFromContent('Shared Animation', content);
 }
 
@@ -164,73 +160,6 @@ async function readBlobText(blob: Blob, label: string): Promise<string> {
     label,
   );
   return text;
-}
-
-async function readResponseBytes(
-  response: Response,
-  label: string,
-): Promise<ArrayBuffer> {
-  const declaredLength = response.headers.get('content-length');
-  if (declaredLength !== null) {
-    const byteLength = Number(declaredLength);
-    assertInputByteLimit(byteLength, PROJECT_LIMITS.maxInputBytes, label);
-  }
-
-  if (!response.body) {
-    const buffer = await response.arrayBuffer();
-    assertInputByteLimit(
-      buffer.byteLength,
-      PROJECT_LIMITS.maxInputBytes,
-      label,
-    );
-    return buffer;
-  }
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > PROJECT_LIMITS.maxInputBytes) {
-      await reader.cancel();
-      throw new Error(`${label} exceeds the download limit`);
-    }
-    chunks.push(value);
-  }
-
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes.buffer;
-}
-
-function parseShareReference(shareUrl: string): {
-  shareId: string;
-  keyString: string;
-} {
-  const hashMatch = shareUrl.match(/#share=([^,]+),([^&\s]+)/);
-  const rawParts = hashMatch
-    ? [hashMatch[1], hashMatch[2]]
-    : shareUrl.split(',', 2);
-  const shareId = rawParts[0]?.trim();
-  const keyString = rawParts[1]?.trim();
-
-  if (
-    !shareId ||
-    !keyString ||
-    !/^[A-Za-z0-9_-]{1,128}$/.test(shareId) ||
-    !/^[A-Za-z0-9_-]{1,128}$/.test(keyString)
-  ) {
-    throw new Error(
-      'Invalid share URL. Expected format: https://.../#share=ID,KEY',
-    );
-  }
-  return { shareId, keyString };
 }
 
 function parseJson(text: string, label: string): unknown {
