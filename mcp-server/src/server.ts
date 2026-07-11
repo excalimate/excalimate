@@ -8,6 +8,7 @@ import { normalizeElements } from './server/elementNormalizer.js';
 import { getElementBounds } from './server/geometry.js';
 import * as geometry from './server/geometry.js';
 import { registerAnimationTools } from './server/animationTools.js';
+import { registerActionTools } from './server/actionTools.js';
 import { registerCheckpointTools } from './server/checkpointTools.js';
 import { registerCompositeTools } from './server/compositeTools.js';
 import { registerQueryTools } from './server/queryTools.js';
@@ -43,20 +44,21 @@ export function createServer(
 
   ctx.tool(
     'read_me',
-    'Returns the Excalidraw element format reference, animation property docs, easing types, and usage examples. Call this FIRST before creating scenes or animations.',
+    'Returns the V2 action-first workflow, project/element reference, managed-content rules, low-level animation compatibility, and safe persistence guidance. Call this first.',
     {},
     async () => ({ content: [{ type: 'text', text: REFERENCE_TEXT }] }),
   );
 
   ctx.tool(
     'get_examples',
-    'Returns few-shot examples showing how to create elements and animate them. Call this to learn common patterns.',
+    'Returns action-first examples for scene creation, deterministic auto animation, presets, action sequences, and low-level compatibility.',
     {},
     async () => ({ content: [{ type: 'text' as const, text: EXAMPLES_TEXT }] }),
   );
 
   registerSceneTools(server, ctx, normalizeElements);
   registerAnimationTools(server, ctx, getElementBounds);
+  registerActionTools(ctx);
   registerCompositeTools(server, ctx, normalizeElements, getElementBounds);
   registerQueryTools(server, ctx, geometry);
   registerCheckpointTools(server, ctx, store);

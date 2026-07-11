@@ -44,7 +44,9 @@ Go to [app.excalimate.com](https://app.excalimate.com), open **File → Preferen
 
 ## Features
 
-- **29 tools** for scene creation, animation, camera control, inspection, checkpointing, and sharing
+- **35 tools**: all 29 legacy tools plus six structured V2 action tools
+- **Shared V2 model**: checkpoints and snapshots use `@excalimate/project-schema`; managed recipes use `@excalimate/animation-core`
+- **Deterministic action authoring**: explicit local scopes/styles, no hosted model and no scene-content upload
 - **Dual transport**: stdio (Claude Desktop) + Streamable HTTP (cloud deployment)
 - **Paired live preview**: Per-session real-time updates via an unguessable preview URL
 - **Sequence reveal**: Staggered element reveal animations in one tool call
@@ -222,15 +224,41 @@ Start the server and initialize the MCP client, then use the printed preview pai
 ### From source (for development)
 
 ```bash
-cd mcp-server
+git clone https://github.com/excalimate/excalimate.git
+cd excalimate
 npm install
-npm run build
+npm run build --workspace @excalimate/project-schema
+npm run build --workspace @excalimate/animation-core
+npm run build --workspace @excalimate/mcp-server
+cd mcp-server
 node dist/index.js          # HTTP mode
 node dist/index.js --port 4000
 node dist/index.js --stdio  # stdio mode
 ```
 
 ## Tools
+
+### Action-first workflow
+
+Create scene elements first, then prefer structured actions over raw keyframes:
+
+1. `auto_animate` for a deterministic topology-based recipe with explicit `scope` and `style`.
+2. `apply_animation_preset` for fade, draw, pop, or directional slide recipes.
+3. `upsert_action_sequence` for explicit typed action choreography.
+4. `create_camera_move` for managed camera movement.
+5. `get_action_sequence` and `validate_project` before checkpointing.
+
+Natural-language interpretation belongs to the connected MCP client. The server runs only local deterministic analysis/compilation and never sends scene content to an AI service. Managed actions refuse to overwrite customized or unmanaged keyframes. Low-level edits of managed tracks mark actions `customized`; deletion of generated content marks them `detached`.
+
+### V2 Action Tools
+| Tool | Description |
+|------|-------------|
+| `auto_animate` | Analyze an explicit local scope/style and compile the shared deterministic recipe |
+| `apply_animation_preset` | Apply a bounded structured preset |
+| `upsert_action_sequence` | Add or update typed managed actions |
+| `get_action_sequence` | Return actions and authoring revisions |
+| `create_camera_move` | Create a managed V2 camera action |
+| `validate_project` | Validate current/supplied content with the shared V2 codec |
 
 ### Scene Tools
 | Tool | Description |
@@ -263,7 +291,7 @@ node dist/index.js --stdio  # stdio mode
 | `add_camera_keyframe` | Animate camera pan/zoom |
 | `add_camera_keyframes_batch` | Bulk camera keyframes |
 
-`add_keyframes_batch`, `add_scale_animation`, `add_camera_keyframes_batch`, and the animation arrays in `create_animated_scene` now accept nested arrays directly. JSON-encoded strings remain accepted on the same tool names for compatibility and return a deprecation notice.
+Scene arrays, `add_keyframes_batch`, `add_scale_animation`, `add_camera_keyframes_batch`, and all arrays in `create_animated_scene` accept nested arrays directly. JSON-encoded strings remain compatibility wrappers on the same tool names and return deprecation metadata/messages. They will not be removed without a documented minor-version deprecation window.
 
 ```json
 {
@@ -279,7 +307,9 @@ node dist/index.js --stdio  # stdio mode
 }
 ```
 
-Snapshots include `revision` and `sequence`. Deltas include `baseRevision`, `revision`, and `sequence`; clients that detect a gap should fetch the paired `/state` endpoint for a complete snapshot.
+Snapshots contain a V2 project document plus transport `revision` and `sequence` and compatibility playback fields. Deltas include `baseRevision`, `revision`, and `sequence`; clients that detect a gap fetch the paired `/state` endpoint. Deltas fingerprint and include actual scene, timeline, playback, metadata, and authoring/action content rather than collection counts.
+
+The current browser live bridge safely ignores additive `authoring` and `project` delta fields. Creator-stack UI integration must consume those fields when managed actions become editable in the creator.
 
 ### Inspection Tools
 | Tool | Description |
@@ -292,9 +322,9 @@ Snapshots include `revision` and `sequence`. Deltas include `baseRevision`, `rev
 ### Sharing Tools
 | Tool | Description |
 |------|-------------|
-| `share_project` | Create E2E encrypted share URL for the current project |
+| `share_project` | Deprecated; returns a safe checkpoint/import/browser-share path without uploading |
 
-`share_project` accepts `{ baseUrl?: string }` and defaults to `https://app.excalimate.com`, returning URLs like `https://app.excalimate.com/#share=ID,KEY`.
+The sharing Worker intentionally rejects originless writes, and there is no authenticated MCP server-to-server sharing contract. `share_project` therefore returns `isError: true`, does not read or upload project content, and directs clients to `save_checkpoint`, V2 import, and the authenticated browser sharing flow. The MCP server does not spoof a browser `Origin`.
 
 ### Checkpoint Tools
 | Tool | Description |
@@ -306,16 +336,18 @@ Snapshots include `revision` and `sequence`. Deltas include `baseRevision`, `rev
 ## Example Workflow
 
 ```
-1. read_me                     → Get element format reference
-2. create_scene {elements}     → Create a diagram
-3. create_sequence {           → Animate elements revealing one by one
-     elementIds: ["box1", "arrow1", "box2"],
-     property: "opacity",
-     startTime: 0,
-     delay: 500,
-     duration: 800
+1. read_me
+2. create_scene { elements: [...] }
+3. auto_animate {
+     scope: { elementIds: ["box1", "arrow1", "box2"] },
+     style: { intensity: "balanced" }
    }
-4. set_clip_range {0, 5000}    → Set 5-second export window
-5. save_checkpoint {id: "demo"} → Save for web app preview
-   or share_project {baseUrl: "https://app.excalimate.com"} → Generate E2E encrypted share URL
+4. get_action_sequence
+5. validate_project
+6. set_clip_range { start: 0, end: 5000 }
+7. save_checkpoint { id: "demo" }
 ```
+
+## Versioning and deprecation
+
+`@excalimate/mcp-server` remains a `0.x` package, so it is not presented as stable GA. Releases follow SemVer within that constraint: additive tools ship in minor releases, fixes in patches, and incompatible changes require a minor release plus migration notes. Existing tool names and transport modes remain compatible. Deprecated compatibility inputs emit explicit messages and remain supported for at least one subsequent minor release unless a security issue requires faster removal.

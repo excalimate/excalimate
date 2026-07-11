@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { parseProjectDocument } from '@excalimate/project-schema';
 import type { CheckpointStore } from '../src/checkpoint-store.js';
 import { MemoryCheckpointStore } from '../src/checkpoint-store.js';
 import {
@@ -14,6 +16,10 @@ import {
 import type { HTTPServerHandle, HTTPServerOptions } from '../src/httpServer.js';
 import { createServer } from '../src/server.js';
 import type { ExcalimateMcpServer } from '../src/server.js';
+import {
+  createDefaultState,
+  parseServerState,
+} from '../src/state.js';
 import type { StateDelta } from '../src/server/stateContext.js';
 import type { ServerState } from '../src/types.js';
 
@@ -22,6 +28,47 @@ const MCP_HEADERS = {
   Accept: 'application/json, text/event-stream',
   'Content-Type': 'application/json',
 };
+
+const LEGACY_TOOL_NAMES = [
+  'read_me',
+  'get_examples',
+  'create_scene',
+  'add_elements',
+  'remove_elements',
+  'update_elements',
+  'get_scene',
+  'clear_scene',
+  'delete_items',
+  'add_keyframe',
+  'add_keyframes_batch',
+  'remove_keyframe',
+  'create_sequence',
+  'set_clip_range',
+  'get_timeline',
+  'clear_animation',
+  'add_scale_animation',
+  'set_camera_frame',
+  'add_camera_keyframe',
+  'add_camera_keyframes_batch',
+  'create_animated_scene',
+  'are_items_in_line',
+  'is_camera_centered',
+  'items_visible_in_camera',
+  'animations_of_item',
+  'save_checkpoint',
+  'load_checkpoint',
+  'list_checkpoints',
+  'share_project',
+] as const;
+
+const ACTION_TOOL_NAMES = [
+  'auto_animate',
+  'apply_animation_preset',
+  'upsert_action_sequence',
+  'get_action_sequence',
+  'create_camera_move',
+  'validate_project',
+] as const;
 
 interface RawSession {
   sessionId: string;
@@ -373,13 +420,23 @@ test('revisioned deltas detect same-count keyframe edits and legacy arrays remai
   const connection = await createInMemoryClient(store, deltas);
   try {
     const tools = await connection.client.listTools();
-    assert.equal(tools.tools.length, 29);
-    await connection.client.callTool({
+    const toolNames = new Set(tools.tools.map((tool) => tool.name));
+    assert.equal(tools.tools.length, 35);
+    assert.deepEqual(
+      LEGACY_TOOL_NAMES.filter((toolName) => !toolNames.has(toolName)),
+      [],
+    );
+    assert.deepEqual(
+      ACTION_TOOL_NAMES.filter((toolName) => !toolNames.has(toolName)),
+      [],
+    );
+    const legacyScene = await connection.client.callTool({
       name: 'create_scene',
       arguments: {
         elements: JSON.stringify([{ id: 'box', type: 'rectangle', x: 0, y: 0, width: 10, height: 10 }]),
       },
     });
+    assert.match(toolText(legacyScene), /Deprecated/);
     const legacy = await connection.client.callTool({
       name: 'add_keyframes_batch',
       arguments: {
@@ -429,6 +486,435 @@ test('revisioned deltas detect same-count keyframe edits and legacy arrays remai
     assert.equal(lastDelta.timeline.upsertedTracks[0].keyframes[0].value, 0.75);
     assert.equal(lastDelta.baseRevision + 1, lastDelta.revision);
     assert.equal(lastDelta.sequence, lastDelta.revision);
+  } finally {
+    await connection.close();
+  }
+});
+
+test('V2 codecs and checkpoints accept legacy MCP state without weakening validation', async () => {
+  const state = createDefaultState();
+  const store = new MemoryCheckpointStore();
+  await store.save('v2-codec', state);
+  const loaded = await store.load('v2-codec');
+  assert.deepEqual(loaded, state);
+  assert.equal(parseProjectDocument(loaded).version, '2.0.0');
+
+  const legacyRaw = {
+    scene: {
+      elements: [{
+        id: 'legacy-box',
+        type: 'rectangle',
+        x: 0,
+        y: 0,
+        width: 10,
+        height: 10,
+      }],
+      files: {},
+    },
+    timeline: {
+      id: 'legacy-timeline',
+      name: 'Legacy',
+      duration: 1_000,
+      fps: 30,
+      tracks: [],
+    },
+    clipStart: 0,
+    clipEnd: 1_000,
+    cameraFrame: {
+      aspectRatio: '16:9',
+      width: 1_200,
+      x: 0,
+      y: 0,
+    },
+  };
+  const legacy = parseServerState(legacyRaw);
+  assert.equal(legacy.version, '2.0.0');
+  assert.equal(legacy.scene.appState instanceof Object, true);
+  assert.equal(legacy.playback.clipEnd, 1_000);
+  assert.deepEqual(legacy.authoring?.actions, []);
+  assert.throws(
+    () => parseServerState({ version: '2.0.0', scene: {} }),
+    /Invalid V2 project/,
+  );
+
+  const legacyConnection = await createInMemoryClient({
+    async save() {},
+    async load() {
+      return legacyRaw as unknown as ServerState;
+    },
+    async list() {
+      return ['legacy'];
+    },
+  });
+
+  try {
+    const imported = await legacyConnection.client.callTool({
+      name: 'load_checkpoint',
+      arguments: { id: 'legacy' },
+    });
+    assert.notEqual(imported.isError, true);
+    assert.equal(
+      legacyConnection.server.stateContext.getState().version,
+      '2.0.0',
+    );
+    assert.deepEqual(
+      legacyConnection.server.stateContext
+        .getState()
+        .scene.elements.map((element) => element.id),
+      ['legacy-box'],
+    );
+  } finally {
+    await legacyConnection.close();
+  }
+});
+
+test('MCP publication depends only on browser-neutral shared runtimes', async () => {
+  const packageJson = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+  ) as {
+    dependencies: Record<string, string>;
+    files: string[];
+    publishConfig: { provenance?: boolean };
+  };
+  assert.equal(packageJson.dependencies['@excalimate/project-schema'], '^0.1.0');
+  assert.equal(packageJson.dependencies['@excalimate/animation-core'], '^0.1.0');
+  assert.equal(packageJson.dependencies['@excalimate/player-runtime'], undefined);
+  assert.equal(packageJson.dependencies['@excalimate/export-runtime'], undefined);
+  assert.equal(packageJson.files.includes('../src'), false);
+  assert.equal(packageJson.publishConfig.provenance, true);
+});
+
+test('action tools are deterministic, preserve customization, and emit authoring deltas', async () => {
+  const deltas: StateDelta[] = [];
+  const connection = await createInMemoryClient(
+    new MemoryCheckpointStore(),
+    deltas,
+  );
+  try {
+    const scene = await connection.client.callTool({
+      name: 'create_scene',
+      arguments: {
+        elements: [
+          {
+            id: 'top',
+            type: 'rectangle',
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 50,
+          },
+          {
+            id: 'bottom',
+            type: 'text',
+            x: 0,
+            y: 100,
+            width: 100,
+            height: 20,
+            text: 'Bottom',
+          },
+          {
+            id: 'connector',
+            type: 'arrow',
+            x: 0,
+            y: 50,
+            width: 10,
+            height: 50,
+          },
+          {
+            id: 'badge',
+            type: 'ellipse',
+            x: 150,
+            y: 0,
+            width: 30,
+            height: 30,
+          },
+        ],
+      },
+    });
+    assert.notEqual(scene.isError, true);
+    assert.doesNotMatch(toolText(scene), /Deprecated/);
+
+    const autoInput = {
+      scope: { elementIds: ['bottom', 'top'] },
+      style: { intensity: 'balanced' },
+    };
+    const missingStyle = await connection.client.callTool({
+      name: 'auto_animate',
+      arguments: { scope: { elementIds: ['top'] } },
+    });
+    assert.equal(missingStyle.isError, true);
+    const auto = await connection.client.callTool({
+      name: 'auto_animate',
+      arguments: autoInput,
+    });
+    assert.notEqual(auto.isError, true);
+    assert.match(toolText(auto), /strategy=sequence/);
+    assert.match(toolText(auto), /confidence=0\.86/);
+
+    const firstState = structuredClone(
+      connection.server.stateContext.getState(),
+    );
+    const firstAction = firstState.authoring?.actions[0];
+    assert.ok(firstAction);
+    assert.equal(firstAction.status, 'managed');
+    assert.deepEqual(firstAction.targetIds, ['top', 'bottom']);
+    assert.ok(firstAction.ownership.length > 0);
+    assert.ok(deltas.at(-1)?.authoring?.upsertedActions.length);
+    assert.ok((firstState.authoring?.documentRevision ?? 0) > 0);
+    assert.ok((firstState.authoring?.timelineRevision ?? 0) > 0);
+
+    const repeat = await connection.client.callTool({
+      name: 'auto_animate',
+      arguments: autoInput,
+    });
+    assert.notEqual(repeat.isError, true);
+    const repeatedAction =
+      connection.server.stateContext.getState().authoring?.actions[0];
+    assert.deepEqual(repeatedAction?.ownership, firstAction.ownership);
+    assert.equal(repeatedAction?.generatedHash, firstAction.generatedHash);
+
+    const retimed = await connection.client.callTool({
+      name: 'upsert_action_sequence',
+      arguments: {
+        sequence: {
+          actions: [{
+            id: firstAction.id,
+            type: 'sequence',
+            targetIds: ['top', 'bottom'],
+            timing: {
+              startMs: 100,
+              durationMs: 600,
+              staggerMs: 200,
+              startMode: 'absolute',
+            },
+            easing: 'easeOut',
+            parameters: { property: 'opacity' },
+          }],
+        },
+      },
+    });
+    assert.notEqual(retimed.isError, true);
+    const retimeDelta = deltas.at(-1);
+    assert.equal(
+      retimeDelta?.authoring?.upsertedActions[0]?.timing.durationMs,
+      600,
+    );
+
+    const lowLevelEdit = await connection.client.callTool({
+      name: 'add_keyframe',
+      arguments: {
+        targetId: 'top',
+        property: 'opacity',
+        time: 900,
+        value: 0.5,
+      },
+    });
+    assert.notEqual(lowLevelEdit.isError, true);
+    assert.equal(
+      connection.server.stateContext.getState().authoring?.actions[0]?.status,
+      'customized',
+    );
+    const protectedResult = await connection.client.callTool({
+      name: 'upsert_action_sequence',
+      arguments: {
+        sequence: {
+          actions: [{
+            id: firstAction.id,
+            type: 'sequence',
+            targetIds: ['top', 'bottom'],
+            timing: {
+              startMs: 0,
+              durationMs: 500,
+              staggerMs: 220,
+              startMode: 'absolute',
+            },
+            parameters: { property: 'opacity' },
+          }],
+        },
+      },
+    });
+    assert.equal(protectedResult.isError, true);
+    assert.match(toolText(protectedResult), /refusing to silently replace/);
+
+    const draw = await connection.client.callTool({
+      name: 'apply_animation_preset',
+      arguments: {
+        preset: {
+          name: 'draw',
+          targetIds: ['connector'],
+          timing: {
+            startMs: 0,
+            durationMs: 500,
+            staggerMs: 0,
+            startMode: 'absolute',
+          },
+        },
+      },
+    });
+    assert.notEqual(draw.isError, true);
+    const drawAction = connection.server.stateContext
+      .getState()
+      .authoring?.actions.find((action) =>
+        action.targetIds.includes('connector'),
+      );
+    assert.ok(drawAction);
+    const drawTrack = connection.server.stateContext
+      .getState()
+      .timeline.tracks.find((track) =>
+        drawAction.ownership.some(
+          (ownership) => ownership.trackId === track.id,
+        ),
+      );
+    assert.ok(drawTrack?.keyframes[0]);
+    await connection.client.callTool({
+      name: 'remove_keyframe',
+      arguments: {
+        trackId: drawTrack.id,
+        keyframeId: drawTrack.keyframes[0].id,
+      },
+    });
+    assert.equal(
+      connection.server.stateContext
+        .getState()
+        .authoring?.actions.find((action) => action.id === drawAction.id)
+        ?.status,
+      'detached',
+    );
+
+    const camera = await connection.client.callTool({
+      name: 'create_camera_move',
+      arguments: {
+        move: {
+          x: 100,
+          scale: 1.2,
+          timing: {
+            startMs: 0,
+            durationMs: 800,
+            staggerMs: 0,
+            startMode: 'absolute',
+          },
+        },
+      },
+    });
+    assert.notEqual(camera.isError, true);
+
+    const upsert = await connection.client.callTool({
+      name: 'upsert_action_sequence',
+      arguments: {
+        sequence: {
+          actions: [{
+            id: 'badge-pop',
+            type: 'pop',
+            targetIds: ['badge'],
+            timing: {
+              startMs: 0,
+              durationMs: 300,
+              staggerMs: 0,
+              startMode: 'absolute',
+            },
+          }],
+        },
+      },
+    });
+    assert.notEqual(upsert.isError, true);
+    const actionSequence = await connection.client.callTool({
+      name: 'get_action_sequence',
+      arguments: {},
+    });
+    assert.match(toolText(actionSequence), /badge-pop/);
+
+    const validation = await connection.client.callTool({
+      name: 'validate_project',
+      arguments: {},
+    });
+    assert.notEqual(validation.isError, true);
+    assert.match(toolText(validation), /valid V2/);
+    const invalidValidation = await connection.client.callTool({
+      name: 'validate_project',
+      arguments: {
+        input: {
+          project: { version: '2.0.0' },
+        },
+      },
+    });
+    assert.equal(invalidValidation.isError, true);
+    assert.match(toolText(invalidValidation), /Invalid V2 project/);
+
+    const snapshot = connection.server.stateContext.getSnapshot();
+    const {
+      clipStart: _clipStart,
+      clipEnd: _clipEnd,
+      cameraFrame: _cameraFrame,
+      revision,
+      sequence,
+      ...project
+    } = snapshot;
+    assert.equal(revision, sequence);
+    assert.equal(parseProjectDocument(project).version, '2.0.0');
+  } finally {
+    await connection.close();
+  }
+});
+
+test('action limits and unsupported sharing fail at the protocol level', async () => {
+  const connection = await createInMemoryClient(
+    new MemoryCheckpointStore(),
+    [],
+    { maxActions: 1, maxTargetsPerAction: 1 },
+  );
+  try {
+    await connection.client.callTool({
+      name: 'create_scene',
+      arguments: {
+        elements: [
+          { id: 'one', type: 'rectangle' },
+          { id: 'two', type: 'rectangle' },
+        ],
+      },
+    });
+    const boundedTargets = await connection.client.callTool({
+      name: 'apply_animation_preset',
+      arguments: {
+        preset: {
+          name: 'fade',
+          targetIds: ['one', 'two'],
+          timing: {
+            startMs: 0,
+            durationMs: 100,
+            staggerMs: 0,
+            startMode: 'absolute',
+          },
+        },
+      },
+    });
+    assert.equal(boundedTargets.isError, true);
+
+    const missingTarget = await connection.client.callTool({
+      name: 'apply_animation_preset',
+      arguments: {
+        preset: {
+          name: 'fade',
+          targetIds: ['missing'],
+          timing: {
+            startMs: 0,
+            durationMs: 100,
+            staggerMs: 0,
+            startMode: 'absolute',
+          },
+        },
+      },
+    });
+    assert.equal(missingTarget.isError, true);
+    assert.match(toolText(missingTarget), /Unknown action target/);
+
+    const share = await connection.client.callTool({
+      name: 'share_project',
+      arguments: {},
+    });
+    assert.equal(share.isError, true);
+    assert.match(toolText(share), /did not upload any content/);
+    assert.match(toolText(share), /save_checkpoint/);
+    assert.match(toolText(share), /authenticated browser UI/);
   } finally {
     await connection.close();
   }

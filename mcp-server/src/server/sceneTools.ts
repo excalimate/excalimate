@@ -2,7 +2,11 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { StateContext } from './stateContext.js';
-import { boundedString, invalidInput } from './limits.js';
+import {
+  boundedString,
+  legacyDeprecation,
+  parseLegacyArray,
+} from './limits.js';
 
 export function registerSceneTools(
   server: McpServer,
@@ -16,39 +20,60 @@ export function registerSceneTools(
   }).passthrough();
   const updatesSchema = z.array(updateSchema).max(ctx.limits.maxBatchItems);
 
-  function parseArray<T>(input: string, schema: z.ZodType<T>, label: string): T {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(input);
-    } catch {
-      invalidInput(`${label} must be valid JSON`);
-    }
-    const result = schema.safeParse(parsed);
-    if (!result.success) invalidInput(`${label} must be a valid array`);
-    return result.data;
-  }
-
   ctx.mutatingTool(
     'create_scene',
     'Create or replace the Excalidraw scene with the given elements.',
-    { elements: z.string().max(ctx.limits.maxStateBytes).describe('JSON string of Excalidraw elements array') },
+    {
+      elements: z.union([
+        elementsSchema,
+        z.string().max(ctx.limits.maxStateBytes),
+      ]).describe(
+        'Nested Excalidraw elements array; legacy JSON strings are deprecated.',
+      ),
+    },
     async ({ elements }) => {
-      const parsed = parseArray(elements, elementsSchema, 'elements');
+      const parsed = parseLegacyArray(
+        elements,
+        elementsSchema,
+        'elements',
+        ctx.limits,
+      );
       const state = ctx.getState();
-      state.scene.elements = normalizeElements(parsed);
-      return { content: [{ type: 'text' as const, text: `Scene created with ${parsed.length} elements.` }] };
+      state.scene.elements = normalizeElements(parsed.value);
+      const elementIds = new Set(
+        state.scene.elements.map((element) => element.id),
+      );
+      state.timeline.tracks = state.timeline.tracks.filter(
+        (track) =>
+          track.targetType === 'group' ||
+          track.targetId === '__camera_frame__' ||
+          elementIds.has(track.targetId),
+      );
+      return { content: [{ type: 'text' as const, text: `Scene created with ${parsed.value.length} elements.${legacyDeprecation('elements', parsed.legacy)}` }] };
     },
   );
 
   ctx.mutatingTool(
     'add_elements',
     'Add elements to the existing scene.',
-    { elements: z.string().max(ctx.limits.maxStateBytes).describe('JSON string of elements to add') },
+    {
+      elements: z.union([
+        elementsSchema,
+        z.string().max(ctx.limits.maxStateBytes),
+      ]).describe(
+        'Nested elements array; legacy JSON strings are deprecated.',
+      ),
+    },
     async ({ elements }) => {
-      const parsed = parseArray(elements, elementsSchema, 'elements');
+      const parsed = parseLegacyArray(
+        elements,
+        elementsSchema,
+        'elements',
+        ctx.limits,
+      );
       const state = ctx.getState();
-      state.scene.elements.push(...normalizeElements(parsed));
-      return { content: [{ type: 'text' as const, text: `Added ${parsed.length} elements. Total: ${state.scene.elements.length}.` }] };
+      state.scene.elements.push(...normalizeElements(parsed.value));
+      return { content: [{ type: 'text' as const, text: `Added ${parsed.value.length} elements. Total: ${state.scene.elements.length}.${legacyDeprecation('elements', parsed.legacy)}` }] };
     },
   );
 
@@ -65,6 +90,9 @@ export function registerSceneTools(
       const idSet = new Set(ids);
       const before = state.scene.elements.length;
       state.scene.elements = state.scene.elements.filter((el: any) => !idSet.has(el.id));
+      state.timeline.tracks = state.timeline.tracks.filter(
+        (track) => !idSet.has(track.targetId),
+      );
       const removed = before - state.scene.elements.length;
       return { content: [{ type: 'text' as const, text: `Removed ${removed} elements. Total: ${state.scene.elements.length}.` }] };
     },
@@ -74,12 +102,20 @@ export function registerSceneTools(
     'update_elements',
     'Update properties of existing elements.',
     {
-      updates: z.string()
-        .max(ctx.limits.maxStateBytes)
-        .describe('JSON string of array [{id, ...properties}]'),
+      updates: z.union([
+        updatesSchema,
+        z.string().max(ctx.limits.maxStateBytes),
+      ]).describe(
+        'Nested array of {id, ...properties}; legacy JSON strings are deprecated.',
+      ),
     },
     async ({ updates }) => {
-      const parsed = parseArray(updates, updatesSchema, 'updates');
+      const parsed = parseLegacyArray(
+        updates,
+        updatesSchema,
+        'updates',
+        ctx.limits,
+      );
       const state = ctx.getState();
       // Build id→index map for O(1) lookups instead of O(n) findIndex per update
       const indexById = new Map<string, number>();
@@ -87,14 +123,14 @@ export function registerSceneTools(
         indexById.set((state.scene.elements[i] as any).id, i);
       }
       let updated = 0;
-      for (const upd of parsed) {
+      for (const upd of parsed.value) {
         const idx = indexById.get(upd.id);
         if (idx !== undefined) {
           state.scene.elements[idx] = { ...state.scene.elements[idx], ...upd };
           updated++;
         }
       }
-      return { content: [{ type: 'text' as const, text: `Updated ${updated} elements.` }] };
+      return { content: [{ type: 'text' as const, text: `Updated ${updated} elements.${legacyDeprecation('updates', parsed.legacy)}` }] };
     },
   );
 

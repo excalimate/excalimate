@@ -1,10 +1,16 @@
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import {
+  PROJECT_LIMITS,
+  ProjectDocumentSchema,
+} from '@excalimate/project-schema';
 import { z } from 'zod';
 import type { ServerState } from '../types.js';
 
 export interface ResourceLimits {
   maxElements: number;
   maxTracks: number;
+  maxActions: number;
+  maxTargetsPerAction: number;
   maxKeyframesPerTrack: number;
   maxTotalKeyframes: number;
   maxBatchItems: number;
@@ -19,6 +25,8 @@ export interface ResourceLimits {
 export const DEFAULT_RESOURCE_LIMITS: Readonly<ResourceLimits> = {
   maxElements: 2_000,
   maxTracks: 2_000,
+  maxActions: 2_000,
+  maxTargetsPerAction: 2_000,
   maxKeyframesPerTrack: 1_000,
   maxTotalKeyframes: 20_000,
   maxBatchItems: 2_000,
@@ -124,8 +132,8 @@ export function assertStateWithinLimits(state: ServerState, limits: ResourceLimi
 
   const timeValues = [
     state.timeline.duration,
-    state.clipStart,
-    state.clipEnd,
+    state.playback.clipStart,
+    state.playback.clipEnd,
   ];
   if (timeValues.some((value) => !Number.isFinite(value) || value < 0 || value > limits.maxTimeMs)) {
     invalidInput(`Timeline times must be between 0 and ${limits.maxTimeMs}ms`);
@@ -134,6 +142,15 @@ export function assertStateWithinLimits(state: ServerState, limits: ResourceLimi
   assertNestedValue(state, limits, 'state', 0);
   if (Buffer.byteLength(JSON.stringify(state), 'utf8') > limits.maxStateBytes) {
     invalidInput(`Project state exceeds the ${limits.maxStateBytes} byte limit`);
+  }
+  if ((state.authoring?.actions.length ?? 0) > limits.maxActions) {
+    invalidInput(`Project exceeds the ${limits.maxActions} action limit`);
+  }
+  const parsed = ProjectDocumentSchema.safeParse(state);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const path = issue.path.length > 0 ? issue.path.join('.') : 'document';
+    invalidInput(`Invalid V2 project at ${path}: ${issue.message}`);
   }
 }
 
@@ -172,9 +189,24 @@ export function legacyDeprecation(label: string, legacy: boolean): string {
 }
 
 export function boundedString(limits: ResourceLimits) {
-  return z.string().min(1).max(limits.maxStringLength);
+  return z.string().min(1).max(
+    Math.min(limits.maxStringLength, PROJECT_LIMITS.maxIdentifierLength),
+  );
 }
 
 export function boundedTime(limits: ResourceLimits) {
   return z.number().finite().min(0).max(limits.maxTimeMs);
+}
+
+export function boundedAnimationValue() {
+  return z.number().finite()
+    .min(-PROJECT_LIMITS.maxAnimationValue)
+    .max(PROJECT_LIMITS.maxAnimationValue);
+}
+
+export function toolError(message: string) {
+  return {
+    isError: true,
+    content: [{ type: 'text' as const, text: message }],
+  };
 }

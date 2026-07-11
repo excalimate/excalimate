@@ -37,7 +37,7 @@ https://github.com/user-attachments/assets/77e87c62-0ff4-4a56-aee6-50553b94798c
 - **Camera animation** — pan/zoom keyframes with aspect ratio control
 - **Export** — MP4 (H.264), WebM (VP9), GIF, animated SVG
 - **E2E encrypted sharing** — AES-256-GCM, key stays in the URL hash fragment
-- **MCP server** — 23 tools for AI-driven scene creation, animation, and sharing
+- **MCP server** — 35 tools, including all 29 legacy tools and six structured V2 action tools
 - **Live mode** — watch AI changes appear in the editor in real-time via SSE
 
 ## Quick Start
@@ -61,6 +61,8 @@ npm run dev
 ## AI Integration (MCP Server)
 
 The MCP server lets AI agents (Copilot, Claude, Cursor, Windsurf) create and animate diagrams for you. Start the server, connect your AI tool, and watch diagrams appear live in [app.excalimate.com](https://app.excalimate.com).
+
+The recommended workflow is action-first: create a scene, then use `auto_animate`, `apply_animation_preset`, `upsert_action_sequence`, or `create_camera_move` before reaching for raw keyframes. These tools use the same browser-neutral V2 schema and deterministic animation core as the app stack. The MCP server does not host a model or send scene content to an AI service.
 
 ```bash
 npx @excalimate/mcp-server              # default port 3001
@@ -102,7 +104,7 @@ Add to `claude_desktop_config.json`:
 ```
 
 > [!NOTE]
-> Claude Desktop uses stdio transport — no live preview. Use `save_checkpoint` or `share_project` to view results in [app.excalimate.com](https://app.excalimate.com).
+> Claude Desktop uses stdio transport — no live preview. Use `save_checkpoint`, import the V2 project in [app.excalimate.com](https://app.excalimate.com), then share from the authenticated browser UI.
 
 </details>
 
@@ -174,6 +176,9 @@ excalimate/
 │   └── hooks/                  # MCP live, hotkeys, auto-save
 ├── mcp-server/                 # MCP server (Node.js + Express)
 │   └── src/server/             # Modular tool registrations
+├── packages/
+│   ├── project-schema/         # Shared V2 project codec and validation
+│   └── animation-core/         # Shared deterministic action compiler/runtime
 ├── skills/                     # AI skill definitions (16 skills)
 └── docs/                       # Design guidelines, plans
 ```
@@ -206,8 +211,11 @@ npm run lint         # ESLint
 MCP server:
 
 ```bash
+npm install
+npm run build --workspace @excalimate/project-schema
+npm run build --workspace @excalimate/animation-core
+npm run build --workspace @excalimate/mcp-server
 cd mcp-server
-npm install && npm run build
 node dist/index.js              # HTTP mode
 node dist/index.js --stdio      # stdio mode
 node dist/index.js --port 4000  # custom port

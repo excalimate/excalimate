@@ -33,6 +33,10 @@ jobs:
               - 'index.html'
             mcp:
               - 'mcp-server/**'
+              - 'packages/project-schema/**'
+              - 'packages/animation-core/**'
+              - 'package.json'
+              - 'package-lock.json'
             landing:
               - 'landing-page/**'
 
@@ -85,12 +89,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: mcp-server/package-lock.json
-      - working-directory: mcp-server
-        run: npm ci
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Build shared runtimes
+        run: npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core
       - name: Type check
-        working-directory: mcp-server
-        run: npx tsc --noEmit
+        run: npx tsc -p mcp-server/tsconfig.json --noEmit
 
   mcp-build:
     name: 'MCP: Build'
@@ -102,9 +106,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: mcp-server/package-lock.json
-      - working-directory: mcp-server
-        run: npm ci && npx tsc
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run build --workspace @excalimate/mcp-server
       - uses: actions/upload-artifact@v4
         with:
           name: mcp-server-dist

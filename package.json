@@ -5,7 +5,8 @@
   "description": "Excalimate — Create keyframe animations from Excalidraw designs, with an MCP server for AI-driven animation",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "mcp-server"
   ],
   "scripts": {
     "dev": "vite",

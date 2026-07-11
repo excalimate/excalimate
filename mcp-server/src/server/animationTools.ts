@@ -8,6 +8,7 @@ import { ORIGIN_MAP } from './geometry.js';
 import type { StateContext } from './stateContext.js';
 import {
   assertAdditionalKeyframes,
+  boundedAnimationValue,
   boundedString,
   boundedTime,
   invalidInput,
@@ -34,15 +35,15 @@ export function registerAnimationTools(
     targetId: boundedString(ctx.limits),
     property: propertySchema,
     time: boundedTime(ctx.limits),
-    value: z.number().finite(),
+    value: boundedAnimationValue(),
     easing: easingSchema.optional(),
     scaleOrigin: scaleOriginSchema.optional(),
   }).strict();
   const keyframesSchema = z.array(keyframeSchema).max(ctx.limits.maxBatchItems);
   const scaleKeyframeSchema = z.object({
     time: boundedTime(ctx.limits),
-    scaleX: z.number().finite().optional(),
-    scaleY: z.number().finite().optional(),
+    scaleX: boundedAnimationValue().optional(),
+    scaleY: boundedAnimationValue().optional(),
     easing: easingSchema.optional(),
   }).strict().refine(
     (keyframe) => keyframe.scaleX !== undefined || keyframe.scaleY !== undefined,
@@ -56,7 +57,7 @@ export function registerAnimationTools(
   const cameraKeyframeSchema = z.object({
     property: cameraPropertySchema,
     time: boundedTime(ctx.limits),
-    value: z.number().finite(),
+    value: boundedAnimationValue(),
     easing: easingSchema.optional(),
   }).strict();
   const cameraKeyframesSchema = z.array(cameraKeyframeSchema).max(ctx.limits.maxBatchItems);
@@ -68,7 +69,7 @@ export function registerAnimationTools(
       targetId: boundedString(ctx.limits).describe('Element or group ID'),
       property: propertySchema.describe('Animatable property'),
       time: boundedTime(ctx.limits).describe('Time in milliseconds'),
-      value: z.number().finite().describe('Property value at this time'),
+      value: boundedAnimationValue().describe('Property value at this time'),
       easing: easingSchema.optional().describe('Easing to next keyframe'),
     },
     async ({ targetId, property, time, value, easing }) => {
@@ -239,8 +240,8 @@ export function registerAnimationTools(
     },
     async ({ start, end }) => {
       const state = ctx.getState();
-      state.clipStart = start;
-      state.clipEnd = Math.max(start + 100, end);
+      state.playback.clipStart = start;
+      state.playback.clipEnd = Math.max(start + 100, end);
       return { content: [{ type: 'text', text: `Clip range: ${start}ms – ${end}ms (${(end - start) / 1000}s)` }] };
     },
   );
@@ -357,10 +358,12 @@ export function registerAnimationTools(
     },
     async ({ x, y, width, aspectRatio }) => {
       const state = ctx.getState();
-      if (x !== undefined) state.cameraFrame.x = x;
-      if (y !== undefined) state.cameraFrame.y = y;
-      if (width !== undefined) state.cameraFrame.width = width;
-      if (aspectRatio !== undefined) state.cameraFrame.aspectRatio = aspectRatio;
+      if (x !== undefined) state.playback.cameraFrame.x = x;
+      if (y !== undefined) state.playback.cameraFrame.y = y;
+      if (width !== undefined) state.playback.cameraFrame.width = width;
+      if (aspectRatio !== undefined) {
+        state.playback.cameraFrame.aspectRatio = aspectRatio;
+      }
 
       const CAMERA_ID = '__camera_frame__';
       assertAdditionalKeyframes(state, 4, ctx.limits);
@@ -372,7 +375,8 @@ export function registerAnimationTools(
       ]));
 
       const updated = ctx.getState();
-      return { content: [{ type: 'text', text: `Camera: ${updated.cameraFrame.aspectRatio} at (${updated.cameraFrame.x}, ${updated.cameraFrame.y}), width ${updated.cameraFrame.width}. Initial keyframes created at t=0.` }] };
+      const cameraFrame = updated.playback.cameraFrame;
+      return { content: [{ type: 'text', text: `Camera: ${cameraFrame.aspectRatio} at (${cameraFrame.x}, ${cameraFrame.y}), width ${cameraFrame.width}. Initial keyframes created at t=0.` }] };
     },
   );
 
@@ -382,7 +386,7 @@ export function registerAnimationTools(
     {
       property: z.enum(['translateX', 'translateY', 'scaleX', 'scaleY']).describe('Camera property'),
       time: boundedTime(ctx.limits).describe('Time in ms'),
-      value: z.number().finite().describe('Value'),
+      value: boundedAnimationValue().describe('Value'),
       easing: easingSchema.optional(),
     },
     async ({ property, time, value, easing }) => {

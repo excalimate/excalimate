@@ -1,7 +1,13 @@
 {
   "name": "@excalimate/project-schema",
   "version": "0.1.0",
-  "private": true,
+  "license": "MIT",
+  "description": "Versioned, validated Excalimate project document schema and codecs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/excalimate/excalimate.git",
+    "directory": "packages/project-schema"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,6 +20,10 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },

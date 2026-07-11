@@ -8,6 +8,7 @@ import { ORIGIN_MAP } from './geometry.js';
 import type { StateContext } from './stateContext.js';
 import {
   assertAdditionalKeyframes,
+  boundedAnimationValue,
   boundedString,
   boundedTime,
   invalidInput,
@@ -44,7 +45,7 @@ export function registerCompositeTools(
     targetId: boundedString(ctx.limits),
     property: propertySchema,
     time: boundedTime(ctx.limits),
-    value: z.number().finite(),
+    value: boundedAnimationValue(),
     easing: easingSchema.optional(),
     scaleOrigin: scaleOriginSchema.optional(),
   }).strict();
@@ -67,8 +68,11 @@ export function registerCompositeTools(
     'Preferred over calling create_scene, add_keyframes_batch, create_sequence separately. ' +
     'Only elements is required — all other fields are optional.',
     {
-      elements: z.string().max(ctx.limits.maxStateBytes).describe(
-        'JSON string of Excalidraw elements array',
+      elements: z.union([
+        elementsSchema,
+        z.string().max(ctx.limits.maxStateBytes),
+      ]).describe(
+        'Nested Excalidraw elements array; legacy JSON strings are deprecated.',
       ),
       keyframes: z.union([
         keyframesSchema,
@@ -94,22 +98,23 @@ export function registerCompositeTools(
     },
     async ({ elements, keyframes, sequences, duration, clipStart, clipEnd, cameraFrame }) => {
       const stats = { elements: 0, keyframes: 0, sequences: 0 };
+      let elementsLegacy = false;
       let keyframesLegacy = false;
       let sequencesLegacy = false;
 
       // ── 1. Parse and create scene elements ───────────────
-      let rawElements: unknown;
-      try {
-        rawElements = JSON.parse(elements);
-      } catch {
-        invalidInput('elements must be valid JSON');
-      }
-      const parsedElements = elementsSchema.safeParse(rawElements);
-      if (!parsedElements.success) invalidInput('elements must be a valid array');
+      const parsedElements = parseLegacyArray(
+        elements,
+        elementsSchema,
+        'elements',
+        ctx.limits,
+      );
+      elementsLegacy = parsedElements.legacy;
 
       const state = ctx.getState();
-      state.scene.elements = normalizeElements(parsedElements.data);
-      stats.elements = parsedElements.data.length;
+      state.scene.elements = normalizeElements(parsedElements.value);
+      state.timeline.tracks = [];
+      stats.elements = parsedElements.value.length;
 
       // ── 2. Set timeline duration ─────────────────────────
       if (duration !== undefined) {
@@ -118,10 +123,18 @@ export function registerCompositeTools(
 
       // ── 3. Camera frame ──────────────────────────────────
       if (cameraFrame) {
-        if (cameraFrame.x !== undefined) state.cameraFrame.x = cameraFrame.x;
-        if (cameraFrame.y !== undefined) state.cameraFrame.y = cameraFrame.y;
-        if (cameraFrame.width !== undefined) state.cameraFrame.width = cameraFrame.width;
-        if (cameraFrame.aspectRatio !== undefined) state.cameraFrame.aspectRatio = cameraFrame.aspectRatio;
+        if (cameraFrame.x !== undefined) {
+          state.playback.cameraFrame.x = cameraFrame.x;
+        }
+        if (cameraFrame.y !== undefined) {
+          state.playback.cameraFrame.y = cameraFrame.y;
+        }
+        if (cameraFrame.width !== undefined) {
+          state.playback.cameraFrame.width = cameraFrame.width;
+        }
+        if (cameraFrame.aspectRatio !== undefined) {
+          state.playback.cameraFrame.aspectRatio = cameraFrame.aspectRatio;
+        }
       }
 
       // ── 4. Collect all keyframes into a single batch ─────
@@ -282,9 +295,12 @@ export function registerCompositeTools(
 
       // ── 6. Clip range ────────────────────────────────────
       const finalState = ctx.getState();
-      if (clipStart !== undefined) finalState.clipStart = clipStart;
+      if (clipStart !== undefined) finalState.playback.clipStart = clipStart;
       if (clipEnd !== undefined) {
-        finalState.clipEnd = Math.max((clipStart ?? finalState.clipStart) + 100, clipEnd);
+        finalState.playback.clipEnd = Math.max(
+          (clipStart ?? finalState.playback.clipStart) + 100,
+          clipEnd,
+        );
       } else if (clipStart === undefined && stats.sequences > 0) {
         // Auto-set clip end to match the last sequence keyframe
         let maxTime = 0;
@@ -292,7 +308,10 @@ export function registerCompositeTools(
           if (kf.time > maxTime) maxTime = kf.time;
         }
         if (maxTime > 0) {
-          finalState.clipEnd = Math.max(finalState.clipEnd, maxTime + 500);
+          finalState.playback.clipEnd = Math.max(
+            finalState.playback.clipEnd,
+            maxTime + 500,
+          );
         }
       }
 
@@ -301,15 +320,15 @@ export function registerCompositeTools(
         `Scene: ${stats.elements} elements`,
         stats.keyframes > 0 ? `${stats.keyframes} keyframes` : null,
         stats.sequences > 0 ? `${stats.sequences} sequences` : null,
-        cameraFrame ? `camera: ${finalState.cameraFrame.aspectRatio} at (${finalState.cameraFrame.x}, ${finalState.cameraFrame.y})` : null,
-        `clip: ${finalState.clipStart}ms–${finalState.clipEnd}ms`,
+        cameraFrame ? `camera: ${finalState.playback.cameraFrame.aspectRatio} at (${finalState.playback.cameraFrame.x}, ${finalState.playback.cameraFrame.y})` : null,
+        `clip: ${finalState.playback.clipStart}ms–${finalState.playback.clipEnd}ms`,
       ].filter(Boolean).join(', ');
 
-      const msg = `${parts}${legacyDeprecation('keyframes', keyframesLegacy)}${legacyDeprecation('sequences', sequencesLegacy)}`;
+      const msg = `${parts}${legacyDeprecation('elements', elementsLegacy)}${legacyDeprecation('keyframes', keyframesLegacy)}${legacyDeprecation('sequences', sequencesLegacy)}`;
 
       return { content: [{ type: 'text' as const, text: msg }] };
     },
     // Mark all areas dirty — this tool touches everything
-    ['scene', 'timeline', 'clip', 'cameraFrame'],
+    ['scene', 'timeline', 'clip', 'cameraFrame', 'authoring', 'project'],
   );
 }
