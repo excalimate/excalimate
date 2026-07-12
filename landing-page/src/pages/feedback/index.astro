@@ -1,0 +1,18 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import Nav from '../../components/Nav.astro';
+import Footer from '../../components/Footer.astro';
+import FeedbackBoard from '../../components/feedback/FeedbackBoard';
+---
+
+<PageLayout
+  title="Feedback — Help Shape Excalimate"
+  description="Suggest improvements, vote on product feedback, and follow what the Excalimate team is planning and building."
+  path="/feedback"
+>
+  <Nav />
+  <main id="main">
+    <FeedbackBoard client:load />
+  </main>
+  <Footer />
+</PageLayout>

@@ -1,0 +1,42 @@
+---
+import { env } from 'cloudflare:workers';
+import FeedbackDetail from '../../components/feedback/FeedbackDetail';
+import Footer from '../../components/Footer.astro';
+import Nav from '../../components/Nav.astro';
+import { FeedbackError } from '../../lib/feedback/errors';
+import { GitHubFeedbackRepository } from '../../lib/feedback/repository';
+import type { FeedbackDetail as FeedbackDetailType } from '../../lib/feedback/types';
+import PageLayout from '../../layouts/PageLayout.astro';
+
+export const prerender = false;
+
+const number = Number(Astro.params.number);
+let initialItem: FeedbackDetailType | undefined;
+let responseStatus = 200;
+
+if (Number.isSafeInteger(number) && number > 0) {
+  try {
+    initialItem = await new GitHubFeedbackRepository(env).get(number, '');
+  } catch (error) {
+    responseStatus = error instanceof FeedbackError && error.status === 404 ? 404 : 503;
+    if (responseStatus >= 500) console.error(error);
+  }
+} else {
+  responseStatus = 404;
+}
+
+if (!initialItem) Astro.response.status = responseStatus;
+
+const title = initialItem
+  ? `${initialItem.title} — Excalimate Feedback`
+  : 'Feedback Not Found — Excalimate';
+const description = initialItem?.excerpt ?? 'This Excalimate feedback item could not be found.';
+---
+
+<PageLayout title={title} description={description} path={`/feedback/${number}`}>
+  <Nav />
+  <main id="main">
+    <FeedbackDetail number={number} initialItem={initialItem} client:load />
+  </main>
+  <Footer />
+</PageLayout>

@@ -34,6 +34,8 @@ dist-ssr
 .dev.vars*
 !.dev.vars.example
 !.env.example
+landing-page/.astro/dev.json
+landing-page/.astro/integrations/
 
 .agents/*
 skills-lock.json

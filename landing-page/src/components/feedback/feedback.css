@@ -1,0 +1,138 @@
+.feedback-shell {
+  padding-block: 72px 96px;
+  min-height: calc(100vh - 64px);
+}
+
+.feedback-heading {
+  max-width: 720px;
+}
+
+.feedback-heading h1 {
+  font-size: clamp(2.5rem, 6vw, 4.75rem);
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+}
+
+.feedback-filters,
+.feedback-card,
+.feedback-empty {
+  border: 2px solid var(--border-c);
+  background: var(--surface);
+  box-shadow: 4px 4px 0 var(--border-c);
+}
+
+.feedback-filters {
+  padding: 20px;
+}
+
+.feedback-card {
+  padding: 22px;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.feedback-card:hover {
+  box-shadow: 6px 6px 0 var(--border-c);
+  transform: translate(-1px, -1px);
+}
+
+.feedback-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.feedback-card-title {
+  color: var(--tx);
+  font-size: clamp(1.2rem, 3vw, 1.55rem);
+  transition: color 150ms ease;
+}
+
+.feedback-card-title:hover {
+  color: color-mix(in srgb, var(--tx) 72%, var(--p4));
+}
+
+.feedback-card-meta {
+  color: var(--tx3);
+}
+
+.feedback-vote {
+  min-width: 76px;
+}
+
+.feedback-empty {
+  min-height: 300px;
+  padding: 48px 24px;
+}
+
+.feedback-detail-card,
+.feedback-comment,
+.feedback-comment-form {
+  border: 2px solid var(--border-c);
+  background: var(--surface);
+}
+
+.feedback-detail-card {
+  padding: clamp(24px, 5vw, 48px);
+  box-shadow: 5px 5px 0 var(--border-c);
+}
+
+.feedback-detail-card h1 {
+  font-size: clamp(2rem, 6vw, 3.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.feedback-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.feedback-comment,
+.feedback-comment-form {
+  padding: 20px;
+}
+
+.feedback-comment-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.feedback-back {
+  align-self: flex-start;
+  color: var(--tx2);
+}
+
+.feedback-turnstile {
+  min-height: 65px;
+}
+
+@media (max-width: 767px) {
+  .feedback-shell {
+    padding-block: 48px 72px;
+  }
+
+  .feedback-filters > div > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .feedback-card {
+    padding: 16px;
+  }
+
+  .feedback-card > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .feedback-vote {
+    align-self: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedback-card {
+    transition: none;
+  }
+}
