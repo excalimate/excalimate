@@ -1,0 +1,371 @@
+---
+import {
+  IconArrowRight,
+  IconArrowUp,
+  IconBulb,
+  IconMessageCircle,
+  IconProgressCheck,
+  IconX,
+} from '@tabler/icons-react';
+
+const benefits = [
+  {
+    label: 'Submit ideas',
+    icon: IconBulb,
+    color: 'var(--p2)',
+    iconColor: 'var(--tx)',
+  },
+  {
+    label: 'Vote on requests',
+    icon: IconArrowUp,
+    color: 'var(--p3)',
+    iconColor: 'var(--tx)',
+  },
+  {
+    label: 'Join discussions',
+    icon: IconMessageCircle,
+    color: 'var(--p4)',
+    iconColor: '#fff',
+  },
+  {
+    label: 'Track progress',
+    icon: IconProgressCheck,
+    color: 'var(--p5)',
+    iconColor: 'var(--tx)',
+  },
+];
+---
+
+<dialog
+  id="feedback-exit-intent"
+  class="feedback-exit-dialog"
+  aria-labelledby="feedback-exit-title"
+  aria-describedby="feedback-exit-description"
+  aria-modal="true"
+>
+  <div class="feedback-exit-accent" aria-hidden="true"></div>
+  <div class="feedback-exit-content">
+    <form method="dialog">
+      <button
+        class="feedback-exit-close"
+        value="dismissed"
+        aria-label="Close feedback invitation"
+      >
+        <IconX size={20} stroke={2.2} aria-hidden="true" />
+      </button>
+    </form>
+
+    <p class="feedback-exit-eyebrow">Before you go</p>
+    <h2 id="feedback-exit-title">Help choose what we build next</h2>
+    <p id="feedback-exit-description">
+      Excalimate's public feedback portal turns your ideas and community votes into a transparent
+      roadmap.
+    </p>
+
+    <ul class="feedback-exit-benefits" aria-label="Ways to shape Excalimate">
+      {
+        benefits.map((benefit) => {
+          const Icon = benefit.icon;
+          return (
+            <li style={`--benefit-color: ${benefit.color}; --benefit-icon: ${benefit.iconColor}`}>
+              <span>
+                <Icon size={19} stroke={2.2} aria-hidden="true" />
+              </span>
+              {benefit.label}
+            </li>
+          );
+        })
+      }
+    </ul>
+
+    <a href="/feedback" class="btn btn-primary feedback-exit-cta">
+      Explore public feedback
+      <IconArrowRight size={19} stroke={2.2} aria-hidden="true" />
+    </a>
+  </div>
+</dialog>
+
+<style>
+  .feedback-exit-dialog {
+    position: fixed;
+    inset: 50% auto auto 50%;
+    z-index: 300;
+    width: min(600px, calc(100vw - 32px));
+    max-width: none;
+    max-height: calc(100dvh - 32px);
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    transform: translate(-50%, -50%);
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius-lg);
+    box-shadow: 8px 8px 0 var(--border-c);
+    color: var(--tx);
+  }
+
+  .feedback-exit-dialog[open] {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+  }
+
+  .feedback-exit-dialog::backdrop {
+    z-index: 299;
+    background: rgba(17, 17, 21, 0.72);
+  }
+
+  .feedback-exit-accent {
+    background: linear-gradient(
+      180deg,
+      var(--p2) 0 25%,
+      var(--p3) 25% 50%,
+      var(--p4) 50% 75%,
+      var(--p5) 75% 100%
+    );
+    border-right: var(--border-w) solid var(--border-c);
+  }
+
+  .feedback-exit-content {
+    position: relative;
+    padding: 38px 42px 40px;
+  }
+
+  .feedback-exit-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    background: none;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    color: var(--tx3);
+    line-height: 1;
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .feedback-exit-close:hover {
+    color: var(--tx);
+    background: var(--surface-hover);
+  }
+
+  .feedback-exit-close:active {
+    transform: translate(1px, 1px);
+    background: var(--accent);
+  }
+
+  .feedback-exit-close:focus-visible {
+    outline: 2px solid var(--p4);
+    outline-offset: 2px;
+  }
+
+  .feedback-exit-cta:focus-visible {
+    outline-color: var(--tx);
+  }
+
+  .feedback-exit-eyebrow {
+    display: inline-flex;
+    padding: 6px 10px;
+    background: var(--accent);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: 2px 2px 0 var(--border-c);
+    font-family: var(--f-body);
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .feedback-exit-content h2 {
+    max-width: 460px;
+    margin-top: 20px;
+    font-family: var(--f-display);
+    font-size: clamp(1.8rem, 5vw, 2.45rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+  }
+
+  #feedback-exit-description {
+    max-width: 490px;
+    margin-top: 14px;
+    font-family: var(--f-body);
+    font-size: 0.98rem;
+    line-height: 1.6;
+    color: var(--tx2);
+  }
+
+  .feedback-exit-benefits {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .feedback-exit-benefits li {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    padding: 10px 12px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    font-family: var(--f-body);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  .feedback-exit-benefits li > span {
+    display: flex;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background: var(--benefit-color);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    color: var(--benefit-icon);
+  }
+
+  .feedback-exit-cta {
+    margin-top: 26px;
+  }
+
+  @media (max-width: 520px) {
+    .feedback-exit-content {
+      padding: 34px 24px 30px;
+    }
+
+    .feedback-exit-benefits {
+      grid-template-columns: 1fr;
+    }
+
+    .feedback-exit-cta {
+      width: 100%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .feedback-exit-close:hover,
+    .feedback-exit-close:active,
+    .feedback-exit-cta:hover {
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  import {
+    FEEDBACK_EXIT_INTENT_DELAY_MS,
+    FEEDBACK_EXIT_INTENT_SESSION_KEY,
+    shouldShowFeedbackExitIntent,
+  } from '../lib/feedback/exitIntent';
+
+  const dialog = document.querySelector<HTMLDialogElement>('#feedback-exit-intent');
+  const cta = dialog?.querySelector<HTMLAnchorElement>('.feedback-exit-cta');
+  const finePointer = window.matchMedia(
+    '(min-width: 768px) and (hover: hover) and (pointer: fine)',
+  );
+  let armed = false;
+  let shownThisPage = false;
+
+  function hasBeenShown(): boolean {
+    if (shownThisPage) return true;
+
+    try {
+      return window.sessionStorage.getItem(FEEDBACK_EXIT_INTENT_SESSION_KEY) === 'true';
+    } catch (error) {
+      console.warn('Unable to read feedback exit-intent state.', error);
+      return false;
+    }
+  }
+
+  function markAsShown(): void {
+    shownThisPage = true;
+
+    try {
+      window.sessionStorage.setItem(FEEDBACK_EXIT_INTENT_SESSION_KEY, 'true');
+    } catch (error) {
+      console.warn('Unable to persist feedback exit-intent state.', error);
+    }
+  }
+
+  function track(eventName: string, properties: Record<string, string>): void {
+    if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+      posthog.capture(eventName, properties);
+    }
+  }
+
+  function removeExitListener(): void {
+    document.removeEventListener('mouseout', handleExitIntent);
+  }
+
+  function openDialog(): void {
+    if (!dialog || typeof dialog.showModal !== 'function') return;
+
+    dialog.showModal();
+    markAsShown();
+    removeExitListener();
+    track('feedback_exit_intent_shown', { location: 'landing_page' });
+  }
+
+  function handleExitIntent(event: MouseEvent): void {
+    if (!dialog || document.querySelector('.consent-overlay.open')) return;
+
+    if (
+      shouldShowFeedbackExitIntent(event, {
+        armed,
+        finePointer: finePointer.matches,
+        alreadyShown: hasBeenShown(),
+        dialogOpen: dialog.open,
+      })
+    ) {
+      openDialog();
+    }
+  }
+
+  let armTimer: number | undefined;
+
+  if (dialog && finePointer.matches && !hasBeenShown()) {
+    armTimer = window.setTimeout(() => {
+      armed = true;
+    }, FEEDBACK_EXIT_INTENT_DELAY_MS);
+    document.addEventListener('mouseout', handleExitIntent);
+  }
+
+  dialog?.addEventListener('click', (event) => {
+    if (event.target === dialog) {
+      dialog.close('backdrop');
+    }
+  });
+
+  dialog?.addEventListener('close', () => {
+    if (armTimer !== undefined) {
+      window.clearTimeout(armTimer);
+    }
+    removeExitListener();
+    track('feedback_exit_intent_closed', {
+      reason: dialog.returnValue || 'dismissed',
+    });
+  });
+
+  cta?.addEventListener('click', () => {
+    markAsShown();
+    track('cta_clicked', {
+      button_text: 'Explore public feedback',
+      location: 'feedback_exit_intent',
+    });
+  });
+</script>

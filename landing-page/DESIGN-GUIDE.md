@@ -719,15 +719,15 @@ export default defineConfig({
 
 ### Key Technical Decisions
 
-1. **No JS framework** — Pure Astro components (`.astro` files). Zero client-side JS for layout. Only add `<script>` tags for:
+1. **Astro-first UI** — Marketing pages remain pure Astro components with minimal client-side JS. Interactive product surfaces may use focused React islands with Mantine:
    - IntersectionObserver (scroll animations)
    - Mobile menu toggle
-   - Optional: GitHub stars API fetch
+   - Feedback board, forms, voting, and discussion
 2. **CSS-only animations** — All motion via CSS. No animation library needed.
 3. **Self-hosted fonts** — Load Satoshi and Virgil from `public/fonts/` for performance. Use `font-display: swap`.
 4. **Image optimization** — Use Astro's built-in `<Image />` component for automatic optimization.
 5. **No Tailwind** — The landing page is simple enough to use vanilla CSS with custom properties. This keeps it independent from the main app's Tailwind config.
-6. **Deployment** — Static build. Can be deployed to Cloudflare Pages alongside the main app (separate route/subdomain), or as standalone.
+6. **Deployment** — Prerender marketing pages and run feedback/API routes on Cloudflare Workers through the official Astro adapter. GitHub Issues is the feedback source of truth; Cloudflare stores no durable feedback data.
 
 ---
 

@@ -206,9 +206,9 @@ const lastUpdated = '12 July 2026';
           <h2 class="step-title">Processors, recipients, and transfers</h2>
           <ul class="policy-list">
             <li>
-              <strong>Cloudflare</strong> provides CDN, security, hosting, Workers, R2, and aggregate
-              traffic analytics. Its global network may process data outside your country under its
-              data-processing terms and transfer safeguards.
+              <strong>Cloudflare</strong> provides CDN, security, hosting, Workers, R2, Turnstile,
+              rate limiting, and aggregate traffic analytics. Its global network may process data
+              outside your country under its data-processing terms and transfer safeguards.
             </li>
             <li>
               <strong>PostHog Cloud EU</strong> processes optional analytics as a processor. Excalimate
@@ -216,8 +216,9 @@ const lastUpdated = '12 July 2026';
               and a 12-month retention ceiling.
             </li>
             <li>
-              <strong>GitHub</strong> receives the public repository metadata request and ordinary
-              network metadata. It may act as an independent recipient for its service logs.
+              <strong>GitHub</strong> receives the public repository metadata request and hosts
+              public feedback submissions, comments, display names, and derived vote/authorship
+              tokens. It may act as an independent recipient for public content and service logs.
             </li>
             <li>
               <strong>unpkg/Cloudflare</strong> delivers the pinned dotLottie runtime and receives the
@@ -230,6 +231,22 @@ const lastUpdated = '12 July 2026';
             <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare privacy</a>,
             <a href="https://posthog.com/privacy" target="_blank" rel="noopener">PostHog privacy</a>, and
             <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub privacy</a>.
+          </p>
+        </section>
+
+        <section class="step">
+          <h2 class="step-title">Public feedback</h2>
+          <p class="step-text">
+            Feedback titles, descriptions, categories, comments, and the display name you choose are
+            published in the Excalimate GitHub repository. Do not submit confidential, sensitive, or
+            third-party personal data. A signed, one-year feedback identifier is used only for
+            authorship and vote state; GitHub receives derived HMAC tokens rather than the raw
+            identifier.
+          </p>
+          <p class="step-text">
+            Cloudflare rate limiting and Turnstile process the request IP address and verification
+            token to protect the portal from abuse. Excalimate does not place those security values
+            in a separate application database.
           </p>
         </section>
 

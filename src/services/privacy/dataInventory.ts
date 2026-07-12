@@ -184,6 +184,30 @@ export const DATA_PRACTICES = [
       'Determined by GitHub for its network logs. A local one-hour cache is used only with preference-storage consent.',
   },
   {
+    id: 'feedback-content',
+    title: 'Public feedback portal',
+    condition: 'When a visitor opens feedback details, submits feedback, comments, or votes',
+    data: 'Submitted title, description, category, optional display name (or "Anonymous"), comment text, vote state, GitHub issue/comment numbers and timestamps, a random feedback-cookie UUID, and HMAC-derived author/vote tokens. Submitted text and display names are public. GitHub receives only the derived tokens, not the raw cookie UUID.',
+    purpose:
+      'Publish requested product feedback, attribute the chosen display name, show vote state, and prevent duplicate votes.',
+    legalBasis:
+      'Performance of the requested feedback service and legitimate interests in operating a public product-feedback channel.',
+    recipient: 'Cloudflare Worker and GitHub as the public feedback repository host.',
+    retention:
+      'Public submissions, comments, and derived tokens remain until the corresponding GitHub issue or comment is deleted. The feedback identity cookie expires after one year.',
+  },
+  {
+    id: 'feedback-security',
+    title: 'Feedback abuse prevention',
+    condition: 'When the feedback API handles a request',
+    data: 'IP address used as a rate-limit key, request origin and headers, Turnstile response token, and a random verification idempotency UUID. The token and IP address are sent to Cloudflare Turnstile; Excalimate does not place them in an application database.',
+    purpose: 'Prevent automated abuse, forged requests, spam, and excessive submissions.',
+    legalBasis: 'Legitimate interests in protecting the service and public feedback channel.',
+    recipient: 'Cloudflare Workers rate limiting and Cloudflare Turnstile.',
+    retention:
+      'Transient request and rate-limit processing; Cloudflare service logs follow the contracted service settings.',
+  },
+  {
     id: 'unpkg-runtime',
     title: 'dotLottie runtime',
     condition: 'When the landing home page loads its animation examples',
@@ -222,6 +246,13 @@ export const BROWSER_STORAGE_ITEMS = [
     contents: 'Versioned analytics and preference choices with a decision timestamp.',
     purpose: 'Remember privacy choices.',
     category: 'Required',
+  },
+  {
+    key: 'excalimate_feedback_id',
+    contents:
+      'A random UUID and HMAC signature in a Secure, HttpOnly, SameSite=Lax cookie with a one-year expiry.',
+    purpose: 'Remember feedback authorship and vote state and prevent duplicate votes.',
+    category: 'Required only for feedback features',
   },
   {
     key: 'excalidraw-animate-autosave',

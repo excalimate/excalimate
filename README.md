@@ -12,7 +12,7 @@
   [![license](https://img.shields.io/github/license/excalimate/excalimate?style=flat-square)](LICENSE)
   [![GitHub stars](https://img.shields.io/github/stars/excalimate/excalimate?style=flat-square)](https://github.com/excalimate/excalimate)
 
-  [App](https://app.excalimate.com) · [Landing Page](https://excalimate.com) · [MCP Server Docs](mcp-server/README.md) · [Report Bug](https://github.com/excalimate/excalimate/issues)
+  [App](https://app.excalimate.com) · [Landing Page](https://excalimate.com) · [Feedback](https://excalimate.com/feedback) · [MCP Server Docs](mcp-server/README.md) · [Report Bug](https://github.com/excalimate/excalimate/issues)
 
 </div>
 
@@ -209,8 +209,8 @@ The privacy notice depends on production configuration as well as source code:
 
 - Configure the landing-page Cloudflare Workers build with root directory
   `landing-page`, build command `npm run build`, and deploy command
-  `npx wrangler deploy --config wrangler.toml`. The Astro static build does not
-  produce `dist/server/wrangler.json`.
+  `npx wrangler versions upload --config dist/server/wrangler.json`. The
+  Cloudflare adapter generates that server configuration during the build.
 - Use only Cloudflare edge/zone aggregate traffic analytics. Do not enable the
   Cloudflare Web Analytics browser beacon or export request logs for analytics.
 - Do not describe or use Cloudflare's IP-derived unique-visitor metric as
