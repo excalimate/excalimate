@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import { CONSENT_KEY, CONSENT_VERSION, type ConsentState, type StoredConsent } from '../services/analytics/consent';
+import {
+  CONSENT_KEY,
+  CONSENT_VERSION,
+  clearOptionalPreferences,
+  readStoredConsent,
+  type ConsentState,
+  type StoredConsent,
+} from '../services/analytics/consent';
 import { enableCapture, disableCapture } from '../services/analytics/posthog';
 
 interface ConsentStore {
@@ -15,18 +22,6 @@ interface ConsentStore {
   openSettings: () => void;
 }
 
-function loadConsent(): StoredConsent | null {
-  try {
-    const raw = localStorage.getItem(CONSENT_KEY);
-    if (!raw) return null;
-    const parsed: StoredConsent = JSON.parse(raw);
-    if (parsed.version !== CONSENT_VERSION) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 function persistConsent(state: ConsentState): void {
   const data: StoredConsent = {
     version: CONSENT_VERSION,
@@ -36,7 +31,7 @@ function persistConsent(state: ConsentState): void {
   localStorage.setItem(CONSENT_KEY, JSON.stringify(data));
 }
 
-const stored = loadConsent();
+const stored = readStoredConsent();
 
 export const useConsentStore = create<ConsentStore>((set) => ({
   decided: stored !== null,
@@ -47,14 +42,22 @@ export const useConsentStore = create<ConsentStore>((set) => ({
 
   saveConsent: (state: ConsentState) => {
     persistConsent(state);
-    if (state.analytics) enableCapture(); else disableCapture();
-    set({ decided: true, analytics: state.analytics, preferences: state.preferences, showBanner: false, showModal: false });
+    if (state.analytics) void enableCapture();
+    else disableCapture();
+    if (!state.preferences) clearOptionalPreferences();
+    set({
+      decided: true,
+      analytics: state.analytics,
+      preferences: state.preferences,
+      showBanner: false,
+      showModal: false,
+    });
   },
 
   acceptAll: () => {
     const state: ConsentState = { analytics: true, preferences: true };
     persistConsent(state);
-    enableCapture();
+    void enableCapture();
     set({ decided: true, analytics: true, preferences: true, showBanner: false, showModal: false });
   },
 
@@ -62,7 +65,14 @@ export const useConsentStore = create<ConsentStore>((set) => ({
     const state: ConsentState = { analytics: false, preferences: false };
     persistConsent(state);
     disableCapture();
-    set({ decided: true, analytics: false, preferences: false, showBanner: false, showModal: false });
+    clearOptionalPreferences();
+    set({
+      decided: true,
+      analytics: false,
+      preferences: false,
+      showBanner: false,
+      showModal: false,
+    });
   },
 
   openSettings: () => {

@@ -29,7 +29,7 @@ GITHUB_APP_BOT_LOGIN = "excalimate-feedback[bot]"
 TURNSTILE_ALLOWED_HOSTNAMES = "excalimate.com,www.excalimate.com"
 
 [observability]
-enabled = true
+enabled = false
 
 [[unsafe.bindings]]
 name = "FEEDBACK_SUBMISSION_RATE_LIMITER"

@@ -2,10 +2,19 @@
 import PageLayout from '../layouts/PageLayout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
+import {
+  ANALYTICS_EVENT_DEFINITIONS,
+  BROWSER_STORAGE_ITEMS,
+  DATA_PRACTICES,
+  EXCLUDED_ANALYTICS_DATA,
+  POSTHOG_TECHNICAL_PROPERTIES,
+} from '../../../src/services/privacy/dataInventory';
 
-const title = 'Privacy Policy & Data Practices — Excalimate';
-const description = 'Learn how Excalimate handles analytics, data collection, and your privacy. We use anonymous analytics only with your consent.';
+const title = 'Privacy Notice & Exact Data Practices - Excalimate';
+const description =
+  'The exact data Excalimate and its service providers process, why it is used, how long it is retained, and the controls available to you.';
 const siteUrl = 'https://excalimate.com';
+const lastUpdated = '12 July 2026';
 ---
 
 <PageLayout title={title} description={description} path="/privacy">
@@ -14,99 +23,269 @@ const siteUrl = 'https://excalimate.com';
   <main id="main" class="guide">
     <div class="guide-container">
       <header class="guide-header">
-        <a href="/" class="guide-back">← Back to home</a>
-        <h1 class="guide-title">Privacy Policy</h1>
-        <p class="guide-subtitle">How Excalimate handles your data</p>
+        <a href="/" class="guide-back">Back to home</a>
+        <h1 class="guide-title">Privacy Notice</h1>
+        <p class="guide-subtitle">Exact data practices for excalimate.com and app.excalimate.com</p>
+        <p class="updated">Last updated: {lastUpdated}</p>
       </header>
 
       <div class="guide-body">
         <section class="step">
-          <div class="step-header">
-            <span class="step-num">1</span>
-            <h2 class="step-title">What We Collect</h2>
-          </div>
+          <h2 class="step-title">Controller and scope</h2>
           <p class="step-text">
-            When you consent to analytics, we collect <strong>anonymous page-view data</strong> — which
-            pages are visited, how long visitors stay, and general usage patterns. We do <strong>not</strong>
-            collect any personally identifiable information (PII) such as names, email addresses, IP
-            addresses, or device fingerprints.
+            <strong>excalimate</strong>, the owner of the
+            <a href="https://github.com/excalimate/excalimate" target="_blank" rel="noopener">
+              excalimate/excalimate repository
+            </a>, is the controller for the processing described here. This notice covers the public
+            landing site, the browser application, aggregate service analytics, and the optional
+            encrypted-sharing service.
           </p>
-        </section>
-
-        <section class="step">
-          <div class="step-header">
-            <span class="step-num">2</span>
-            <h2 class="step-title">Analytics Provider</h2>
-          </div>
           <p class="step-text">
-            We use <a href="https://posthog.com" target="_blank" rel="noopener">PostHog</a>, an
-            open-source product analytics platform, to process anonymous usage data. PostHog is
-            configured with <code>autocapture</code> disabled and <code>person_profiles</code> set to
-            <code>identified_only</code> — meaning no individual user profiles are created for
-            anonymous visitors.
-          </p>
-        </section>
-
-        <section class="step">
-          <div class="step-header">
-            <span class="step-num">3</span>
-            <h2 class="step-title">Your Consent</h2>
-          </div>
-          <p class="step-text">
-            Analytics scripts are <strong>never loaded</strong> unless you explicitly click
-            "Accept" on the consent banner. Your choice is stored in your browser's
-            <code>localStorage</code> under the key <code>excalimate-consent</code>. No cookies are
-            set by Excalimate.
-          </p>
-        </section>
-
-        <section class="step">
-          <div class="step-header">
-            <span class="step-num">4</span>
-            <h2 class="step-title">How to Opt Out</h2>
-          </div>
-          <p class="step-text">
-            You can opt out of analytics at any time by clearing your browser's localStorage for this
-            site. Open your browser's developer tools, go to the <strong>Application</strong> (or
-            <strong>Storage</strong>) tab, find <code>localStorage</code> for
-            <code>excalimate.com</code>, and delete the <code>excalimate-consent</code> key. On your
-            next visit, the consent banner will appear again and you can click "Decline".
-          </p>
-        </section>
-
-        <section class="step">
-          <div class="step-header">
-            <span class="step-num">5</span>
-            <h2 class="step-title">Third-Party Sharing</h2>
-          </div>
-          <p class="step-text">
-            We do <strong>not</strong> sell, rent, or share any data with third parties. Anonymous
-            analytics data is used solely to understand site usage and improve Excalimate.
-          </p>
-        </section>
-
-        <section class="step">
-          <div class="step-header">
-            <span class="step-num">6</span>
-            <h2 class="step-title">The Excalimate Application</h2>
-          </div>
-          <p class="step-text">
-            The Excalimate application itself runs entirely in your browser. Your diagrams,
-            animations, and project data never leave your device unless you explicitly use the
-            share feature, which uses end-to-end encryption. This privacy policy applies only to
-            the <a href="https://excalimate.com">excalimate.com</a> marketing site.
-          </p>
-        </section>
-
-        <section class="step">
-          <div class="step-header">
-            <span class="step-num">7</span>
-            <h2 class="step-title">Contact</h2>
-          </div>
-          <p class="step-text">
-            If you have questions about this privacy policy, please
+            Privacy questions and rights requests can be raised through
             <a href="https://github.com/excalimate/excalimate/discussions" target="_blank" rel="noopener">
-            open a discussion on GitHub</a>.
+              GitHub Discussions
+            </a>. Discussions are public, so do not include sensitive or identifying information in
+            the initial post.
+          </p>
+        </section>
+
+        <section class="notice">
+          <h2>Important distinction</h2>
+          <p>
+            Excalimate does not run consentless client-side product analytics. Cloudflare necessarily
+            processes IP addresses and HTTP metadata to deliver and secure the service and provides
+            aggregate edge traffic reports. Optional PostHog product analytics is separate,
+            pseudonymous rather than legally anonymous, and starts only after consent.
+          </p>
+        </section>
+
+        <section class="step" id="data-inventory">
+          <h2 class="step-title">Exact processing inventory</h2>
+          <p class="step-text">
+            The entries below are generated from the same inventory that restricts application
+            analytics. Adding a new PostHog event requires adding it to this public list.
+          </p>
+
+          <div class="inventory-grid">
+            {
+              DATA_PRACTICES.map((practice) => (
+                <article class="inventory-card" id={practice.id}>
+                  <header>
+                    <h3>{practice.title}</h3>
+                    <span>{practice.condition}</span>
+                  </header>
+                  <dl>
+                    <dt>Exact data</dt><dd>{practice.data}</dd>
+                    <dt>Purpose</dt><dd>{practice.purpose}</dd>
+                    <dt>Legal basis</dt><dd>{practice.legalBasis}</dd>
+                    <dt>Recipient</dt><dd>{practice.recipient}</dd>
+                    <dt>Retention</dt><dd>{practice.retention}</dd>
+                  </dl>
+                </article>
+              ))
+            }
+          </div>
+        </section>
+
+        <section class="step" id="analytics-events">
+          <h2 class="step-title">Optional PostHog event catalogue</h2>
+          <p class="step-text">
+            These events are sent only after an affirmative analytics choice. The SDK allowlist
+            discards undeclared events and properties before transmission.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Purpose</th>
+                  <th>Allowed custom properties</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  Object.entries(ANALYTICS_EVENT_DEFINITIONS).map(([name, definition]) => (
+                    <tr>
+                      <td><code>{name}</code><span class="event-label">{definition.label}</span></td>
+                      <td>{definition.purpose}</td>
+                      <td>
+                        {Object.entries(definition.properties).length === 0
+                          ? 'None'
+                          : (
+                            <ul>
+                              {Object.entries(definition.properties).map(([property, detail]) => (
+                                <li><code>{property}</code>: {detail}</li>
+                              ))}
+                            </ul>
+                          )}
+                      </td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="step-text">
+            PostHog also attaches only these technical fields:
+            {POSTHOG_TECHNICAL_PROPERTIES.map((property, index) => (
+              <><code>{property}</code>{index < POSTHOG_TECHNICAL_PROPERTIES.length - 1 ? ', ' : '.'}</>
+            ))}
+            The random identifiers exist only in memory for the current page session. PostHog also
+            receives the event timestamp, event UUID, SDK transport request, and therefore transient
+            network metadata. PostHog project settings must keep IP capture disabled.
+          </p>
+        </section>
+
+        <section class="step" id="browser-storage">
+          <h2 class="step-title">Browser storage</h2>
+          <p class="step-text">
+            Local project data remains on your device unless you explicitly use encrypted sharing.
+            Optional preference keys are written only after preference-storage consent.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Key</th><th>Exact contents</th><th>Purpose</th><th>Category</th></tr>
+              </thead>
+              <tbody>
+                {
+                  BROWSER_STORAGE_ITEMS.map((item) => (
+                    <tr>
+                      <td><code>{item.key}</code></td>
+                      <td>{item.contents}</td>
+                      <td>{item.purpose}</td>
+                      <td>{item.category}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="step-text">
+            Rejecting or withdrawing optional choices removes PostHog persistence and optional
+            preference keys. Required local project/autosave data can be removed by clearing this
+            site's storage in your browser.
+          </p>
+        </section>
+
+        <section class="step">
+          <h2 class="step-title">Data excluded from analytics</h2>
+          <ul class="policy-list">
+            {EXCLUDED_ANALYTICS_DATA.map((item) => <li>{item}</li>)}
+          </ul>
+          <p class="step-text">
+            Excalimate does not sell analytics data, run advertising analytics, create marketing
+            profiles, or use analytics for cross-site tracking.
+          </p>
+        </section>
+
+        <section class="step">
+          <h2 class="step-title">Consent and objection controls</h2>
+          <p class="step-text">
+            Optional PostHog analytics and optional preference storage are off until selected. You can
+            withdraw either choice at any time through <strong>Privacy and data</strong> in the app
+            toolbar or <strong>Privacy choices</strong> in the landing-page footer. Withdrawal does not
+            affect processing that occurred while consent was valid.
+          </p>
+          <p class="step-text">
+            Service delivery, security, reliability, and aggregate Cloudflare reporting rely on
+            legitimate interests under Article 6(1)(f) GDPR. You may object to legitimate-interest
+            processing. Some network processing is required to provide a site you request; if an
+            aggregate report can no longer be linked to a person, it cannot be located or deleted as
+            an individual record.
+          </p>
+          <p class="step-text">
+            The automatic GitHub star-count and pinned unpkg runtime requests are not categorized as
+            analytics, but GitHub and unpkg/Cloudflare receive ordinary network metadata before an
+            analytics choice. Excalimate relies on legitimate interests for these limited requests
+            and assesses ePrivacy requirements separately.
+          </p>
+        </section>
+
+        <section class="step">
+          <h2 class="step-title">Processors, recipients, and transfers</h2>
+          <ul class="policy-list">
+            <li>
+              <strong>Cloudflare</strong> provides CDN, security, hosting, Workers, R2, Turnstile,
+              rate limiting, and aggregate traffic analytics. Its global network may process data
+              outside your country under its data-processing terms and transfer safeguards.
+            </li>
+            <li>
+              <strong>PostHog Cloud EU</strong> processes optional analytics as a processor. Excalimate
+              requires an up-to-date DPA, subprocessor review, EU project region, disabled IP capture,
+              and a 12-month retention ceiling.
+            </li>
+            <li>
+              <strong>GitHub</strong> receives the public repository metadata request and hosts
+              public feedback submissions, comments, display names, and derived vote/authorship
+              tokens. It may act as an independent recipient for public content and service logs.
+            </li>
+            <li>
+              <strong>unpkg/Cloudflare</strong> delivers the pinned dotLottie runtime and receives the
+              ordinary resource-request metadata described above.
+            </li>
+          </ul>
+          <p class="step-text">
+            Current provider terms, subprocessors, adequacy decisions, and contractual safeguards are
+            reviewed as part of release operations. Links:
+            <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare privacy</a>,
+            <a href="https://posthog.com/privacy" target="_blank" rel="noopener">PostHog privacy</a>, and
+            <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub privacy</a>.
+          </p>
+        </section>
+
+        <section class="step">
+          <h2 class="step-title">Public feedback</h2>
+          <p class="step-text">
+            Feedback titles, descriptions, categories, comments, and the display name you choose are
+            published in the Excalimate GitHub repository. Do not submit confidential, sensitive, or
+            third-party personal data. A signed, one-year feedback identifier is used only for
+            authorship and vote state; GitHub receives derived HMAC tokens rather than the raw
+            identifier.
+          </p>
+          <p class="step-text">
+            Cloudflare rate limiting and Turnstile process the request IP address and verification
+            token to protect the portal from abuse. Excalimate does not place those security values
+            in a separate application database.
+          </p>
+        </section>
+
+        <section class="step">
+          <h2 class="step-title">Encrypted sharing and MCP</h2>
+          <p class="step-text">
+            Sharing is user-triggered. Encryption happens in your browser; only the encrypted blob,
+            random share ID, object metadata, and expiry are sent to Cloudflare. The decryption key is
+            placed after <code>#</code> in the share URL, which browsers do not send in the HTTP
+            request. Shared blobs expire after 30 days.
+          </p>
+          <p class="step-text">
+            MCP live mode connects only when requested. The selected MCP endpoint receives the
+            requests and scene updates needed for that connection. If you configure a third-party MCP
+            endpoint, its operator controls its own processing and retention.
+          </p>
+        </section>
+
+        <section class="step">
+          <h2 class="step-title">Your EEA and UK rights</h2>
+          <p class="step-text">
+            Depending on the processing, you may request access, correction, deletion, restriction,
+            portability, or objection, and may withdraw consent at any time. You also have the right
+            to complain to your local data-protection authority; UK users can contact the
+            <a href="https://ico.org.uk/make-a-complaint/" target="_blank" rel="noopener">
+              Information Commissioner's Office
+            </a>.
+          </p>
+          <p class="step-text">
+            Excalimate may need enough information to verify and fulfill a request. Do not publish
+            sensitive verification material in a public GitHub Discussion.
+          </p>
+        </section>
+
+        <section class="step">
+          <h2 class="step-title">Changes to this notice</h2>
+          <p class="step-text">
+            Material changes to optional analytics invalidate the stored consent version and present
+            the choices again. The updated date on this page records notice revisions.
           </p>
         </section>
       </div>
@@ -118,11 +297,11 @@ const siteUrl = 'https://excalimate.com';
   <script type="application/ld+json" set:html={JSON.stringify({
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": "Privacy Policy",
+    "name": "Excalimate Privacy Notice",
     "description": description,
     "url": `${siteUrl}/privacy`,
     "datePublished": "2026-03-22",
-    "dateModified": "2026-03-22",
+    "dateModified": "2026-07-12",
     "inLanguage": "en",
     "isPartOf": {
       "@type": "WebSite",
@@ -138,7 +317,7 @@ const siteUrl = 'https://excalimate.com';
   }
 
   .guide-container {
-    max-width: 860px;
+    max-width: 980px;
     margin-inline: auto;
     padding-inline: 20px;
   }
@@ -162,10 +341,11 @@ const siteUrl = 'https://excalimate.com';
     font-weight: 500;
     color: var(--tx3);
     margin-bottom: 20px;
-    transition: color 0.2s ease;
   }
 
-  .guide-back:hover {
+  .guide-back:hover,
+  .step-text a:hover,
+  .data-details a:hover {
     color: var(--tx);
   }
 
@@ -178,18 +358,28 @@ const siteUrl = 'https://excalimate.com';
     margin: 0 0 12px;
   }
 
-  .guide-subtitle {
+  .guide-subtitle,
+  .updated {
     font-family: var(--f-body);
-    font-size: 1.1rem;
     color: var(--tx2);
     margin: 0;
     line-height: 1.5;
   }
 
+  .guide-subtitle {
+    font-size: 1.1rem;
+  }
+
+  .updated {
+    color: var(--tx3);
+    font-size: 0.88rem;
+    margin-top: 8px;
+  }
+
   .guide-body {
     display: flex;
     flex-direction: column;
-    gap: 40px;
+    gap: 48px;
   }
 
   .step {
@@ -198,39 +388,17 @@ const siteUrl = 'https://excalimate.com';
     gap: 16px;
   }
 
-  .step-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .step-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: var(--accent-text);
-    font-family: var(--f-display);
-    font-weight: 700;
-    font-size: 14px;
-    border: var(--border-w) solid var(--border-c);
-    box-shadow: 2px 2px 0 var(--border-c);
-    flex-shrink: 0;
-  }
-
   .step-title {
     font-family: var(--f-display);
-    font-size: 1.3rem;
+    font-size: 1.45rem;
     font-weight: 700;
     color: var(--tx);
     margin: 0;
     line-height: 1.2;
   }
 
-  .step-text {
+  .step-text,
+  .policy-list {
     font-family: var(--f-body);
     font-size: 1rem;
     color: var(--tx2);
@@ -238,19 +406,17 @@ const siteUrl = 'https://excalimate.com';
     margin: 0;
   }
 
-  .step-text a {
+  .step-text a,
+  .notice a,
+  .data-details a {
     color: var(--p4);
     text-decoration: underline;
     text-underline-offset: 2px;
     font-weight: 500;
   }
 
-  .step-text a:hover {
-    color: var(--tx);
-  }
-
-  .step-text code {
-    font-size: 0.9em;
+  code {
+    font-size: 0.88em;
     background: var(--bg-alt);
     padding: 2px 6px;
     border-radius: 4px;
@@ -258,8 +424,138 @@ const siteUrl = 'https://excalimate.com';
     color: var(--tx);
   }
 
-  .step-text strong {
+  strong {
     color: var(--tx);
     font-weight: 600;
+  }
+
+  .notice {
+    background: var(--bg-alt);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: 4px 4px 0 var(--border-c);
+    padding: 24px;
+    font-family: var(--f-body);
+    color: var(--tx2);
+    line-height: 1.65;
+  }
+
+  .notice h2 {
+    color: var(--tx);
+    font-family: var(--f-display);
+    font-size: 1.2rem;
+    margin: 0 0 8px;
+  }
+
+  .notice p {
+    margin: 0;
+  }
+
+  .inventory-grid {
+    display: grid;
+    gap: 18px;
+  }
+
+  .inventory-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    background: var(--bg);
+  }
+
+  .inventory-card header {
+    margin-bottom: 14px;
+  }
+
+  .inventory-card h3 {
+    color: var(--tx);
+    font-family: var(--f-display);
+    font-size: 1.05rem;
+    margin: 0;
+  }
+
+  .inventory-card header span,
+  .event-label {
+    display: block;
+    color: var(--tx3);
+    font-family: var(--f-body);
+    font-size: 0.8rem;
+    margin-top: 3px;
+  }
+
+  .inventory-card dl {
+    display: grid;
+    grid-template-columns: minmax(100px, 130px) 1fr;
+    gap: 8px 14px;
+    margin: 0;
+    font-family: var(--f-body);
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .inventory-card dt {
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .inventory-card dd {
+    color: var(--tx2);
+    margin: 0;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+    font-family: var(--f-body);
+    font-size: 0.86rem;
+    color: var(--tx2);
+  }
+
+  th,
+  td {
+    padding: 12px 14px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    color: var(--tx);
+    background: var(--bg-alt);
+    font-weight: 600;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  td ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  .policy-list {
+    padding-left: 24px;
+  }
+
+  .policy-list li + li {
+    margin-top: 8px;
+  }
+
+  @media (max-width: 639px) {
+    .inventory-card dl {
+      grid-template-columns: 1fr;
+    }
+
+    .inventory-card dt {
+      margin-top: 6px;
+    }
   }
 </style>

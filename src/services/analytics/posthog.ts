@@ -1,69 +1,133 @@
-import posthog, { type PostHog } from 'posthog-js';
-import { CONSENT_KEY, type StoredConsent } from './consent';
+import type { CaptureResult, PostHog } from 'posthog-js';
+import type { ExportFormat } from '../export/types';
+import type { AspectRatio } from '../../stores/projectStore';
+import type { Theme } from '../../stores/uiStore';
+import {
+  ANALYTICS_EVENT_DEFINITIONS,
+  POSTHOG_TECHNICAL_PROPERTIES,
+  type AnalyticsEventName,
+} from '../privacy/dataInventory';
+import { hasAnalyticsConsent } from './consent';
 
 /**
  * PostHog configuration — reads from Vite env vars.
  * Leave VITE_PUBLIC_POSTHOG_KEY empty to disable analytics entirely.
  */
 const POSTHOG_KEY = import.meta.env.VITE_PUBLIC_POSTHOG_KEY ?? '';
-const POSTHOG_HOST = import.meta.env.VITE_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
+const POSTHOG_HOST = import.meta.env.VITE_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com';
+
+let client: PostHog | null = null;
+let initialization: Promise<PostHog | null> | null = null;
+let captureEnabled = false;
+let consentGeneration = 0;
 
 /** Whether PostHog is configured (key is set) */
 export const isPostHogConfigured = (): boolean => POSTHOG_KEY.length > 0;
 
-/** Get the PostHog client instance (for the provider) */
-export function getPostHogClient(): PostHog | undefined {
-  if (!isPostHogConfigured()) return undefined;
+function isDeclaredEvent(event: string): event is AnalyticsEventName {
+  return Object.hasOwn(ANALYTICS_EVENT_DEFINITIONS, event);
+}
 
-  const consent = getStoredConsent();
-  const hasConsent = consent?.state.analytics === true;
+export function filterAnalyticsCapture(capture: CaptureResult | null): CaptureResult | null {
+  if (!capture) return null;
+  if (!isDeclaredEvent(capture.event)) return null;
 
-  posthog.init(POSTHOG_KEY, {
-    api_host: POSTHOG_HOST,
-    person_profiles: 'identified_only',
-    capture_pageview: true,
-    capture_pageleave: true,
-    autocapture: false,
-    persistence: 'localStorage',
-    opt_out_capturing_by_default: !hasConsent,
-    loaded: (ph) => {
-      if (!hasConsent) {
-        ph.opt_out_capturing();
+  const declaredProperties = Object.keys(ANALYTICS_EVENT_DEFINITIONS[capture.event].properties);
+  const permitted = new Set<string>([...POSTHOG_TECHNICAL_PROPERTIES, ...declaredProperties]);
+  const properties = Object.fromEntries(
+    Object.entries(capture.properties).filter(([key]) => permitted.has(key)),
+  );
+
+  return { ...capture, properties, $set: undefined, $set_once: undefined, $unset: undefined };
+}
+
+async function initializeClient(): Promise<PostHog | null> {
+  if (!isPostHogConfigured()) return null;
+  if (client) return client;
+  if (initialization) return initialization;
+
+  const generation = consentGeneration;
+  initialization = import('posthog-js')
+    .then(({ default: posthog }) => {
+      posthog.init(POSTHOG_KEY, {
+        api_host: POSTHOG_HOST,
+        person_profiles: 'never',
+        autocapture: false,
+        rageclick: false,
+        capture_pageview: false,
+        capture_pageleave: false,
+        capture_performance: false,
+        disable_session_recording: true,
+        disable_surveys: true,
+        disable_surveys_automatic_display: true,
+        disable_product_tours: true,
+        disable_web_experiments: true,
+        advanced_disable_flags: true,
+        advanced_disable_feature_flags: true,
+        advanced_disable_feature_flags_on_first_load: true,
+        disableDeviceModel: true,
+        disable_capture_url_hashes: true,
+        save_referrer: false,
+        save_campaign_params: false,
+        persistence: 'memory',
+        disable_persistence: true,
+        respect_dnt: true,
+        opt_out_capturing_by_default: false,
+        before_send: filterAnalyticsCapture,
+      });
+      client = posthog;
+
+      if (!captureEnabled || generation !== consentGeneration) {
+        posthog.opt_out_capturing();
+        posthog.reset(true);
+        return null;
       }
-    },
-  });
 
-  return posthog;
+      return posthog;
+    })
+    .finally(() => {
+      initialization = null;
+    });
+
+  return initialization;
 }
 
-/** Call after user grants consent — opts PostHog in */
-export function enableCapture(): void {
-  if (!isPostHogConfigured()) return;
-  posthog.opt_in_capturing();
+export async function enableCapture(): Promise<void> {
+  captureEnabled = true;
+  await initializeClient();
+  if (captureEnabled && client?.has_opted_out_capturing()) {
+    client.opt_in_capturing();
+  }
 }
 
-/** Call after user revokes consent — opts PostHog out */
 export function disableCapture(): void {
-  if (!isPostHogConfigured()) return;
-  posthog.opt_out_capturing();
+  captureEnabled = false;
+  consentGeneration += 1;
+  if (client) {
+    client.opt_out_capturing();
+    client.reset(true);
+  }
+  clearPostHogPersistence();
 }
 
-/** Track a custom event (only fires if opted in) */
-export function trackEvent(event: string, properties?: Record<string, unknown>): void {
-  if (!isPostHogConfigured() || posthog.has_opted_out_capturing()) return;
-  posthog.capture(event, properties);
+export function initializeAnalyticsFromConsent(): void {
+  if (hasAnalyticsConsent()) {
+    void enableCapture();
+  } else {
+    clearPostHogPersistence();
+  }
 }
 
-export function trackExport(format: string): void {
+function trackEvent(
+  event: AnalyticsEventName,
+  properties: Record<string, string | boolean> = {},
+): void {
+  if (!captureEnabled || !client || client.has_opted_out_capturing()) return;
+  client.capture(event, properties);
+}
+
+export function trackExport(format: ExportFormat): void {
   trackEvent('animation_exported', { format });
-}
-
-export function trackMcpConnection(): void {
-  trackEvent('mcp_connected');
-}
-
-export function trackSceneCreated(elementCount: number): void {
-  trackEvent('scene_created', { element_count: elementCount });
 }
 
 export function trackShare(): void {
@@ -71,7 +135,7 @@ export function trackShare(): void {
 }
 
 // File operations
-export function trackNewProject(aspectRatio: string): void {
+export function trackNewProject(aspectRatio: AspectRatio): void {
   trackEvent('project_created', { aspect_ratio: aspectRatio });
 }
 
@@ -111,22 +175,24 @@ export function trackSequenceAction(action: 'create' | 'update' | 'delete'): voi
 }
 
 // Camera
-export function trackCameraAction(action: 'change_aspect_ratio' | 'fit_to_scene', ratio?: string): void {
+export function trackCameraAction(
+  action: 'change_aspect_ratio' | 'fit_to_scene',
+  ratio?: AspectRatio,
+): void {
   trackEvent('camera_action', { action, ...(ratio ? { ratio } : {}) });
 }
 
 // UI
-export function trackThemeToggle(theme: string): void {
+export function trackThemeToggle(theme: Theme): void {
   trackEvent('theme_toggled', { theme });
-}
-
-export function trackPanelToggle(panel: string, open: boolean): void {
-  trackEvent('panel_toggled', { panel, open });
 }
 
 // Grouping
 export function trackGroupAction(action: 'group' | 'ungroup', elementCount?: number): void {
-  trackEvent('group_action', { action, ...(elementCount ? { element_count: elementCount } : {}) });
+  trackEvent('group_action', {
+    action,
+    ...(elementCount ? { element_count_bucket: bucketCount(elementCount) } : {}),
+  });
 }
 
 // MCP
@@ -134,17 +200,25 @@ export function trackMcpAction(action: 'connect' | 'disconnect' | 'set_url'): vo
   trackEvent('mcp_action', { action });
 }
 
-// Page navigation
-export function trackPageView(page: string): void {
-  trackEvent('page_viewed', { page });
+function bucketCount(count: number): '1' | '2-5' | '6-20' | '21+' {
+  if (count <= 1) return '1';
+  if (count <= 5) return '2-5';
+  if (count <= 20) return '6-20';
+  return '21+';
 }
 
-function getStoredConsent(): StoredConsent | null {
-  try {
-    const raw = localStorage.getItem(CONSENT_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
+function clearPostHogPersistence(): void {
+  for (const storage of [localStorage, sessionStorage]) {
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (key?.startsWith('ph_')) storage.removeItem(key);
+    }
+  }
+
+  for (const entry of document.cookie.split(';')) {
+    const name = entry.split('=')[0]?.trim();
+    if (name?.startsWith('ph_')) {
+      document.cookie = `${name}=; Max-Age=0; path=/; SameSite=Lax`;
+    }
   }
 }

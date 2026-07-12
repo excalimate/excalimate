@@ -46,7 +46,7 @@ const columns: FooterColumn[] = [
     heading: 'Legal',
     links: [
       { label: 'Privacy', href: '/privacy' },
-      { label: 'Cookie Settings', href: '#manage-consent' },
+      { label: 'Privacy choices', href: '#manage-consent' },
       { label: 'License (MIT)', href: 'https://github.com/excalimate/excalimate/blob/main/LICENSE' },
       { label: 'Security', href: 'https://github.com/excalimate/excalimate/blob/main/SECURITY.md' },
     ],
@@ -247,12 +247,25 @@ const columns: FooterColumn[] = [
 </style>
 
 <script>
+  function destinationCategory(href: string): string {
+    try {
+      const url = new URL(href);
+      if (url.hostname === 'github.com') return 'github';
+      if (url.hostname === 'app.excalimate.com') return 'app';
+      if (url.hostname === 'x.com') return 'x';
+      if (url.hostname === 'bsky.app') return 'bluesky';
+      return 'external_other';
+    } catch {
+      return 'invalid';
+    }
+  }
+
   document.querySelectorAll('.footer-link[target="_blank"]').forEach(link => {
     link.addEventListener('click', () => {
-      const text = link.textContent?.trim() || '';
-      if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
-        posthog.capture('external_link_clicked', { link_text: text, href: link.getAttribute('href') });
-      }
+      const href = link.getAttribute('href') ?? '';
+      window.excalimateAnalytics?.capture('landing_external_link_clicked', {
+        destination: destinationCategory(href),
+      });
     });
   });
 </script>

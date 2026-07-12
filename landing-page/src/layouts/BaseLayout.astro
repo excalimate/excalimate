@@ -91,9 +91,12 @@ const ogImage = `${siteUrl}/og-image.png`;
     <!-- Lottie player -->
     <script
       src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.4.2/dist/dotlottie-wc.js"
-      type="module"></script>
+      type="module"
+      integrity="sha384-Z09hxXS8gnck1yI78B6VRUj0ztY/6G3Nc3zPu6sj13EVGNj4M3mFfl8lPVP2cApy"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"></script>
 
-    <!-- Analytics (consent-gated) -->
+    <!-- Optional analytics loader; it contacts PostHog only after consent. -->
     <PostHog />
   </head>
   <body>

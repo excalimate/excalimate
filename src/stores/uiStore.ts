@@ -1,16 +1,14 @@
 import { create } from 'zustand';
-import type {
-  AppMode,
-  PanelSizes,
-  TimelineViewport,
-} from '../types/ui';
+import type { AppMode, PanelSizes, TimelineViewport } from '../types/ui';
 import { computeFrameAtTime } from '../core/engine/playbackSingleton';
 import { usePlaybackStore } from './playbackStore';
+import { readPreference, storePreference } from '../services/analytics/consent';
+import { OPTIONAL_STORAGE_KEYS } from '../services/privacy/dataInventory';
 
 export type Theme = 'light' | 'dark';
 
 function getInitialTheme(): Theme {
-  const stored = localStorage.getItem('excalimate-theme');
+  const stored = readPreference(OPTIONAL_STORAGE_KEYS.theme);
   if (stored === 'light' || stored === 'dark') return stored;
   return 'light';
 }
@@ -92,14 +90,14 @@ export const useUIStore = create<UIState>()((set, get) => ({
   },
 
   setTheme: (theme: Theme): void => {
-    localStorage.setItem('excalimate-theme', theme);
+    storePreference(OPTIONAL_STORAGE_KEYS.theme, theme);
     set({ theme });
   },
 
   toggleTheme: (): void => {
     set((state) => {
       const next = state.theme === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('excalimate-theme', next);
+      storePreference(OPTIONAL_STORAGE_KEYS.theme, next);
       return { theme: next };
     });
   },

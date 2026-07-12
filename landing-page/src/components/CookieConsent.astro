@@ -1,67 +1,128 @@
 ---
 /**
- * CookieConsent.astro — Fixed-bottom consent bar + modal preferences dialog.
- * Uses localStorage (not cookies) since this is a static site.
- * Three categories: Necessary (always on), Preferences (toggleable), Analytics (toggleable).
- * PostHog JS is only loaded after the user grants analytics consent.
+ * Fixed-bottom privacy bar and settings dialog.
+ * Cloudflare service processing is always disclosed; PostHog remains opt-in.
  */
+import {
+  ANALYTICS_EVENT_DEFINITIONS,
+  BROWSER_STORAGE_ITEMS,
+  CONSENT_SCHEMA_VERSION,
+  CONSENT_STORAGE_KEY,
+  DATA_PRACTICES,
+  EXCLUDED_ANALYTICS_DATA,
+} from '../../../src/services/privacy/dataInventory';
 ---
 
 <!-- Compact banner (bottom bar) -->
-<div class="consent-bar" id="consent-bar" role="dialog" aria-label="Cookie consent">
+<div
+  class="consent-bar"
+  id="consent-bar"
+  role="dialog"
+  aria-label="Privacy choices"
+  data-consent-key={CONSENT_STORAGE_KEY}
+  data-consent-version={CONSENT_SCHEMA_VERSION}
+>
   <div class="consent-inner container">
     <p class="consent-text">
-      We use <strong>anonymous analytics</strong> to improve our site. <a href="/privacy"
-        >Privacy Policy</a
-      >
+      Cloudflare processes requests for delivery, security, and aggregate traffic statistics.
+      Feedback features use a required signed identifier for authorship and vote state. Optional
+      PostHog analytics starts only if you accept. <a href="/privacy#data-inventory"
+        >Full data list</a
+      >.
     </p>
     <div class="consent-actions">
       <button id="consent-manage" class="btn btn-secondary btn-sm">Manage</button>
-      <button id="consent-reject" class="btn btn-secondary">Decline</button>
-      <button id="consent-accept" class="btn btn-primary">Accept All</button>
+      <button id="consent-reject" class="btn btn-secondary">Use required only</button>
+      <button id="consent-accept" class="btn btn-primary">Accept optional</button>
     </div>
   </div>
 </div>
 
-<!-- Preferences modal -->
+<!-- Privacy settings modal -->
 <div class="consent-overlay" id="consent-overlay">
-  <div class="consent-modal" role="dialog" aria-label="Cookie preferences" aria-modal="true">
+  <div class="consent-modal" role="dialog" aria-label="Privacy and data settings" aria-modal="true">
     <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
-    <h3 class="modal-title">Cookie Preferences</h3>
-    <p class="modal-subtitle">Manage your cookie preferences. You can update these at any time.</p>
+    <h3 class="modal-title">Privacy and data settings</h3>
+    <p class="modal-subtitle">
+      Required service processing is separate from optional analytics. You can change optional
+      analytics at any time.
+    </p>
 
     <div class="prefs-list">
       <div class="pref-row">
         <div class="pref-info">
-          <span class="pref-name">Necessary</span>
-          <span class="pref-desc">Essential for the site to function. Cannot be disabled.</span>
+          <span class="pref-name">Required service processing</span>
+          <span class="pref-desc"
+            >Cloudflare handles ordinary request metadata for delivery, security, reliability, and
+            aggregate traffic reports. Feedback features use a required signed identifier for
+            authorship and vote state. No client analytics beacon is added for this.</span
+          >
         </div>
         <input type="checkbox" checked disabled class="pref-check" />
       </div>
       <div class="pref-row">
         <div class="pref-info">
-          <span class="pref-name">Preferences</span>
+          <span class="pref-name">Optional product analytics</span>
           <span class="pref-desc"
-            >Remembers your settings, theme, and other choices across sessions.</span
-          >
-        </div>
-        <input type="checkbox" id="preferences-check" class="pref-check" />
-      </div>
-      <div class="pref-row">
-        <div class="pref-info">
-          <span class="pref-name">Analytics</span>
-          <span class="pref-desc"
-            >Anonymous usage statistics via PostHog. No personal data collected.</span
+            >Declared, pseudonymous events through PostHog Cloud EU. No full URLs, referrers,
+            autocapture, session replay, or advertising profiles.</span
           >
         </div>
         <input type="checkbox" id="analytics-check" class="pref-check" />
       </div>
     </div>
 
+    <details class="data-details">
+      <summary>See the exact data list</summary>
+      <div class="data-details-body">
+        <h4>Processing and recipients</h4>
+        {
+          DATA_PRACTICES.map((practice) => (
+            <article class="data-practice">
+              <strong>{practice.title}</strong>
+              <span>{practice.condition}</span>
+              <p><b>Data:</b> {practice.data}</p>
+              <p><b>Why:</b> {practice.purpose}</p>
+              <p><b>Basis:</b> {practice.legalBasis}</p>
+              <p><b>Recipient:</b> {practice.recipient}</p>
+              <p><b>Retention:</b> {practice.retention}</p>
+            </article>
+          ))
+        }
+
+        <h4>Optional analytics events</h4>
+        <ul>
+          {
+            Object.entries(ANALYTICS_EVENT_DEFINITIONS).map(([name, definition]) => (
+              <li>
+                <code>{name}</code>: {definition.purpose}
+                {Object.keys(definition.properties).length > 0
+                  ? ` Properties: ${Object.keys(definition.properties).join(', ')}.`
+                  : ' No custom properties.'}
+              </li>
+            ))
+          }
+        </ul>
+
+        <h4>Browser storage</h4>
+        <ul>
+          {
+            BROWSER_STORAGE_ITEMS.map((item) => (
+              <li><code>{item.key}</code>: {item.contents} {item.purpose} ({item.category})</li>
+            ))
+          }
+        </ul>
+
+        <h4>Never included in analytics</h4>
+        <ul>{EXCLUDED_ANALYTICS_DATA.map((item) => <li>{item}</li>)}</ul>
+        <a href="/privacy#data-inventory">Read the complete privacy notice</a>
+      </div>
+    </details>
+
     <div class="modal-actions">
-      <button id="modal-reject" class="btn btn-secondary">Reject All</button>
-      <button id="modal-save" class="btn btn-secondary">Save Preferences</button>
-      <button id="modal-accept" class="btn btn-primary">Accept All</button>
+      <button id="modal-reject" class="btn btn-secondary">Use required only</button>
+      <button id="modal-save" class="btn btn-secondary">Save choice</button>
+      <button id="modal-accept" class="btn btn-primary">Accept optional</button>
     </div>
   </div>
 </div>
@@ -173,6 +234,8 @@
     width: calc(100% - 40px);
     padding: 28px;
     position: relative;
+    max-height: min(760px, calc(100vh - 40px));
+    overflow-y: auto;
   }
 
   .modal-close {
@@ -275,15 +338,85 @@
     font-size: 13px;
     padding: 10px 18px;
   }
+
+  .data-details {
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--tx2);
+    font-family: var(--f-body);
+    font-size: 0.82rem;
+  }
+
+  .data-details summary {
+    cursor: pointer;
+    color: var(--tx);
+    font-weight: 600;
+  }
+
+  .data-details-body {
+    margin-top: 14px;
+  }
+
+  .data-details h4 {
+    color: var(--tx);
+    font-size: 0.88rem;
+    margin: 18px 0 8px;
+  }
+
+  .data-details ul {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+
+  .data-practice {
+    border-top: 1px solid var(--border);
+    padding: 10px 0;
+  }
+
+  .data-practice > span {
+    display: block;
+    color: var(--tx3);
+    margin-top: 2px;
+  }
+
+  .data-practice p {
+    margin: 4px 0;
+  }
 </style>
 
 <script>
-  const CONSENT_KEY = 'excalimate-consent';
   const bar = document.getElementById('consent-bar')!;
+  const CONSENT_KEY = bar.dataset.consentKey!;
+  const CONSENT_VERSION = bar.dataset.consentVersion!;
   const overlay = document.getElementById('consent-overlay')!;
   const analyticsCheck = document.getElementById('analytics-check') as HTMLInputElement;
-  const preferencesCheck = document.getElementById('preferences-check') as HTMLInputElement;
-  const stored = localStorage.getItem(CONSENT_KEY);
+  const closeButton = document.getElementById('modal-close') as HTMLButtonElement;
+  let previouslyFocused: HTMLElement | null = null;
+
+  localStorage.removeItem('excalimate-consent');
+
+  interface LandingAnalytics {
+    enable: () => void;
+    disable: () => void;
+  }
+
+  function analyticsClient(): LandingAnalytics | undefined {
+    return (window as Window & { excalimateAnalytics?: LandingAnalytics }).excalimateAnalytics;
+  }
+
+  function readChoice(): boolean | null {
+    try {
+      const raw = localStorage.getItem(CONSENT_KEY);
+      if (!raw) return null;
+      const value = JSON.parse(raw);
+      if (value.version !== CONSENT_VERSION || typeof value.state?.analytics !== 'boolean') return null;
+      return value.state.analytics;
+    } catch {
+      return null;
+    }
+  }
 
   function showBar() {
     bar.style.display = 'block';
@@ -292,68 +425,51 @@
     bar.style.display = 'none';
   }
   function openModal() {
-    // Sync checkboxes with stored consent state
-    try {
-      const raw = localStorage.getItem(CONSENT_KEY);
-      if (raw) {
-        const current = JSON.parse(raw);
-        analyticsCheck.checked = !!current.analytics;
-        preferencesCheck.checked = !!current.preferences;
-      } else {
-        analyticsCheck.checked = false;
-        preferencesCheck.checked = false;
-      }
-    } catch {
-      analyticsCheck.checked = false;
-      preferencesCheck.checked = false;
-    }
+    analyticsCheck.checked = readChoice() === true;
+    previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     overlay.classList.add('open');
+    closeButton.focus();
   }
   function closeModal() {
     overlay.classList.remove('open');
+    previouslyFocused?.focus();
+    previouslyFocused = null;
   }
 
-  function saveAndClose(analytics: boolean, preferences: boolean) {
-    localStorage.setItem(CONSENT_KEY, JSON.stringify({ analytics, preferences, ts: Date.now() }));
-    if (typeof (window as any).posthog !== 'undefined') {
-      (window as any).posthog.capture('consent_decision', { analytics: analytics, preferences: preferences, action: 'save' });
-    }
+  function saveAndClose(analytics: boolean) {
+    localStorage.setItem(CONSENT_KEY, JSON.stringify({
+      version: CONSENT_VERSION,
+      state: { analytics, preferences: false },
+      timestamp: new Date().toISOString(),
+    }));
     hideBar();
     closeModal();
-    // PostHog is already loaded (opted-out) via PostHog.astro — just toggle capturing
-    if (typeof (window as any).posthog !== 'undefined') {
-      if (analytics) {
-        (window as any).posthog.opt_in_capturing();
-      } else {
-        (window as any).posthog.opt_out_capturing();
-      }
-    }
+    if (analytics) analyticsClient()?.enable();
+    else analyticsClient()?.disable();
   }
 
-  if (!stored) showBar();
+  if (readChoice() === null) showBar();
 
   // Compact banner buttons
   document.getElementById('consent-manage')!.addEventListener('click', openModal);
   document
     .getElementById('consent-accept')!
-    .addEventListener('click', () => saveAndClose(true, true));
+    .addEventListener('click', () => saveAndClose(true));
   document
     .getElementById('consent-reject')!
-    .addEventListener('click', () => saveAndClose(false, false));
+    .addEventListener('click', () => saveAndClose(false));
 
   // Modal buttons
   document.getElementById('modal-close')!.addEventListener('click', closeModal);
   document
     .getElementById('modal-accept')!
-    .addEventListener('click', () => saveAndClose(true, true));
+    .addEventListener('click', () => saveAndClose(true));
   document
     .getElementById('modal-reject')!
-    .addEventListener('click', () => saveAndClose(false, false));
+    .addEventListener('click', () => saveAndClose(false));
   document
     .getElementById('modal-save')!
-    .addEventListener('click', () =>
-      saveAndClose(analyticsCheck.checked, preferencesCheck.checked),
-    );
+    .addEventListener('click', () => saveAndClose(analyticsCheck.checked));
 
   // Close overlay on backdrop click
   overlay.addEventListener('click', (e) => {
@@ -362,10 +478,31 @@
 
   // Close on Escape
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+    if (!overlay.classList.contains('open')) return;
+    if (e.key === 'Escape') {
+      closeModal();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+
+    const focusable = Array.from(
+      overlay.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), summary, a[href]',
+      ),
+    );
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   });
 
-  // Footer "Cookie Settings" link — open modal directly, no banner
+  // Footer privacy link: open the settings directly without showing the banner.
   document.querySelectorAll('a[href="#manage-consent"]').forEach((link) => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
@@ -373,14 +510,4 @@
     });
   });
 
-  // Utility for other scripts to check preference consent
-  (window as any).excalimateCanStorePreferences = function () {
-    try {
-      const raw = localStorage.getItem(CONSENT_KEY);
-      if (!raw) return false;
-      return JSON.parse(raw).preferences === true;
-    } catch {
-      return false;
-    }
-  };
 </script>
