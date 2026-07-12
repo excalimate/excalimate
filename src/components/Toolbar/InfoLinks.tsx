@@ -5,44 +5,51 @@ import {
   IconBrandX,
   IconBrandBluesky,
   IconHeart,
+  IconShieldLock,
 } from '@tabler/icons-react';
+import { readPreference, storePreference } from '../../services/analytics/consent';
+import { OPTIONAL_STORAGE_KEYS } from '../../services/privacy/dataInventory';
+import { useConsentStore } from '../../stores/consentStore';
 
 const REPO = 'excalimate/excalimate';
 const GITHUB_URL = `https://github.com/${REPO}`;
-const STARS_KEY = 'excalimate-gh-stars';
+const STARS_KEY = OPTIONAL_STORAGE_KEYS.githubStars;
 
 function getCachedStars(): number | null {
   try {
-    const raw = localStorage.getItem(STARS_KEY);
+    const raw = readPreference(STARS_KEY);
     if (!raw) return null;
     const { count, ts } = JSON.parse(raw);
     // Cache for 1 hour
     if (Date.now() - ts < 3600000) return count;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return null;
 }
 
 function cacheStars(count: number): void {
-  try {
-    localStorage.setItem(STARS_KEY, JSON.stringify({ count, ts: Date.now() }));
-  } catch { /* ignore */ }
+  storePreference(STARS_KEY, JSON.stringify({ count, ts: Date.now() }));
 }
 
 export function InfoLinks() {
   const [stars, setStars] = useState<number | null>(getCachedStars);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const openPrivacySettings = useConsentStore((state) => state.openSettings);
 
   useEffect(() => {
     if (stars !== null) return;
     fetch(`https://api.github.com/repos/${REPO}`, { signal: AbortSignal.timeout(5000) })
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.stargazers_count != null) {
           setStars(data.stargazers_count);
           cacheStars(data.stargazers_count);
         }
       })
-      .catch(() => { /* best effort */ });
+      .catch(() => {
+        /* best effort */
+      });
   }, [stars]);
 
   return (
@@ -64,6 +71,18 @@ export function InfoLinks() {
             </span>
           )}
         </a>
+      </Tooltip>
+
+      <Tooltip label="Privacy and data">
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="sm"
+          onClick={openPrivacySettings}
+          aria-label="Privacy and data"
+        >
+          <IconShieldLock size={15} />
+        </ActionIcon>
       </Tooltip>
 
       {/* Credits popover */}
@@ -89,7 +108,7 @@ export function InfoLinks() {
         <Popover.Dropdown>
           <Stack gap="sm">
             <Text size="xs" ta="center" c="dimmed">
-              Made with ❤️ by David Szakacs
+              Made by David Szakacs
             </Text>
             <Group justify="center" gap="xs">
               <Tooltip label="X / Twitter">

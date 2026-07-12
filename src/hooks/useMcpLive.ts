@@ -13,8 +13,10 @@ import { useUIStore } from '../stores/uiStore';
 import { extractTargets } from '../components/Canvas/extractTargets';
 import { computeFrameAtTime } from '../core/engine/playbackSingleton';
 import { trackMcpAction } from '../services/analytics/posthog';
+import { readPreference, storePreference } from '../services/analytics/consent';
+import { OPTIONAL_STORAGE_KEYS } from '../services/privacy/dataInventory';
 
-const STORAGE_KEY = 'excalimate-mcp-url';
+const STORAGE_KEY = OPTIONAL_STORAGE_KEYS.mcpUrl;
 
 /** Decompress a gzip+base64 encoded string using the browser's DecompressionStream API. */
 async function decompressGzBase64(b64: string): Promise<string> {
@@ -47,19 +49,13 @@ async function decompressGzBase64(b64: string): Promise<string> {
 }
 
 function getPersistedMcpUrl(): string {
-  try {
-    return localStorage.getItem(STORAGE_KEY) || import.meta.env.VITE_MCP_SERVER_URL || 'http://localhost:3001';
-  } catch {
-    return import.meta.env.VITE_MCP_SERVER_URL || 'http://localhost:3001';
-  }
+  return (
+    readPreference(STORAGE_KEY) || import.meta.env.VITE_MCP_SERVER_URL || 'http://localhost:3001'
+  );
 }
 
 function persistMcpUrl(url: string): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, url);
-  } catch {
-    // Best effort persistence.
-  }
+  storePreference(STORAGE_KEY, url);
 }
 
 export function getMcpUrl(): string {
@@ -129,89 +125,94 @@ export function useMcpLive() {
     return Math.max(0, base + jitter);
   }
 
-  const connect = useCallback((url: string = getMcpUrl()) => {
-    // Clean up any existing connection/timers
-    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-    reconnectTimerRef.current = null;
-    abortRef.current?.abort();
-    eventSourceRef.current?.close();
-    intentionalDisconnectRef.current = false;
-    reconnectAttemptRef.current = 0;
-    setLastError(null);
+  const connect = useCallback(
+    (url: string = getMcpUrl()) => {
+      // Clean up any existing connection/timers
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+      abortRef.current?.abort();
+      eventSourceRef.current?.close();
+      intentionalDisconnectRef.current = false;
+      reconnectAttemptRef.current = 0;
+      setLastError(null);
 
-    function openConnection(isReconnect = false) {
-      setStatus(isReconnect ? 'reconnecting' : 'connecting');
+      function openConnection(isReconnect = false) {
+        setStatus(isReconnect ? 'reconnecting' : 'connecting');
 
-      const es = new EventSource(`${url}/live`);
-      eventSourceRef.current = es;
-      let hasConnected = false;
+        const es = new EventSource(`${url}/live`);
+        eventSourceRef.current = es;
+        let hasConnected = false;
 
-      es.onopen = () => {
-        if (import.meta.env.DEV) console.log('[MCP Live] Connected to', url);
-        hasConnected = true;
-        reconnectAttemptRef.current = 0;
-        setStatus('connected');
-        useUIStore.getState().setLiveMode(true);
-        trackMcpAction('connect');
+        es.onopen = () => {
+          if (import.meta.env.DEV) console.log('[MCP Live] Connected to', url);
+          hasConnected = true;
+          reconnectAttemptRef.current = 0;
+          setStatus('connected');
+          useUIStore.getState().setLiveMode(true);
+          trackMcpAction('connect');
 
-        // Re-sync full state on every (re)connect to recover from missed SSE messages
-        syncState(url);
-      };
+          // Re-sync full state on every (re)connect to recover from missed SSE messages
+          syncState(url);
+        };
 
-      es.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'state' && data.state) {
-            applyState(data.state);
-          } else if (data.type === 'gz' && data.data) {
-            // Decompress gzipped SSE payload
-            decompressGzBase64(data.data).then(
-              (json) => {
-                try {
-                  const parsed = JSON.parse(json);
-                  if (parsed.type === 'state' && parsed.state) {
-                    applyState(parsed.state);
+        es.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'state' && data.state) {
+              applyState(data.state);
+            } else if (data.type === 'gz' && data.data) {
+              // Decompress gzipped SSE payload
+              decompressGzBase64(data.data).then(
+                (json) => {
+                  try {
+                    const parsed = JSON.parse(json);
+                    if (parsed.type === 'state' && parsed.state) {
+                      applyState(parsed.state);
+                    }
+                  } catch (e) {
+                    console.error('[MCP Live] Parse error after decompress:', e);
                   }
-                } catch (e) {
-                  console.error('[MCP Live] Parse error after decompress:', e);
-                }
-              },
-              (err) => console.error('[MCP Live] Decompress error:', err),
+                },
+                (err) => console.error('[MCP Live] Decompress error:', err),
+              );
+            }
+          } catch (e) {
+            console.error('[MCP Live] Parse error:', e);
+          }
+        };
+
+        es.onerror = () => {
+          es.close();
+          eventSourceRef.current = null;
+
+          if (intentionalDisconnectRef.current) {
+            setStatus('disconnected');
+            return;
+          }
+
+          if (!hasConnected) {
+            setStatus('disconnected');
+            setLastError('connection_failed');
+            return;
+          }
+
+          // Schedule reconnect with backoff
+          const delay = getReconnectDelay();
+          reconnectAttemptRef.current++;
+          if (import.meta.env.DEV) {
+            console.log(
+              `[MCP Live] Connection lost. Reconnecting in ${Math.round(delay)}ms (attempt ${reconnectAttemptRef.current})`,
             );
           }
-        } catch (e) {
-          console.error('[MCP Live] Parse error:', e);
-        }
-      };
+          reconnectTimerRef.current = setTimeout(() => openConnection(true), delay);
+        };
+      }
 
-      es.onerror = () => {
-        es.close();
-        eventSourceRef.current = null;
-
-        if (intentionalDisconnectRef.current) {
-          setStatus('disconnected');
-          return;
-        }
-
-        if (!hasConnected) {
-          setStatus('disconnected');
-          setLastError('connection_failed');
-          return;
-        }
-
-        // Schedule reconnect with backoff
-        const delay = getReconnectDelay();
-        reconnectAttemptRef.current++;
-        if (import.meta.env.DEV) {
-          console.log(`[MCP Live] Connection lost. Reconnecting in ${Math.round(delay)}ms (attempt ${reconnectAttemptRef.current})`);
-        }
-        reconnectTimerRef.current = setTimeout(() => openConnection(true), delay);
-      };
-    }
-
-    openConnection();
-    setLiveUrl(url);
-  }, [setLiveUrl]);
+      openConnection();
+      setLiveUrl(url);
+    },
+    [setLiveUrl],
+  );
 
   const disconnect = useCallback(() => {
     intentionalDisconnectRef.current = true;
@@ -262,10 +263,11 @@ function applyState(state: any) {
 
         // Remove deleted elements
         const removedSet = new Set<string>(state.scene.removed ?? []);
-        let elements = removedSet.size > 0
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ? currentElements.filter((el: any) => !removedSet.has(el.id))
-          : currentElements;
+        let elements =
+          removedSet.size > 0
+            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              currentElements.filter((el: any) => !removedSet.has(el.id))
+            : currentElements;
 
         // Upsert (add or replace) elements
         if (state.scene.upsert?.length > 0) {
@@ -331,7 +333,10 @@ function applyState(state: any) {
     const animStore = useAnimationStore.getState();
 
     // Detect delta format (has upsertedTracks/removedTrackIds) vs full format (has tracks array)
-    if (Array.isArray(state.timeline.upsertedTracks) || Array.isArray(state.timeline.removedTrackIds)) {
+    if (
+      Array.isArray(state.timeline.upsertedTracks) ||
+      Array.isArray(state.timeline.removedTrackIds)
+    ) {
       // ── Delta timeline update ──
       const currentTimeline = animStore.timeline;
       let tracks = [...currentTimeline.tracks];
@@ -339,15 +344,16 @@ function applyState(state: any) {
       // Remove deleted tracks
       if (state.timeline.removedTrackIds?.length > 0) {
         const removedSet = new Set<string>(state.timeline.removedTrackIds);
-        tracks = tracks.filter(t => !removedSet.has(t.id));
+        tracks = tracks.filter((t) => !removedSet.has(t.id));
       }
 
       // Upsert tracks
       if (state.timeline.upsertedTracks?.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const upsertMap = new Map<string, any>(state.timeline.upsertedTracks.map((t: any) => [t.id, t]));
-        tracks = tracks.map(t => upsertMap.get(t.id) ?? t) as typeof tracks;
-        const existingIds = new Set(tracks.map(t => t.id));
+        const upsertMap = new Map<string, (typeof tracks)[number]>(
+          state.timeline.upsertedTracks.map((track: (typeof tracks)[number]) => [track.id, track]),
+        );
+        tracks = tracks.map((track) => upsertMap.get(track.id) ?? track);
+        const existingIds = new Set(tracks.map((t) => t.id));
         for (const t of state.timeline.upsertedTracks) {
           if (!existingIds.has(t.id)) tracks.push(t);
         }

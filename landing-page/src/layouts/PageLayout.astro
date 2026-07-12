@@ -64,7 +64,7 @@ const breadcrumbs = [
     "itemListElement": breadcrumbs
   })} />
 
-  <!-- Analytics (consent-gated) -->
+  <!-- Optional analytics loader; it contacts PostHog only after consent. -->
   <PostHog />
 </head>
 <body>
@@ -72,10 +72,5 @@ const breadcrumbs = [
   <div class="grain" aria-hidden="true"></div>
   <slot/>
   <CookieConsent />
-  <script>
-    if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
-      posthog.capture('guide_viewed', { path: window.location.pathname });
-    }
-  </script>
 </body>
 </html>

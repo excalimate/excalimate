@@ -203,6 +203,26 @@ npm run test         # Run tests
 npm run lint         # ESLint
 ```
 
+### Privacy-sensitive deployment settings
+
+The privacy notice depends on production configuration as well as source code:
+
+- Use only Cloudflare edge/zone aggregate traffic analytics. Do not enable the
+  Cloudflare Web Analytics browser beacon or export request logs for analytics.
+- Do not describe or use Cloudflare's IP-derived unique-visitor metric as
+  anonymous. Delete raw/exported Cloudflare reports within 30 days; aggregate
+  trend reports may be retained without a fixed limit.
+- Keep PostHog on Cloud EU with IP capture, autocapture, session replay, surveys,
+  product tours, web experiments, and feature flags disabled. Set event retention
+  to no more than 12 months and review the DPA and subprocessors before release.
+- Retain the legitimate-interest and ePrivacy assessments for Cloudflare,
+  GitHub's star-count request, and the pinned unpkg dotLottie runtime. Review the
+  DPIA screening, Article 30 record, and any transfer assessment when a data flow
+  changes.
+- Obtain legal approval for the deployed notice and account settings. If the
+  GitHub or unpkg request cannot rely on the documented ePrivacy position in a
+  target jurisdiction, self-host/proxy it or gate it before release.
+
 MCP server:
 
 ```bash

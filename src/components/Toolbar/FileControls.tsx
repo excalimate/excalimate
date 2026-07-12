@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Menu, Button, Modal, Select, Divider, TextInput } from '@mantine/core';
 import {
-  IconFilePlus, IconFolderOpen, IconDeviceFloppy,
-  IconFileImport, IconShare, IconChevronDown, IconSettings, IconMaximize, IconServer, IconCheck,
-  IconCookie,
+  IconFilePlus,
+  IconFolderOpen,
+  IconDeviceFloppy,
+  IconFileImport,
+  IconShare,
+  IconChevronDown,
+  IconSettings,
+  IconMaximize,
+  IconServer,
+  IconCheck,
+  IconShieldLock,
 } from '@tabler/icons-react';
 import { ImportExcalidrawModal } from './ImportExcalidrawModal';
 import { LoadAnimationModal } from './LoadAnimationModal';
@@ -13,14 +21,19 @@ import { useShareOperations } from './useShareOperations';
 import { useProjectStore, getExportResolution } from '../../stores/projectStore';
 import type { AspectRatio } from '../../stores/projectStore';
 import { useMcpLive } from '../../hooks/useMcpLive';
+import { useConsentStore } from '../../stores/consentStore';
 
 const RATIOS: AspectRatio[] = ['16:9', '4:3', '1:1', '3:2'];
 
 export function FileControls() {
   const {
-    handleNew, handleSave,
-    handleImportFile, handleImportUrl,
-    handleLoadProjectFile, handleLoadCheckpointFile, handleLoadShareUrl,
+    handleNew,
+    handleSave,
+    handleImportFile,
+    handleImportUrl,
+    handleLoadProjectFile,
+    handleLoadCheckpointFile,
+    handleLoadShareUrl,
   } = useFileOperations();
   const { loading, handleShare } = useShareOperations();
 
@@ -30,12 +43,18 @@ export function FileControls() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const aspectRatio = useProjectStore((s) => s.cameraFrame.aspectRatio);
   const { liveUrl, setLiveUrl } = useMcpLive();
+  const openPrivacySettings = useConsentStore((state) => state.openSettings);
 
   return (
     <>
       <Menu shadow="md" width={220} position="bottom-start">
         <Menu.Target>
-          <Button variant="subtle" color="gray" size="compact-sm" rightSection={<IconChevronDown size={12} />}>
+          <Button
+            variant="subtle"
+            color="gray"
+            size="compact-sm"
+            rightSection={<IconChevronDown size={12} />}
+          >
             File
           </Button>
         </Menu.Target>
@@ -68,17 +87,13 @@ export function FileControls() {
           <Menu.Item leftSection={<IconSettings size={16} />} onClick={() => setPrefsOpen(true)}>
             Preferences
           </Menu.Item>
-          <Menu.Item leftSection={<IconCookie size={16} />} onClick={() => { import('../../stores/consentStore').then(m => m.useConsentStore.getState().openSettings()); }}>
-            Cookie Settings
+          <Menu.Item leftSection={<IconShieldLock size={16} />} onClick={openPrivacySettings}>
+            Privacy and data
           </Menu.Item>
         </Menu.Dropdown>
       </Menu>
 
-      <NewProjectModal
-        opened={newOpen}
-        onClose={() => setNewOpen(false)}
-        onCreate={handleNew}
-      />
+      <NewProjectModal opened={newOpen} onClose={() => setNewOpen(false)} onCreate={handleNew} />
 
       <ImportExcalidrawModal
         opened={importOpen}
@@ -100,7 +115,9 @@ export function FileControls() {
           <Select
             label="Camera aspect ratio"
             value={aspectRatio}
-            onChange={(v) => { if (v) useProjectStore.getState().setCameraAspectRatio(v as AspectRatio); }}
+            onChange={(v) => {
+              if (v) useProjectStore.getState().setCameraAspectRatio(v as AspectRatio);
+            }}
             data={RATIOS.map((r) => {
               const res = getExportResolution(r);
               return { value: r, label: `${r}  (${res.width}×${res.height})` };
@@ -123,7 +140,13 @@ export function FileControls() {
 }
 
 /** MCP URL input with a checkmark that appears briefly after the value is persisted. */
-function McpUrlInput({ liveUrl, setLiveUrl }: { liveUrl: string; setLiveUrl: (url: string) => void }) {
+function McpUrlInput({
+  liveUrl,
+  setLiveUrl,
+}: {
+  liveUrl: string;
+  setLiveUrl: (url: string) => void;
+}) {
   const [saved, setSaved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -135,7 +158,9 @@ function McpUrlInput({ liveUrl, setLiveUrl }: { liveUrl: string; setLiveUrl: (ur
   };
 
   useEffect(() => {
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 
   return (
@@ -146,7 +171,9 @@ function McpUrlInput({ liveUrl, setLiveUrl }: { liveUrl: string; setLiveUrl: (ur
       value={liveUrl}
       onChange={(e) => handleChange(e.currentTarget.value)}
       leftSection={<IconServer size={14} />}
-      rightSection={saved ? <IconCheck size={14} color="var(--mantine-color-green-6)" /> : undefined}
+      rightSection={
+        saved ? <IconCheck size={14} color="var(--mantine-color-green-6)" /> : undefined
+      }
     />
   );
 }
