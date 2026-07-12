@@ -7,38 +7,12 @@ import {
   IconProgressCheck,
 } from '@tabler/icons-react';
 
-const participationOptions = [
-  {
-    title: 'Submit ideas',
-    description: 'Propose a feature or improvement.',
-    icon: IconBulb,
-    color: 'var(--p2)',
-    iconColor: 'var(--tx)',
-  },
-  {
-    title: 'Vote on requests',
-    description: 'Help the best ideas rise to the top.',
-    icon: IconArrowUp,
-    color: 'var(--p3)',
-    iconColor: 'var(--tx)',
-  },
-  {
-    title: 'Join discussions',
-    description: 'Add context and build on suggestions.',
-    icon: IconMessageCircle,
-    color: 'var(--p4)',
-    iconColor: '#fff',
-  },
-  {
-    title: 'Track progress',
-    description: 'See what the team is reviewing and building.',
-    icon: IconProgressCheck,
-    color: 'var(--p5)',
-    iconColor: 'var(--tx)',
-  },
+const statuses = [
+  { label: 'Under review', color: '#9ca3af' },
+  { label: 'Planned', color: 'var(--p4)' },
+  { label: 'In progress', color: 'var(--p2)' },
+  { label: 'Completed', color: 'var(--p5)' },
 ];
-
-const statuses = ['Under review', 'Planned', 'In progress', 'Completed'];
 ---
 
 <section class="feedback-promo" aria-labelledby="feedback-promo-title">
@@ -60,46 +34,74 @@ const statuses = ['Under review', 'Planned', 'In progress', 'Completed'];
         </a>
       </div>
 
-      <div class="feedback-panel">
-        <ul class="feedback-actions stagger" aria-label="Ways to participate">
-          {
-            participationOptions.map((option) => {
-              const Icon = option.icon;
-              return (
-                <li class="feedback-action reveal">
-                  <span
-                    class="feedback-action-icon"
-                    style={`--icon-background: ${option.color}; --icon-color: ${option.iconColor}`}
-                  >
-                    <Icon size={24} stroke={2.1} aria-hidden="true" />
-                  </span>
-                  <span class="feedback-action-copy">
-                    <strong>{option.title}</strong>
-                    <span>{option.description}</span>
-                  </span>
-                </li>
-              );
-            })
-          }
-        </ul>
+      <div class="feedback-panel" aria-label="Public feedback portal preview">
+        <div class="feedback-board">
+          <header class="feedback-board-header">
+            <span class="feedback-board-brand">
+              <span class="feedback-board-brand-icon">
+                <IconMessageCircle size={22} stroke={2.2} aria-hidden="true" />
+              </span>
+              <span>
+                <strong>Community roadmap</strong>
+                <small>Ideas shaped in public</small>
+              </span>
+            </span>
+            <span class="feedback-public-badge">Public</span>
+          </header>
 
-        <div
-          class="feedback-status"
-          aria-label="Feedback statuses: under review, planned, in progress, completed"
-        >
-          <p class="feedback-status-title">See every idea move forward</p>
-          <div class="feedback-status-track" aria-hidden="true">
-            {
-              statuses.map((status, index) => (
-                <>
-                  <span class="feedback-status-step">
+          <article class="feedback-idea">
+            <div class="feedback-idea-meta">
+              <span class="feedback-category">Feature request</span>
+              <span class="feedback-review-state">Under review</span>
+            </div>
+            <div class="feedback-idea-body">
+              <span class="feedback-idea-icon">
+                <IconBulb size={26} stroke={2.1} aria-hidden="true" />
+              </span>
+              <div>
+                <h3>What should Excalimate do next?</h3>
+                <p>Share your workflow idea, then let the community strengthen it.</p>
+              </div>
+            </div>
+            <div class="feedback-engagement" aria-label="Community participation">
+              <span>
+                <IconArrowUp size={18} stroke={2.2} aria-hidden="true" />
+                <span>
+                  <strong>Vote</strong>
+                  <small>Prioritize ideas</small>
+                </span>
+              </span>
+              <span>
+                <IconMessageCircle size={18} stroke={2.2} aria-hidden="true" />
+                <span>
+                  <strong>Discuss</strong>
+                  <small>Add useful context</small>
+                </span>
+              </span>
+            </div>
+          </article>
+
+          <div
+            class="feedback-status"
+            aria-label="Feedback statuses: under review, planned, in progress, completed"
+          >
+            <div class="feedback-status-heading">
+              <IconProgressCheck size={20} stroke={2.2} aria-hidden="true" />
+              <p>Follow every update</p>
+            </div>
+            <ol class="feedback-status-track">
+              {
+                statuses.map((status) => (
+                  <li
+                    class="feedback-status-step"
+                    style={`--status-color: ${status.color}`}
+                  >
                     <span class="feedback-status-dot" />
-                    <span>{status}</span>
-                  </span>
-                  {index < statuses.length - 1 && <span class="feedback-status-line" />}
-                </>
-              ))
-            }
+                    <span>{status.label}</span>
+                  </li>
+                ))
+              }
+            </ol>
           </div>
         </div>
       </div>
@@ -171,113 +173,278 @@ const statuses = ['Under review', 'Planned', 'In progress', 'Completed'];
 
   .feedback-panel {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    gap: 28px;
     padding: 28px;
     background: var(--tx);
   }
 
-  .feedback-actions {
-    display: grid;
-    gap: 14px;
+  .feedback-board {
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg-alt);
+    border: var(--border-w) solid #fff;
+    border-radius: var(--radius);
+    box-shadow: 6px 6px 0 var(--p2);
   }
 
-  .feedback-action {
+  .feedback-board-header {
     display: flex;
     align-items: center;
-    gap: 14px;
-    min-width: 0;
-    padding: 16px;
-    background: var(--card-bg);
-    border: var(--border-w) solid var(--border-c);
-    border-radius: var(--radius);
-    box-shadow: 3px 3px 0 var(--p2);
-  }
-
-  .feedback-action-icon {
-    display: flex;
-    flex: 0 0 44px;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    background: var(--icon-background);
-    border: var(--border-w) solid var(--border-c);
-    border-radius: var(--radius);
-    color: var(--icon-color);
-  }
-
-  .feedback-action-copy {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-    gap: 3px;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 15px 18px;
+    background: var(--accent);
+    border-bottom: var(--border-w) solid var(--border-c);
     color: var(--tx);
   }
 
-  .feedback-action-copy strong {
-    font-family: var(--f-display);
-    font-size: 1rem;
-    line-height: 1.25;
+  .feedback-board-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
   }
 
-  .feedback-action-copy > span {
-    font-family: var(--f-body);
-    font-size: 0.8rem;
-    line-height: 1.4;
-    color: var(--tx2);
-  }
-
-  .feedback-status {
-    padding: 20px;
-    border: var(--border-w) solid #fff;
+  .feedback-board-brand-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    background: var(--tx);
     border-radius: var(--radius);
     color: #fff;
   }
 
-  .feedback-status-title {
+  .feedback-board-brand > span:last-child {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .feedback-board-brand strong {
     font-family: var(--f-display);
-    font-size: 0.95rem;
+    font-size: 0.98rem;
+    line-height: 1.15;
+  }
+
+  .feedback-board-brand small {
+    margin-top: 2px;
+    font-family: var(--f-body);
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--tx2);
+  }
+
+  .feedback-public-badge {
+    flex: 0 0 auto;
+    padding: 6px 9px;
+    background: #fff;
+    border: var(--border-w) solid var(--border-c);
+    border-radius: 999px;
+    font-family: var(--f-body);
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .feedback-idea {
+    margin: 18px;
+    padding: 20px;
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: 4px 4px 0 var(--border-c);
+  }
+
+  .feedback-idea-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .feedback-category,
+  .feedback-review-state {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-family: var(--f-body);
+    font-size: 0.64rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .feedback-category {
+    background: color-mix(in srgb, var(--p2) 24%, #fff);
+    border: 1px solid color-mix(in srgb, var(--p2) 70%, var(--tx));
+    color: var(--tx);
+  }
+
+  .feedback-review-state {
+    background: #ececef;
+    border: 1px solid #8a8a96;
+    color: #34343c;
+  }
+
+  .feedback-idea-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .feedback-idea-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    background: var(--p2);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    color: var(--tx);
+  }
+
+  .feedback-idea-body h3 {
+    font-family: var(--f-display);
+    font-size: 1.15rem;
     font-weight: 700;
+    line-height: 1.2;
+    color: var(--tx);
+  }
+
+  .feedback-idea-body p {
+    margin-top: 6px;
+    font-family: var(--f-body);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--tx2);
+  }
+
+  .feedback-engagement {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-strong);
+  }
+
+  .feedback-engagement > span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 9px 10px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    color: var(--tx);
+  }
+
+  .feedback-engagement > span > span {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .feedback-engagement strong {
+    font-family: var(--f-display);
+    font-size: 0.76rem;
+    line-height: 1.15;
+  }
+
+  .feedback-engagement small {
+    margin-top: 2px;
+    font-family: var(--f-body);
+    font-size: 0.62rem;
+    line-height: 1.2;
+    color: var(--tx2);
+  }
+
+  .feedback-status {
+    padding: 18px 18px 20px;
+    background: var(--tx);
+    border-top: var(--border-w) solid #fff;
+    color: #fff;
+  }
+
+  .feedback-status-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .feedback-status-heading p {
+    font-family: var(--f-display);
+    font-size: 0.9rem;
+    font-weight: 600;
     line-height: 1.3;
   }
 
   .feedback-status-track {
-    display: flex;
-    align-items: flex-start;
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     margin-top: 18px;
   }
 
+  .feedback-status-track::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    top: 7px;
+    right: 11%;
+    left: 11%;
+    height: 4px;
+    background: linear-gradient(
+      90deg,
+      #9ca3af 0%,
+      #9ca3af 24%,
+      var(--p4) 27%,
+      var(--p4) 48%,
+      var(--p2) 52%,
+      var(--p2) 73%,
+      var(--p5) 77%,
+      var(--p5) 100%
+    );
+    border-radius: 999px;
+  }
+
   .feedback-status-step {
+    position: relative;
+    z-index: 1;
     display: flex;
-    flex: 0 0 auto;
-    width: 56px;
+    min-width: 0;
     flex-direction: column;
     align-items: center;
     gap: 8px;
     font-family: var(--f-body);
-    font-size: 0.62rem;
-    font-weight: 600;
-    line-height: 1.2;
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1.15;
     text-align: center;
     color: #fff;
   }
 
   .feedback-status-dot {
-    width: 13px;
-    height: 13px;
-    background: var(--accent);
+    width: 18px;
+    height: 18px;
+    background: var(--status-color);
     border: 2px solid #fff;
     border-radius: 50%;
-  }
-
-  .feedback-status-line {
-    flex: 1 1 20px;
-    min-width: 10px;
-    height: 2px;
-    margin: 6px -5px 0;
-    background: #fff;
+    box-shadow: 0 0 0 3px var(--tx);
   }
 
   @media (min-width: 640px) {
@@ -287,10 +454,6 @@ const statuses = ['Under review', 'Planned', 'In progress', 'Completed'];
 
     .feedback-panel {
       padding: 40px;
-    }
-
-    .feedback-actions {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
@@ -313,13 +476,25 @@ const statuses = ['Under review', 'Planned', 'In progress', 'Completed'];
       padding: 20px;
     }
 
+    .feedback-idea {
+      margin: 12px;
+      padding: 16px;
+    }
+
+    .feedback-idea-body {
+      gap: 10px;
+    }
+
+    .feedback-engagement {
+      grid-template-columns: 1fr;
+    }
+
     .feedback-status {
       padding-inline: 12px;
     }
 
     .feedback-status-step {
-      width: 44px;
-      font-size: 0.55rem;
+      font-size: 0.54rem;
     }
   }
 
