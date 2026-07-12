@@ -4,7 +4,8 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, type RefObject } fr
 interface TurnstileOptions {
   sitekey: string;
   action: string;
-  size?: 'normal' | 'compact' | 'flexible' | 'invisible';
+  size?: 'normal' | 'compact' | 'flexible';
+  appearance?: 'always' | 'execute' | 'interaction-only';
   execution?: 'render' | 'execute';
   callback: (token: string) => void;
   'error-callback': () => void;
@@ -122,7 +123,8 @@ export const TurnstileAction = forwardRef<TurnstileActionHandle, ActionProps>(
           widgetIdRef.current = api.render(container, {
             sitekey: siteKey,
             action,
-            size: 'invisible',
+            size: 'flexible',
+            appearance: 'interaction-only',
             execution: 'execute',
             callback: (token) => {
               shouldResetRef.current = true;
