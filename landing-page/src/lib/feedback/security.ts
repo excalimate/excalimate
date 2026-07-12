@@ -2,6 +2,8 @@ import { FeedbackError } from './errors';
 
 type MutationKind = 'submission' | 'interaction';
 
+const TURNSTILE_ALWAYS_PASS_TEST_SECRET = '1x0000000000000000000000000000000AA';
+
 export type FeedbackSecurityEnv = Pick<
   Cloudflare.Env,
   | 'TURNSTILE_SECRET_KEY'
@@ -104,9 +106,12 @@ async function verifyTurnstile(
     .split(',')
     .map((hostname) => hostname.trim())
     .filter(Boolean);
+  const usesAlwaysPassTestSecret =
+    env.TURNSTILE_SECRET_KEY === TURNSTILE_ALWAYS_PASS_TEST_SECRET;
   if (
     !result.success ||
-    (allowedHostnames.length > 0 &&
+    (!usesAlwaysPassTestSecret &&
+      allowedHostnames.length > 0 &&
       (!result.hostname || !allowedHostnames.includes(result.hostname)))
   ) {
     throw new FeedbackError(400, 'turnstile_failed', 'Verification failed. Please try again.');

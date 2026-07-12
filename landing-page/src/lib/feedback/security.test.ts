@@ -54,6 +54,25 @@ describe('feedback mutation security', () => {
     ).rejects.toMatchObject({ status: 400, code: 'turnstile_failed' });
   });
 
+  it('accepts the synthetic hostname returned for the always-pass test secret', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({ success: true, hostname: 'example.com' }),
+    );
+
+    await expect(
+      verifyMutation(
+        mutationRequest(),
+        {
+          ...env,
+          TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
+          TURNSTILE_ALLOWED_HOSTNAMES: 'localhost,127.0.0.1',
+        },
+        'token',
+        'submission',
+      ),
+    ).resolves.toBeUndefined();
+  });
+
   it('surfaces rate limits without calling Turnstile', async () => {
     limit.mockResolvedValue({ success: false });
     const fetchMock = vi.spyOn(globalThis, 'fetch');
