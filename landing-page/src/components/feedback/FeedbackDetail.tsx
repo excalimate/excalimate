@@ -1,4 +1,5 @@
 import {
+  ActionIcon,
   Alert,
   Anchor,
   Avatar,
@@ -225,21 +226,29 @@ function FeedbackDetailContent({ number, initialItem }: Props) {
           <Stack gap="lg">
             <Group justify="space-between" align="flex-start">
               <Group gap={8}>
-                <Badge color={statusColors[item.status]} variant="light">
+                <Badge
+                  className="feedback-status-badge"
+                  color={statusColors[item.status]}
+                  variant="light"
+                >
                   {FEEDBACK_STATUSES[item.status].label}
                 </Badge>
                 <Badge color="dark" variant="outline">
                   {FEEDBACK_CATEGORIES[item.category].label}
                 </Badge>
               </Group>
-              <Anchor
+              <ActionIcon
+                component="a"
                 href={item.htmlUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Open this feedback issue on GitHub"
+                className="feedback-github-link"
+                variant="default"
+                size={44}
               >
-                <IconBrandGithub size={22} />
-              </Anchor>
+                <IconBrandGithub size={24} />
+              </ActionIcon>
             </Group>
             <Title order={1}>{item.title}</Title>
             <Text className="feedback-body">{item.body}</Text>

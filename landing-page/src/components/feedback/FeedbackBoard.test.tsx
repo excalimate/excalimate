@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { markFeedbackListStale } from '../../lib/feedback/api';
 import FeedbackBoard from './FeedbackBoard';
@@ -44,6 +44,7 @@ describe('FeedbackBoard', () => {
     render(<FeedbackBoard />);
 
     await waitFor(() => expect(listFeedbackMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('tab', { name: 'All statuses' })).toHaveClass('feedback-status-tab');
     markFeedbackListStale();
     const pageShow = new Event('pageshow');
     Object.defineProperty(pageShow, 'persisted', { value: true });

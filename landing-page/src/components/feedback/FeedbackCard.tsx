@@ -39,7 +39,11 @@ export function FeedbackCard({ item, voting, onVote }: Props) {
         </Button>
         <Stack gap={8} className="feedback-card-content">
           <Group gap={8}>
-            <Badge color={statusColors[item.status]} variant="light">
+            <Badge
+              className="feedback-status-badge"
+              color={statusColors[item.status]}
+              variant="light"
+            >
               {FEEDBACK_STATUSES[item.status].label}
             </Badge>
             <Badge color="dark" variant="outline">

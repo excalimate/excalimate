@@ -28,6 +28,9 @@ describe('FeedbackCard', () => {
 
     expect(screen.getByRole('heading', { name: item.title })).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /12 votes/u })).toBeDisabled();
+    const voteButton = screen.getByRole('button', { name: /12 votes/u });
+    expect(voteButton).toBeDisabled();
+    expect(voteButton).toHaveClass('feedback-button');
+    expect(screen.getByText('Completed').closest('.feedback-status-badge')).not.toBeNull();
   });
 });

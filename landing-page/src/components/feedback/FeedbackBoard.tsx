@@ -253,9 +253,11 @@ function FeedbackBoardContent() {
               variant="pills"
             >
               <Tabs.List>
-                <Tabs.Tab value="all">All statuses</Tabs.Tab>
+                <Tabs.Tab className="feedback-status-tab" value="all">
+                  All statuses
+                </Tabs.Tab>
                 {FEEDBACK_STATUS_IDS.map((id) => (
-                  <Tabs.Tab key={id} value={id}>
+                  <Tabs.Tab className="feedback-status-tab" key={id} value={id}>
                     {FEEDBACK_STATUSES[id].label}
                   </Tabs.Tab>
                 ))}

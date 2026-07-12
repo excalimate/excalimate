@@ -13,6 +13,68 @@
   letter-spacing: -0.04em;
 }
 
+.feedback-button {
+  color: var(--tx);
+  border: var(--border-w) solid var(--border-c);
+  box-shadow: 3px 3px 0 var(--border-c);
+  transition:
+    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.feedback-button[data-variant='filled'] {
+  color: var(--tx);
+}
+
+.feedback-button[data-variant='light'] {
+  color: var(--tx);
+  background: var(--mantine-color-excalimate-1);
+}
+
+.feedback-button:hover:not(:disabled, [data-disabled]) {
+  box-shadow: 5px 5px 0 var(--border-c);
+  transform: translate(-1px, -1px);
+}
+
+.feedback-button:active:not(:disabled, [data-disabled]) {
+  box-shadow: 1px 1px 0 var(--border-c);
+  transform: translate(2px, 2px);
+}
+
+.feedback-button:disabled,
+.feedback-button[data-disabled] {
+  box-shadow: none;
+}
+
+.feedback-status-tab {
+  color: var(--tx2);
+  font-weight: 600;
+  border: var(--border-w) solid transparent;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.feedback-status-tab[data-active] {
+  color: var(--tx);
+  background: var(--accent);
+  border-color: var(--border-c);
+  box-shadow: 3px 3px 0 var(--border-c);
+}
+
+.feedback-status-tab[data-active]:hover {
+  color: var(--tx);
+  background: var(--accent);
+  box-shadow: 4px 4px 0 var(--border-c);
+  transform: translate(-1px, -1px);
+}
+
+.feedback-status-badge {
+  color: var(--tx);
+}
+
 .feedback-filters,
 .feedback-card,
 .feedback-empty {
@@ -103,6 +165,35 @@
   color: var(--tx2);
 }
 
+.feedback-github-link {
+  color: var(--tx);
+  background: var(--surface);
+  border: var(--border-w) solid var(--border-c);
+  box-shadow: 3px 3px 0 var(--border-c);
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.feedback-github-link:hover {
+  color: var(--tx);
+  background: var(--accent);
+  box-shadow: 5px 5px 0 var(--border-c);
+  transform: translate(-1px, -1px);
+}
+
+.feedback-github-link:active {
+  box-shadow: 1px 1px 0 var(--border-c);
+  transform: translate(2px, 2px);
+}
+
+.feedback-shell :focus-visible,
+.mantine-Modal-root :focus-visible {
+  outline-color: var(--p4);
+}
+
 .feedback-turnstile {
   min-height: 65px;
 }
@@ -132,7 +223,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .feedback-card {
+  .feedback-button,
+  .feedback-card,
+  .feedback-github-link,
+  .feedback-status-tab {
     transition: none;
   }
 }
