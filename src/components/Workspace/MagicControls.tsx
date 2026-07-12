@@ -18,6 +18,7 @@ import {
   IconArrowRight,
   IconChartDots,
   IconCircleCheck,
+  IconInfoCircle,
   IconLayoutBoard,
   IconListDetails,
   IconPlayerPlay,
@@ -48,10 +49,20 @@ function speedBand(speed: number): 'slow' | 'normal' | 'fast' {
 }
 
 function strategyLabel(strategy: AutoAnimateAnalysis['strategy']): string {
-  return strategy
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  switch (strategy) {
+    case 'linear-left-to-right':
+      return 'Left-to-right order';
+    case 'linear-top-to-bottom':
+      return 'Top-to-bottom order';
+    case 'hierarchical':
+      return 'Connected flow';
+    case 'radial':
+      return 'Center-out order';
+    case 'timeline':
+      return 'Timeline order';
+    case 'stable-z-order':
+      return 'Canvas order';
+  }
 }
 
 export function MagicControls() {
@@ -123,10 +134,10 @@ export function MagicControls() {
         target_count: nextAnalysis.semanticTargets.length,
       });
     } catch (error) {
+      console.error('Auto Animate analysis failed', error);
       notifications.show({
-        title: 'Local analysis failed',
-        message:
-          error instanceof Error ? error.message : 'The arrangement worker could not complete.',
+        title: 'Could not create an animation order',
+        message: 'Try again, or choose an animation style below.',
         color: 'red',
       });
     } finally {
@@ -154,7 +165,7 @@ export function MagicControls() {
     const result = applyPresetBatch(inputs);
     if (!result.ok) {
       notifications.show({
-        title: 'Animation plan was not applied',
+        title: 'Animation order was not applied',
         message: result.error.message,
         color: 'red',
       });
@@ -169,7 +180,7 @@ export function MagicControls() {
     setAnalysis(null);
     useUIStore.getState().setCanvasMode('preview');
     notifications.show({
-      title: 'Animation plan applied',
+      title: 'Animation order applied',
       message: `${inputs.length} steps were committed and can be undone in one step.`,
       color: 'green',
       icon: <IconCircleCheck size={18} />,
@@ -206,7 +217,7 @@ export function MagicControls() {
             <Badge variant="light">{hasSelection ? 'Selection' : 'Whole diagram'}</Badge>
           </Group>
           <Text size="sm" c="dimmed">
-            Preview every local suggestion before it changes the timeline.
+            Preview the suggested order before applying it.
           </Text>
         </Stack>
 
@@ -346,10 +357,10 @@ export function MagicControls() {
       <Modal
         opened={analysis !== null}
         onClose={rejectAnalysis}
-        title="Review animation plan"
+        title="Review animation order"
         centered
         size="lg"
-        closeButtonProps={{ 'aria-label': 'Reject animation plan' }}
+        closeButtonProps={{ 'aria-label': 'Close animation order preview' }}
       >
         {analysis && (
           <Stack gap="md">
@@ -358,44 +369,34 @@ export function MagicControls() {
                 <IconChartDots size={22} aria-hidden="true" />
                 <Text fw={700}>{strategyLabel(analysis.strategy)}</Text>
               </Group>
-              <Badge
-                color={
-                  analysis.confidenceBand === 'high'
-                    ? 'green'
-                    : analysis.confidenceBand === 'medium'
-                      ? 'yellow'
-                      : 'orange'
-                }
-              >
-                {analysis.confidenceBand} confidence
-              </Badge>
             </Group>
             {analysis.ambiguous && (
-              <Alert color="orange" title="No single pattern is clearly dominant">
-                This is a deterministic local arrangement suggestion. Review the order before
-                applying it.
+              <Alert
+                color="blue"
+                icon={<IconInfoCircle size={18} aria-hidden="true" />}
+                role="status"
+                title="Choose an animation order"
+              >
+                We found a few good ways to animate this diagram. Preview the suggested order, or
+                choose a different style before applying.
               </Alert>
             )}
-            <Stack gap={4}>
-              {analysis.reasons.map((reason) => (
-                <Text key={reason.code} size="sm">
-                  {reason.message}
-                </Text>
-              ))}
-            </Stack>
             <Text size="sm" c="dimmed" aria-live="polite">
-              {analysis.recipes.length} steps for {analysis.semanticTargets.length} semantic groups.
-              Labels stay with their shapes, and outbound arrows follow their source nodes.
+              {analysis.recipes.length} steps for {analysis.semanticTargets.length} diagram items.
+              Labels stay with their shapes, and arrows follow the connected shapes.
+            </Text>
+            <Text size="xs" c="dimmed">
+              Analyzed on this device.
             </Text>
             <Group justify="flex-end">
               <Button variant="default" onClick={rejectAnalysis}>
-                Reject
+                Not now
               </Button>
               <Button
                 leftSection={<IconPlayerPlay size={18} aria-hidden="true" />}
                 onClick={acceptAnalysis}
               >
-                Apply plan
+                Apply order
               </Button>
             </Group>
           </Stack>

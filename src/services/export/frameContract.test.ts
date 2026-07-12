@@ -106,4 +106,35 @@ describe('cross-surface frame contract', () => {
     expect(exported).toEqual(editor);
     expect(exported.get('element')?.opacity).toBe(1);
   });
+
+  it('holds completed draw progress when an export clip starts later', () => {
+    const timeline: AnimationTimeline = {
+      id: 'arrow-draw',
+      name: 'Arrow draw',
+      duration: 5_000,
+      fps: 60,
+      tracks: [
+        {
+          id: 'draw',
+          targetId: 'arrow',
+          targetType: 'element',
+          property: 'drawProgress',
+          enabled: true,
+          keyframes: [
+            { id: 'd0', time: 0, value: 0, easing: 'linear' },
+            { id: 'd1', time: 1_000, value: 1, easing: 'linear' },
+          ],
+        },
+      ],
+    };
+    const sampler = createFrameSampler({
+      timeline,
+      clipStart: 2_000,
+      clipEnd: 4_000,
+      fps: 30,
+    });
+
+    expect(sampler.sampleAt(2_000).get('arrow')?.drawProgress).toBe(1);
+    expect(sampler.sampleAt(3_000).get('arrow')?.drawProgress).toBe(1);
+  });
 });

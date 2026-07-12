@@ -148,6 +148,52 @@ describe('compact animated SVG compiler', () => {
     expect(targets[1]?.getAttribute('transform')).toContain('matrix(');
   });
 
+  it('keeps completed arrow shafts and heads intact when the clip starts later', () => {
+    const fixture = playerPackage();
+    fixture.scene.svg = [
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60">',
+      '<g data-excalimate-scene="true">',
+      '<g data-excalimate-id="arrow" data-excalimate-start-bound-to="start" data-excalimate-end-bound-to="end" data-excalimate-binding-points="0 20 100 20">',
+      '<path data-part="shaft" d="M0 20 L100 20" stroke="black"/>',
+      '<path data-part="head" d="M90 15 L100 20 L90 25" stroke="black" fill="none"/>',
+      '</g></g></svg>',
+    ].join('');
+    fixture.animation.timeline.tracks = [
+      {
+        id: 'draw',
+        targetId: 'arrow',
+        targetType: 'element',
+        property: 'drawProgress',
+        enabled: true,
+        keyframes: [
+          { id: 'd0', time: 0, value: 0, easing: 'linear' },
+          { id: 'd1', time: 1_000, value: 1, easing: 'linear' },
+        ],
+      },
+    ];
+    fixture.playback.clipStart = 2_000;
+    fixture.playback.clipEnd = 4_000;
+    fixture.poster.timeMs = 2_000;
+
+    const result = compileAnimatedSvg(fixture, {
+      profile: 'css-keyframes',
+    });
+    const document = new DOMParser().parseFromString(result.svg, 'image/svg+xml');
+    const wrapper = document.querySelector('[data-excalimate-id="arrow"]');
+    const [shaft, head] = wrapper?.querySelectorAll('path') ?? [];
+    const style = document.querySelector('style')?.textContent ?? '';
+
+    expect(shaft?.getAttribute('d')).toBe('M0 20 L100 20');
+    expect(head?.getAttribute('d')).toBe('M90 15 L100 20 L90 25');
+    expect(shaft?.getAttribute('stroke-dashoffset')).toBe('0');
+    expect(head?.getAttribute('stroke-dashoffset')).toBe('0');
+    expect(wrapper?.getAttribute('data-excalimate-start-bound-to')).toBe('start');
+    expect(wrapper?.getAttribute('data-excalimate-end-bound-to')).toBe('end');
+    expect(style).toContain(
+      '0%{stroke-dashoffset:0;animation-timing-function:linear;}100%{stroke-dashoffset:0;}',
+    );
+  });
+
   it('moves independently bound arrow endpoints with their targets', () => {
     const fixture = playerPackage();
     fixture.scene.svg = [
@@ -186,9 +232,8 @@ describe('compact animated SVG compiler', () => {
 
     const result = compileAnimatedSvg(fixture);
     const style =
-      new DOMParser()
-        .parseFromString(result.svg, 'image/svg+xml')
-        .querySelector('style')?.textContent ?? '';
+      new DOMParser().parseFromString(result.svg, 'image/svg+xml').querySelector('style')
+        ?.textContent ?? '';
 
     expect(style).toContain('100%{transform:matrix(2 0 0 1 10 0);}');
   });

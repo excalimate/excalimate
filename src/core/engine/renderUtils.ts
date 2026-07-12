@@ -233,6 +233,9 @@ export function applyAnimationToElements(
       ]);
       if (a.drawProgress < 1) {
         c.points = trimPointsByProgress(c.points, a.drawProgress);
+        if (a.drawProgress <= 0) {
+          c.opacity = 0;
+        }
       }
     }
 
@@ -310,7 +313,7 @@ export function applyAnimationToElements(
 
 function trimPointsByProgress(points: number[][], progress: number): number[][] {
   if (points.length < 2 || progress >= 1) return points;
-  const clamped = Math.max(0, progress);
+  const clamped = Math.max(0, Math.min(1, progress));
   const lengths = points
     .slice(1)
     .map((point, index) => Math.hypot(point[0] - points[index][0], point[1] - points[index][1]));
@@ -334,6 +337,23 @@ function trimPointsByProgress(points: number[][], progress: number): number[][] 
     ]);
     break;
   }
-  if (trimmed.length === 1) trimmed.push([...trimmed[0]]);
+  const tip = trimmed.at(-1) ?? points[0];
+  while (trimmed.length < points.length) {
+    trimmed.push([...tip]);
+  }
   return trimmed;
+}
+
+export function mergeNormalizedElementsIntoSource(
+  source: readonly ExcalidrawElement[],
+  normalized: readonly ExcalidrawElement[],
+): ExcalidrawElement[] {
+  const normalizedById = new Map(normalized.map((element) => [element.id, element]));
+  return source.map((element) => {
+    if (element.isDeleted) return element;
+    const normalizedElement = normalizedById.get(element.id);
+    return normalizedElement
+      ? ({ ...normalizedElement, ...element } as ExcalidrawElement)
+      : element;
+  });
 }

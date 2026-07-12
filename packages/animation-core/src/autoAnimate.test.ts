@@ -34,13 +34,15 @@ function arrow(
 }
 
 describe('auto animate analysis', () => {
-  it('selects a deterministic hierarchy and reveals nodes before outbound arrows', () => {
+  it('selects a clear left-to-right chain and reveals nodes before outbound arrows', () => {
     const elements = [
       node('a', 0, 0, 0),
       node('b', 200, 0, 1),
       node('c', 400, 0, 2),
-      arrow('ab', 'a', 'b', 3),
-      arrow('bc', 'b', 'c', 4),
+      node('d', 600, 0, 3),
+      arrow('ab', 'a', 'b', 4),
+      arrow('bc', 'b', 'c', 5),
+      arrow('cd', 'c', 'd', 6),
     ];
 
     const first = analyzeAutoAnimate({ elements, scope: 'diagram' });
@@ -50,15 +52,50 @@ describe('auto animate analysis', () => {
     });
 
     expect(first).toEqual(second);
-    expect(first.strategy).toBe('hierarchical');
-    expect(first.orderedTargetIds.slice(0, 3)).toEqual(['a', 'b', 'c']);
+    expect(first).toMatchObject({
+      strategy: 'linear-left-to-right',
+      confidenceBand: 'high',
+      ambiguous: false,
+    });
+    expect(first.orderedTargetIds.slice(0, 4)).toEqual(['a', 'b', 'c', 'd']);
     expect(first.recipes.map((recipe) => recipe.targetIds[0])).toEqual([
       'a',
       'ab',
       'b',
       'bc',
       'c',
+      'cd',
+      'd',
     ]);
+  });
+
+  it('keeps branching DAGs hierarchical and weak spatial chains conservative', () => {
+    const dag = analyzeAutoAnimate({
+      elements: [
+        node('a', 0, 100, 0),
+        node('b', 200, 0, 1),
+        node('c', 200, 200, 2),
+        node('d', 400, 100, 3),
+        arrow('ab', 'a', 'b', 4),
+        arrow('ac', 'a', 'c', 5),
+        arrow('bd', 'b', 'd', 6),
+        arrow('cd', 'c', 'd', 7),
+      ],
+      scope: 'diagram',
+    });
+    const weakAlignment = analyzeAutoAnimate({
+      elements: [
+        node('a', 0, 0, 0),
+        node('b', 200, 180, 1),
+        node('c', 400, 20, 2),
+        arrow('ab', 'a', 'b', 3),
+        arrow('bc', 'b', 'c', 4),
+      ],
+      scope: 'diagram',
+    });
+
+    expect(dag.strategy).toBe('hierarchical');
+    expect(weakAlignment.strategy).not.toBe('linear-left-to-right');
   });
 
   it('groups bound labels and Excalidraw groups into semantic targets', () => {

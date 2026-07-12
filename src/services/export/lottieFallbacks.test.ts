@@ -49,6 +49,39 @@ describe('Lottie fallback reporting', () => {
     ).toEqual([]);
   });
 
+  it('reports bound-arrow fallback while retaining vector draw support', () => {
+    const arrowTimeline: AnimationTimeline = {
+      ...timeline,
+      tracks: [
+        {
+          ...timeline.tracks[0]!,
+          targetId: 'arrow',
+        },
+      ],
+    };
+    const issues = getLottieFallbackIssues(
+      'dotlottie',
+      [
+        {
+          id: 'arrow',
+          type: 'arrow',
+          width: 100,
+          height: 0,
+          startBinding: { elementId: 'start' },
+          endBinding: { elementId: 'end' },
+        },
+      ],
+      arrowTimeline,
+    );
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({ code: 'lottie-bound-endpoint-fallback' }),
+    );
+    expect(issues).not.toContainEqual(
+      expect.objectContaining({ code: 'lottie-raster-draw-fallback' }),
+    );
+  });
+
   it('rejects raster fallback canvases above the per-asset budget', () => {
     const issues = getLottieFallbackIssues(
       'lottie',

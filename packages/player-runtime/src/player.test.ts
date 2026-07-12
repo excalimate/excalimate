@@ -167,6 +167,57 @@ describe('headless player runtime', () => {
     );
   });
 
+  it('draws bound arrows without changing shaft, arrowhead, or binding metadata', () => {
+    const playerPackage = createTestPlayerPackage();
+    playerPackage.scene.svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+        <g data-excalimate-id="arrow"
+           data-excalimate-start-bound-to="start"
+           data-excalimate-end-bound-to="end"
+           data-excalimate-binding-points="0 0 100 0">
+          <path data-part="shaft" d="M0 0 L100 0"/>
+          <path data-part="head" d="M90 -5 L100 0 L90 5"/>
+        </g>
+      </svg>
+    `;
+    const pathLength = vi
+      .spyOn(SVGGeometryElement.prototype, 'getTotalLength')
+      .mockReturnValue(100);
+    const scene = new SvgSceneAdapter(document.createElement('div'), playerPackage);
+    const group = scene.svg.querySelector<SVGGElement>('[data-excalimate-id="arrow"]')!;
+    const [path, head] = group.querySelectorAll<SVGPathElement>('path');
+    const state = (drawProgress: number): FrameState =>
+      new Map([
+        [
+          'arrow',
+          {
+            targetId: 'arrow',
+            opacity: 1,
+            translateX: 0,
+            translateY: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0,
+            drawProgress,
+          },
+        ],
+      ]);
+
+    scene.applyFrame(state(0));
+    expect(path?.style.strokeDashoffset).toBe('100');
+    scene.applyFrame(state(0.5));
+    expect(path?.style.strokeDashoffset).toBe('50');
+    scene.applyFrame(state(1));
+    expect(path?.style.strokeDashoffset).toBe('');
+    expect(path?.getAttribute('d')).toBe('M0 0 L100 0');
+    expect(head?.getAttribute('d')).toBe('M90 -5 L100 0 L90 5');
+    expect(group.getAttribute('data-excalimate-start-bound-to')).toBe('start');
+    expect(group.getAttribute('data-excalimate-end-bound-to')).toBe('end');
+    expect(group.getAttribute('data-excalimate-binding-points')).toBe('0 0 100 0');
+
+    pathLength.mockRestore();
+  });
+
   it('matches animation-core frames at absolute clip time', () => {
     const playerPackage = createTestPlayerPackage();
     const adapter = new CompiledTimelineAdapter(playerPackage);

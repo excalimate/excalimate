@@ -89,6 +89,34 @@ describe('managed action compiler', () => {
     ).toBe(true);
   });
 
+  it('holds canonical draw progress before, during, and after a managed draw', () => {
+    const compiled = compileManagedActions(timeline(), [], [
+      action({
+        type: 'draw',
+        targetIds: ['arrow'],
+        timing: {
+          startMs: 500,
+          durationMs: 1_000,
+          staggerMs: 0,
+          startMode: 'absolute',
+        },
+        easing: 'linear',
+      }),
+    ]);
+    const runtime = compileTimeline(compiled.timeline);
+
+    expect(computeCompiledFrame(runtime, 0).get('arrow')?.drawProgress).toBe(0);
+    expect(computeCompiledFrame(runtime, 1_000).get('arrow')?.drawProgress).toBe(
+      0.5,
+    );
+    expect(computeCompiledFrame(runtime, 1_500).get('arrow')?.drawProgress).toBe(
+      1,
+    );
+    expect(computeCompiledFrame(runtime, 8_000).get('arrow')?.drawProgress).toBe(
+      1,
+    );
+  });
+
   it.each([
     ['left', 'translateX', -120],
     ['right', 'translateX', 120],

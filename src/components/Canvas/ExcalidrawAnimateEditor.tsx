@@ -35,6 +35,7 @@ import {
   collectAbsoluteOpacityTargetIds,
   collectOpacityTrackTargetIds,
   getRenderableAnimationElements,
+  mergeNormalizedElementsIntoSource,
 } from '../../core/engine/renderUtils';
 import { getCanvasViewport } from './canvasViewport';
 import { CameraFrameOverlay } from './CameraFrameOverlay';
@@ -246,13 +247,11 @@ export function ExcalidrawAnimateEditor({
       if (normalizedElements.length > 0) {
         const currentScene = sceneRef.current;
         if (currentScene) {
-          const normalizedById = new Map(
-            normalizedElements.map((element) => [element.id, element]),
-          );
           useProjectStore.getState().updateScene({
             ...currentScene,
-            elements: currentScene.elements.map((element) =>
-              element.isDeleted ? element : (normalizedById.get(element.id) ?? element),
+            elements: mergeNormalizedElementsIntoSource(
+              currentScene.elements as ExcalidrawElement[],
+              normalizedElements,
             ),
           });
         }
