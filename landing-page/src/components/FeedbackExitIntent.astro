@@ -87,11 +87,16 @@ const benefits = [
 
 <style>
   .feedback-exit-dialog {
-    width: min(600px, calc(100% - 32px));
+    position: fixed;
+    inset: 50% auto auto 50%;
+    z-index: 300;
+    width: min(600px, calc(100vw - 32px));
     max-width: none;
     max-height: calc(100dvh - 32px);
+    margin: 0;
     padding: 0;
     overflow: auto;
+    transform: translate(-50%, -50%);
     background: var(--card-bg);
     border: var(--border-w) solid var(--border-c);
     border-radius: var(--radius-lg);
@@ -105,6 +110,7 @@ const benefits = [
   }
 
   .feedback-exit-dialog::backdrop {
+    z-index: 299;
     background: rgba(17, 17, 21, 0.72);
   }
 
@@ -131,19 +137,35 @@ const benefits = [
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    background: var(--bg-alt);
-    border: var(--border-w) solid var(--border-c);
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    background: none;
+    border: 1px solid var(--border-strong);
     border-radius: var(--radius);
-    color: var(--tx);
+    color: var(--tx3);
+    line-height: 1;
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease,
+      transform 0.15s ease;
   }
 
   .feedback-exit-close:hover {
+    color: var(--tx);
+    background: var(--surface-hover);
+  }
+
+  .feedback-exit-close:active {
+    transform: translate(1px, 1px);
     background: var(--accent);
   }
 
-  .feedback-exit-close:focus-visible,
+  .feedback-exit-close:focus-visible {
+    outline: 2px solid var(--p4);
+    outline-offset: 2px;
+  }
+
   .feedback-exit-cta:focus-visible {
     outline-color: var(--tx);
   }
@@ -237,6 +259,7 @@ const benefits = [
 
   @media (prefers-reduced-motion: reduce) {
     .feedback-exit-close:hover,
+    .feedback-exit-close:active,
     .feedback-exit-cta:hover {
       transform: none;
     }

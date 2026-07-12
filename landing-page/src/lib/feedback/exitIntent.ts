@@ -1,5 +1,5 @@
 export const FEEDBACK_EXIT_INTENT_SESSION_KEY = 'excalimate-feedback-exit-intent-shown';
-export const FEEDBACK_EXIT_INTENT_DELAY_MS = 3000;
+export const FEEDBACK_EXIT_INTENT_DELAY_MS = 1750;
 
 const EXIT_INTENT_TOP_EDGE_PX = 12;
 
