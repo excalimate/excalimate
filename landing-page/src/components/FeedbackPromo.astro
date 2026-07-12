@@ -1,0 +1,352 @@
+---
+import {
+  IconArrowRight,
+  IconArrowUp,
+  IconBulb,
+  IconMessageCircle,
+  IconProgressCheck,
+} from '@tabler/icons-react';
+
+const participationOptions = [
+  {
+    title: 'Submit ideas',
+    description: 'Propose a feature or improvement.',
+    icon: IconBulb,
+    color: 'var(--p2)',
+    iconColor: 'var(--tx)',
+  },
+  {
+    title: 'Vote on requests',
+    description: 'Help the best ideas rise to the top.',
+    icon: IconArrowUp,
+    color: 'var(--p3)',
+    iconColor: 'var(--tx)',
+  },
+  {
+    title: 'Join discussions',
+    description: 'Add context and build on suggestions.',
+    icon: IconMessageCircle,
+    color: 'var(--p4)',
+    iconColor: '#fff',
+  },
+  {
+    title: 'Track progress',
+    description: 'See what the team is reviewing and building.',
+    icon: IconProgressCheck,
+    color: 'var(--p5)',
+    iconColor: 'var(--tx)',
+  },
+];
+
+const statuses = [
+  { label: 'Under review', color: '#656570' },
+  { label: 'Planned', color: 'var(--p4)' },
+  { label: 'In progress', color: 'var(--p2)' },
+  { label: 'Completed', color: 'var(--p5)' },
+];
+---
+
+<section class="feedback-promo" aria-labelledby="feedback-promo-title">
+  <div class="container">
+    <div class="feedback-shell reveal">
+      <div class="feedback-copy">
+        <p class="feedback-eyebrow">Public feedback portal</p>
+        <h2 id="feedback-promo-title" class="feedback-title">
+          Help shape what Excalimate becomes next
+        </h2>
+        <p class="feedback-description">
+          Share what would make Excalimate better, support ideas from other creators, and talk
+          directly with the community. Follow requests from under review to planned, in progress,
+          and completed.
+        </p>
+        <a href="/feedback" class="btn btn-primary btn-lg feedback-cta">
+          Open the feedback portal
+          <IconArrowRight size={20} stroke={2.25} aria-hidden="true" />
+        </a>
+      </div>
+
+      <div class="feedback-panel">
+        <ul class="feedback-actions stagger" aria-label="Ways to participate">
+          {
+            participationOptions.map((option) => {
+              const Icon = option.icon;
+              return (
+                <li class="feedback-action reveal">
+                  <span
+                    class="feedback-action-icon"
+                    style={`--icon-background: ${option.color}; --icon-color: ${option.iconColor}`}
+                  >
+                    <Icon size={24} stroke={2.1} aria-hidden="true" />
+                  </span>
+                  <span class="feedback-action-copy">
+                    <strong>{option.title}</strong>
+                    <span>{option.description}</span>
+                  </span>
+                </li>
+              );
+            })
+          }
+        </ul>
+
+        <div
+          class="feedback-status"
+          aria-label="Feedback statuses: under review, planned, in progress, completed"
+        >
+          <p class="feedback-status-title">See every idea move forward</p>
+          <ol class="feedback-status-track">
+            {
+              statuses.map((status) => (
+                <li class="feedback-status-step" style={`--status-color: ${status.color}`}>
+                  <span class="feedback-status-dot" />
+                  <span>{status.label}</span>
+                </li>
+              ))
+            }
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .feedback-promo {
+    padding: 120px 0;
+  }
+
+  .feedback-shell {
+    display: grid;
+    overflow: hidden;
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius-lg);
+    box-shadow: 7px 7px 0 var(--border-c);
+  }
+
+  .feedback-copy {
+    padding: 48px 28px;
+  }
+
+  .feedback-eyebrow {
+    display: inline-flex;
+    padding: 7px 12px;
+    background: var(--accent);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: 2px 2px 0 var(--border-c);
+    font-family: var(--f-body);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-text);
+  }
+
+  .feedback-title {
+    max-width: 560px;
+    margin-top: 24px;
+    font-family: var(--f-display);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    color: var(--tx);
+  }
+
+  .feedback-description {
+    max-width: 580px;
+    margin-top: 20px;
+    font-family: var(--f-body);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--tx2);
+  }
+
+  .feedback-cta {
+    margin-top: 32px;
+  }
+
+  .feedback-cta:focus-visible {
+    outline-color: var(--tx);
+  }
+
+  .feedback-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 24px;
+    padding: 28px;
+    background: var(--accent);
+  }
+
+  .feedback-actions {
+    display: grid;
+    gap: 14px;
+  }
+
+  .feedback-action {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 16px;
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: 4px 4px 0 var(--border-c);
+  }
+
+  .feedback-action-icon {
+    display: flex;
+    flex: 0 0 44px;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: var(--icon-background);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    color: var(--icon-color);
+  }
+
+  .feedback-action-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+    color: var(--tx);
+  }
+
+  .feedback-action-copy strong {
+    font-family: var(--f-display);
+    font-size: 1rem;
+    line-height: 1.25;
+  }
+
+  .feedback-action-copy > span {
+    font-family: var(--f-body);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--tx2);
+  }
+
+  .feedback-status {
+    padding: 20px;
+    background: var(--card-bg);
+    border: var(--border-w) solid var(--border-c);
+    border-radius: var(--radius);
+    box-shadow: 4px 4px 0 var(--border-c);
+    color: var(--tx);
+  }
+
+  .feedback-status-title {
+    font-family: var(--f-display);
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .feedback-status-track {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 18px;
+  }
+
+  .feedback-status-track::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    top: 7px;
+    right: 11%;
+    left: 11%;
+    height: 3px;
+    background: var(--tx3);
+    border-radius: 999px;
+  }
+
+  .feedback-status-step {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--f-body);
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+    color: var(--tx2);
+  }
+
+  .feedback-status-dot {
+    width: 17px;
+    height: 17px;
+    background: var(--status-color);
+    border: 2px solid var(--border-c);
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px var(--card-bg);
+  }
+
+  @media (min-width: 640px) {
+    .feedback-copy {
+      padding: 56px 48px;
+    }
+
+    .feedback-panel {
+      padding: 40px;
+    }
+
+    .feedback-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .feedback-shell {
+      grid-template-columns: minmax(0, 1.05fr) minmax(460px, 0.95fr);
+    }
+
+    .feedback-copy {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 64px 56px;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .feedback-panel {
+      padding: 20px;
+    }
+
+    .feedback-status {
+      padding-inline: 12px;
+    }
+
+    .feedback-status-step {
+      font-size: 0.54rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .feedback-cta:hover {
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  document.querySelector('.feedback-cta')?.addEventListener('click', () => {
+    if (typeof posthog !== 'undefined' && !posthog.has_opted_out_capturing()) {
+      posthog.capture('cta_clicked', {
+        button_text: 'Open the feedback portal',
+        location: 'feedback_promo',
+      });
+    }
+  });
+</script>

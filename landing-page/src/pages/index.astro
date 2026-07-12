@@ -9,6 +9,8 @@ import ExportShowcase from '../components/ExportShowcase.astro';
 import HowItWorks from '../components/HowItWorks.astro';
 import HomeFAQ from '../components/HomeFAQ.astro';
 import OpenSource from '../components/OpenSource.astro';
+import FeedbackPromo from '../components/FeedbackPromo.astro';
+import FeedbackExitIntent from '../components/FeedbackExitIntent.astro';
 import FinalCTA from '../components/FinalCTA.astro';
 import Footer from '../components/Footer.astro';
 
@@ -60,8 +62,10 @@ const faqPageSchema = {
     <HowItWorks />
     <HomeFAQ items={faqItems} />
     <OpenSource />
+    <FeedbackPromo />
     <FinalCTA />
   </main>
+  <FeedbackExitIntent />
   <Footer />
   <script type="application/ld+json" set:html={JSON.stringify(faqPageSchema)} />
 </BaseLayout>
