@@ -19,9 +19,11 @@ import {
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconMessagePlus, IconSearch, IconSparkles } from '@tabler/icons-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  clearFeedbackListStale,
   FeedbackApiError,
+  isFeedbackListStale,
   listFeedback,
   setFeedbackVote,
   type FeedbackListQuery,
@@ -71,11 +73,14 @@ function FeedbackBoardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [votingNumber, setVotingNumber] = useState<number>();
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const [submitOpened, submitControls] = useDisclosure(false);
   const voteChallengeRef = useRef<TurnstileActionHandle>(null);
+  const freshRequestRef = useRef(isFeedbackListStale());
 
   useEffect(() => {
     const controller = new AbortController();
+    const fresh = freshRequestRef.current || isFeedbackListStale();
     const effectiveQuery: FeedbackListQuery = {
       search: debouncedSearch,
       category: query.category,
@@ -83,10 +88,14 @@ function FeedbackBoardContent() {
       sort: query.sort,
       page: query.page,
     };
-    void listFeedback(effectiveQuery, controller.signal)
+    void listFeedback(effectiveQuery, { signal: controller.signal, fresh })
       .then((result) => {
         setData(result);
         setError(undefined);
+        if (fresh) {
+          freshRequestRef.current = false;
+          clearFeedbackListStale();
+        }
         if (result.page !== query.page) {
           setQuery((current) => ({ ...current, page: result.page }));
         }
@@ -101,7 +110,18 @@ function FeedbackBoardContent() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [debouncedSearch, query.category, query.page, query.sort, query.status]);
+  }, [debouncedSearch, query.category, query.page, query.sort, query.status, refreshVersion]);
+
+  useEffect(() => {
+    const refreshRestoredPage = (event: PageTransitionEvent) => {
+      if (!event.persisted && !isFeedbackListStale()) return;
+      freshRequestRef.current = true;
+      submitControls.close();
+      setRefreshVersion((version) => version + 1);
+    };
+    window.addEventListener('pageshow', refreshRestoredPage);
+    return () => window.removeEventListener('pageshow', refreshRestoredPage);
+  }, [submitControls.close]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -116,6 +136,14 @@ function FeedbackBoardContent() {
 
   const updateQuery = (values: Partial<FeedbackListQuery>) =>
     setQuery((current) => ({ ...current, ...values, page: values.page ?? 1 }));
+
+  const openSubmittedFeedback = useCallback(
+    (url: string) => {
+      submitControls.close();
+      window.location.assign(url);
+    },
+    [submitControls.close],
+  );
 
   const vote = async (item: FeedbackSummary) => {
     if (!data?.turnstileSiteKey || !voteChallengeRef.current) return;
@@ -293,6 +321,7 @@ function FeedbackBoardContent() {
       <SubmitFeedbackModal
         opened={submitOpened}
         onClose={submitControls.close}
+        onSubmitted={openSubmittedFeedback}
         siteKey={data?.turnstileSiteKey ?? ''}
       />
       <TurnstileAction

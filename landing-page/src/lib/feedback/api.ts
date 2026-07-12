@@ -7,6 +7,8 @@ import type {
   FeedbackMutationResponse,
 } from './types';
 
+const FEEDBACK_LIST_STALE_KEY = 'excalimate-feedback-list-stale';
+
 export class FeedbackApiError extends Error {
   constructor(
     message: string,
@@ -48,9 +50,33 @@ export interface FeedbackListQuery {
   page: number;
 }
 
+interface FeedbackListRequestOptions {
+  signal?: AbortSignal;
+  fresh?: boolean;
+}
+
+export function markFeedbackListStale(): void {
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.setItem(FEEDBACK_LIST_STALE_KEY, 'true');
+  }
+}
+
+export function isFeedbackListStale(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.sessionStorage.getItem(FEEDBACK_LIST_STALE_KEY) === 'true'
+  );
+}
+
+export function clearFeedbackListStale(): void {
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.removeItem(FEEDBACK_LIST_STALE_KEY);
+  }
+}
+
 export function listFeedback(
   query: FeedbackListQuery,
-  signal?: AbortSignal,
+  options: FeedbackListRequestOptions = {},
 ): Promise<FeedbackListResponse> {
   const search = new URLSearchParams({
     search: query.search,
@@ -59,7 +85,12 @@ export function listFeedback(
     sort: query.sort,
     page: String(query.page),
   });
-  return request<FeedbackListResponse>(`/api/feedback?${search}`, {}, signal);
+  if (options.fresh) search.set('_fresh', String(Date.now()));
+  return request<FeedbackListResponse>(
+    `/api/feedback?${search}`,
+    options.fresh ? { cache: 'no-store' } : {},
+    options.signal,
+  );
 }
 
 export function getFeedback(number: number, signal?: AbortSignal): Promise<FeedbackDetailResponse> {
