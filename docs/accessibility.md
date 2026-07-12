@@ -1,6 +1,6 @@
 # V2 accessibility validation
 
-The target is WCAG 2.2 AA across Magic, templates, Smart Transition mapping,
+The target is WCAG 2.2 AA across Magic, templates, transition element review,
 Sequence, Studio disclosure, exports, share/revoke, and player controls.
 
 Automated component tests cover dialog names, keyboard activation, focus

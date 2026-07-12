@@ -29,9 +29,12 @@ PlayerPackage preview is fetched and integrity-checked only when requested.
 Choosing a template creates a fresh project ID and timestamps, so the checked-in
 template is never edited in place.
 
-## Smart Transitions
+## Create transitions
 
-Capture two scene states, review suggested mappings, and generate a transition.
+Use **Capture state** to save your starting point. Make changes, capture the next
+state, then choose **Create transition**. The control stays unavailable until two
+states exist and its adjacent guidance explains the next step.
+
 Presence is independent of opacity: an element at zero opacity is still present.
 Removed elements fade through retained tombstones; returning elements fade back
 in. Group transforms and bound labels follow their containers. Camera animation
@@ -40,7 +43,7 @@ is opt-in.
 Managed transition recipes are the source of truth for transforms. Editing a
 generated track uses the same customized/detached rules as other actions.
 
-| Output                     | Smart Transition behavior                                                             |
+| Output                     | Transition behavior                                                                   |
 | -------------------------- | ------------------------------------------------------------------------------------- |
 | Editor/player/MP4/WebM/GIF | Shared frame sampler, sparse states, tombstones, groups, labels, camera               |
 | Animated SVG               | CSS-keyframe or SMIL profile plus a static/reduced-motion poster                      |

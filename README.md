@@ -188,7 +188,7 @@ The web app is a **static SPA** — all rendering, animation, and editing happen
 ## V2 release-candidate documentation
 
 - [Migration, architecture, limits, rollout, and rollback](docs/v2-release-candidate.md)
-- [Magic, Sequence, Studio, templates, and Smart Transitions](docs/v2-user-guide.md)
+- [Magic, Sequence, Studio, templates, and transitions](docs/v2-user-guide.md)
 - [Hosted player and embedding](docs/hosted-player.md)
 - [MCP V2 and deprecations](docs/mcp-v2.md)
 - [Security, sharing retention, and deployment](docs/security-and-sharing.md)
