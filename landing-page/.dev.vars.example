@@ -1,15 +1,18 @@
-# Cloudflare Turnstile documented always-pass test keys
-TURNSTILE_SITE_KEY=1x00000000000000000000AA
-TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
-TURNSTILE_ALLOWED_HOSTNAMES=localhost,127.0.0.1
+# Local-only Cloudflare Worker runtime bindings.
+# Copy this file to .dev.vars; never commit the populated file.
+# Production values are configured as documented in wrangler.toml.
 
-# Create a GitHub App with Issues read/write and install it on the repository
+# Non-secret runtime variables
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_ALLOWED_HOSTNAMES=localhost,127.0.0.1
 GITHUB_APP_ID=
 GITHUB_APP_INSTALLATION_ID=
-GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 GITHUB_APP_BOT_LOGIN=excalimate-feedback[bot]
 GITHUB_REPOSITORY_OWNER=excalimate
 GITHUB_REPOSITORY_NAME=excalimate
 
-# Replace with at least 32 random characters
+# Local placeholders only; these are not production credentials.
+# Turnstile uses Cloudflare's documented always-pass test secret.
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 FEEDBACK_COOKIE_SECRET=replace-with-a-random-secret-at-least-32-characters

@@ -3,11 +3,25 @@
 name = "excalimate-landing"
 compatibility_date = "2026-03-22"
 compatibility_flags = ["nodejs_compat"]
+keep_vars = true
+
+# Dashboard-managed runtime variables (do not commit values):
+# - GITHUB_APP_ID
+# - GITHUB_APP_INSTALLATION_ID
+# - TURNSTILE_SITE_KEY
+#
+# Dashboard-managed Wrangler secrets (Secret type; never commit values):
+# - GITHUB_APP_PRIVATE_KEY
+# - FEEDBACK_COOKIE_SECRET
+# - TURNSTILE_SECRET_KEY
+#
+# keep_vars preserves these dashboard-managed bindings when deploying this config.
 
 [assets]
 directory = "./dist"
 binding = "ASSETS"
 
+# Non-secret runtime values that are safe to commit.
 [vars]
 GITHUB_REPOSITORY_OWNER = "excalimate"
 GITHUB_REPOSITORY_NAME = "excalimate"
