@@ -125,9 +125,15 @@ jobs:
           cache-dependency-path: landing-page/package-lock.json
       - working-directory: landing-page
         run: npm ci
+      - name: Type check
+        working-directory: landing-page
+        run: npm run check
+      - name: Test
+        working-directory: landing-page
+        run: npm test
       - name: Build
         working-directory: landing-page
-        run: npx astro build
+        run: npm run build
       - uses: actions/upload-artifact@v4
         with:
           name: landing-page-dist

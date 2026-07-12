@@ -2,7 +2,29 @@
 
 name = "excalimate-landing"
 compatibility_date = "2026-03-22"
-pages_build_output_dir = "./dist"
+compatibility_flags = ["nodejs_compat"]
 
 [assets]
 directory = "./dist"
+binding = "ASSETS"
+
+[vars]
+GITHUB_REPOSITORY_OWNER = "excalimate"
+GITHUB_REPOSITORY_NAME = "excalimate"
+GITHUB_APP_BOT_LOGIN = "excalimate-feedback[bot]"
+TURNSTILE_ALLOWED_HOSTNAMES = "excalimate.com,www.excalimate.com"
+
+[observability]
+enabled = true
+
+[[unsafe.bindings]]
+name = "FEEDBACK_SUBMISSION_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "11001"
+simple = { limit = 5, period = 60 }
+
+[[unsafe.bindings]]
+name = "FEEDBACK_INTERACTION_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "11002"
+simple = { limit = 30, period = 60 }

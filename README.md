@@ -12,7 +12,7 @@
   [![license](https://img.shields.io/github/license/excalimate/excalimate?style=flat-square)](LICENSE)
   [![GitHub stars](https://img.shields.io/github/stars/excalimate/excalimate?style=flat-square)](https://github.com/excalimate/excalimate)
 
-  [App](https://app.excalimate.com) · [Landing Page](https://excalimate.com) · [MCP Server Docs](mcp-server/README.md) · [Report Bug](https://github.com/excalimate/excalimate/issues)
+  [App](https://app.excalimate.com) · [Landing Page](https://excalimate.com) · [Feedback](https://excalimate.com/feedback) · [MCP Server Docs](mcp-server/README.md) · [Report Bug](https://github.com/excalimate/excalimate/issues)
 
 </div>
 
