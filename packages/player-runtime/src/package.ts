@@ -5,11 +5,7 @@ import {
 } from '@excalimate/project-schema';
 import type { GroupHierarchy } from '@excalimate/animation-core';
 import { sanitizeSvg } from './sanitize.js';
-import {
-  PLAYER_PACKAGE_LIMITS,
-  PLAYER_PACKAGE_VERSION,
-  PLAYER_RUNTIME_VERSION,
-} from './types.js';
+import { PLAYER_PACKAGE_LIMITS, PLAYER_PACKAGE_VERSION, PLAYER_RUNTIME_VERSION } from './types.js';
 import type {
   PlayerCamera,
   PlayerDimensions,
@@ -30,6 +26,14 @@ const TOP_LEVEL_KEYS = new Set([
   'attribution',
 ]);
 const MAX_HIERARCHY_DEPTH = 64;
+const ASPECT_RATIO_VALUES: Readonly<Record<PlayerDimensions['aspectRatio'], number>> =
+  Object.freeze({
+    '16:9': 16 / 9,
+    '4:3': 4 / 3,
+    '1:1': 1,
+    '3:2': 3 / 2,
+  });
+const ASPECT_RATIO_TOLERANCE = 0.001;
 
 export class PlayerPackageValidationError extends Error {
   constructor(message: string) {
@@ -40,7 +44,9 @@ export class PlayerPackageValidationError extends Error {
 
 export const PlayerPackageV1Schema = Object.freeze({
   parse: parsePlayerPackage,
-  safeParse(input: unknown):
+  safeParse(
+    input: unknown,
+  ):
     | { success: true; data: PlayerPackageV1 }
     | { success: false; error: PlayerPackageValidationError } {
     try {
@@ -87,11 +93,20 @@ export function parsePlayerPackage(input: unknown): PlayerPackageV1 {
     throw new PlayerPackageValidationError('Unsupported project schema version');
   }
 
-  const scene = strictRecord(record['scene'], new Set(['svg']), 'Player scene');
+  const scene = strictRecord(
+    record['scene'],
+    new Set(['svg', 'absoluteOpacityTargetIds']),
+    'Player scene',
+  );
   if (typeof scene['svg'] !== 'string') {
     throw new PlayerPackageValidationError('Player scene SVG is missing');
   }
   const sanitized = sanitizeSvg(scene['svg']);
+  const absoluteOpacityTargetIds = parseIdentifierList(
+    scene['absoluteOpacityTargetIds'],
+    PLAYER_PACKAGE_LIMITS.maxAbsoluteOpacityTargets,
+    'absolute opacity target',
+  );
 
   const animation = strictRecord(
     record['animation'],
@@ -113,11 +128,7 @@ export function parsePlayerPackage(input: unknown): PlayerPackageV1 {
   );
   const clipStart = finiteNumber(playback['clipStart'], 'clipStart');
   const clipEnd = finiteNumber(playback['clipEnd'], 'clipEnd');
-  if (
-    clipStart < 0 ||
-    clipEnd <= clipStart ||
-    clipEnd > PROJECT_LIMITS.maxTimelineDurationMs
-  ) {
+  if (clipStart < 0 || clipEnd <= clipStart || clipEnd > PROJECT_LIMITS.maxTimelineDurationMs) {
     throw new PlayerPackageValidationError('Player clip range is invalid');
   }
   const camera = parseCamera(playback['camera']);
@@ -125,11 +136,30 @@ export function parsePlayerPackage(input: unknown): PlayerPackageV1 {
   if (camera.aspectRatio !== dimensions.aspectRatio) {
     throw new PlayerPackageValidationError('Camera and output aspect ratios differ');
   }
+  assertNumericAspectRatio(
+    camera.width,
+    camera.height,
+    camera.aspectRatio,
+    'Player camera dimensions',
+  );
+  assertNumericAspectRatio(
+    dimensions.width,
+    dimensions.height,
+    dimensions.aspectRatio,
+    'Player output dimensions',
+  );
   const poster = parsePoster(record['poster'], clipStart, clipEnd);
   const title = parseTitle(record['title']);
   parseAttribution(record['attribution']);
 
   const availableTargets = new Set(sanitized.elementIds);
+  for (const targetId of absoluteOpacityTargetIds) {
+    if (!availableTargets.has(targetId)) {
+      throw new PlayerPackageValidationError(
+        `Absolute opacity target "${targetId}" is missing from the SVG scene`,
+      );
+    }
+  }
   const groupIds = new Set(Object.keys(hierarchy));
   for (const track of timelineResult.data.tracks) {
     if (
@@ -152,7 +182,10 @@ export function parsePlayerPackage(input: unknown): PlayerPackageV1 {
     version: PLAYER_PACKAGE_VERSION,
     runtimeVersion: PLAYER_RUNTIME_VERSION,
     schemaVersion: PROJECT_VERSION,
-    scene: { svg: sanitized.svg },
+    scene: {
+      svg: sanitized.svg,
+      ...(absoluteOpacityTargetIds.length > 0 ? { absoluteOpacityTargetIds } : {}),
+    },
     animation: {
       timeline: timelineResult.data,
       hierarchy,
@@ -166,6 +199,24 @@ export function parsePlayerPackage(input: unknown): PlayerPackageV1 {
       url: 'https://excalimate.com',
     },
   };
+}
+
+function parseIdentifierList(input: unknown, maximumLength: number, label: string): string[] {
+  if (input === undefined) return [];
+  if (!Array.isArray(input) || input.length > maximumLength) {
+    throw new PlayerPackageValidationError(`Player ${label} list is invalid`);
+  }
+  const identifiers = input.map((value) => {
+    if (typeof value !== 'string') {
+      throw new PlayerPackageValidationError(`Player ${label} is invalid`);
+    }
+    assertIdentifier(value, label);
+    return value;
+  });
+  if (new Set(identifiers).size !== identifiers.length) {
+    throw new PlayerPackageValidationError(`Player ${label} list contains duplicates`);
+  }
+  return identifiers;
 }
 
 function parseHierarchy(input: unknown): GroupHierarchy {
@@ -219,9 +270,7 @@ function validateHierarchy(hierarchy: GroupHierarchy): void {
   const state = new Map<string, 'visiting' | 'visited'>();
   const visit = (groupId: string, depth: number): void => {
     if (depth > MAX_HIERARCHY_DEPTH) {
-      throw new PlayerPackageValidationError(
-        'Animation hierarchy exceeds the depth limit',
-      );
+      throw new PlayerPackageValidationError('Animation hierarchy exceeds the depth limit');
     }
     const currentState = state.get(groupId);
     if (currentState === 'visiting') {
@@ -243,15 +292,7 @@ function validateHierarchy(hierarchy: GroupHierarchy): void {
 function parseCamera(input: unknown): PlayerCamera {
   const record = strictRecord(
     input,
-    new Set([
-      'aspectRatio',
-      'width',
-      'height',
-      'x',
-      'y',
-      'sceneOffsetX',
-      'sceneOffsetY',
-    ]),
+    new Set(['aspectRatio', 'width', 'height', 'x', 'y', 'sceneOffsetX', 'sceneOffsetY']),
     'Player camera',
   );
   const aspectRatio = parseAspectRatio(record['aspectRatio']);
@@ -294,16 +335,8 @@ function parseDimensions(input: unknown): PlayerDimensions {
   return dimensions;
 }
 
-function parsePoster(
-  input: unknown,
-  clipStart: number,
-  clipEnd: number,
-): PlayerPosterMetadata {
-  const record = strictRecord(
-    input,
-    new Set(['kind', 'timeMs']),
-    'Player poster metadata',
-  );
+function parsePoster(input: unknown, clipStart: number, clipEnd: number): PlayerPosterMetadata {
+  const record = strictRecord(input, new Set(['kind', 'timeMs']), 'Player poster metadata');
   const timeMs = finiteNumber(record['timeMs'], 'poster time');
   if (record['kind'] !== 'frame' || timeMs < clipStart || timeMs > clipEnd) {
     throw new PlayerPackageValidationError('Player poster metadata is invalid');
@@ -331,15 +364,8 @@ function parseTitle(input: unknown): string | undefined {
 }
 
 function parseAttribution(input: unknown): void {
-  const record = strictRecord(
-    input,
-    new Set(['label', 'url']),
-    'Player attribution',
-  );
-  if (
-    record['label'] !== 'Made with Excalimate' ||
-    record['url'] !== 'https://excalimate.com'
-  ) {
+  const record = strictRecord(input, new Set(['label', 'url']), 'Player attribution');
+  if (record['label'] !== 'Made with Excalimate' || record['url'] !== 'https://excalimate.com') {
     throw new PlayerPackageValidationError('Player attribution metadata is invalid');
   }
 }
@@ -349,6 +375,19 @@ function parseAspectRatio(input: unknown): PlayerDimensions['aspectRatio'] {
     return input;
   }
   throw new PlayerPackageValidationError('Player aspect ratio is invalid');
+}
+
+function assertNumericAspectRatio(
+  width: number,
+  height: number,
+  aspectRatio: PlayerDimensions['aspectRatio'],
+  label: string,
+): void {
+  const expected = ASPECT_RATIO_VALUES[aspectRatio];
+  const relativeError = Math.abs(width / height - expected) / expected;
+  if (relativeError > ASPECT_RATIO_TOLERANCE) {
+    throw new PlayerPackageValidationError(`${label} do not match ${aspectRatio}`);
+  }
 }
 
 function strictRecord(

@@ -576,8 +576,14 @@ test('MCP publication depends only on browser-neutral shared runtimes', async ()
     files: string[];
     publishConfig: { provenance?: boolean };
   };
-  assert.equal(packageJson.dependencies['@excalimate/project-schema'], '^0.1.0');
-  assert.equal(packageJson.dependencies['@excalimate/animation-core'], '^0.1.0');
+  assert.equal(
+    packageJson.dependencies['@excalimate/project-schema'],
+    '^0.5.0-rc.1',
+  );
+  assert.equal(
+    packageJson.dependencies['@excalimate/animation-core'],
+    '^0.5.0-rc.1',
+  );
   assert.equal(packageJson.dependencies['@excalimate/player-runtime'], undefined);
   assert.equal(packageJson.dependencies['@excalimate/export-runtime'], undefined);
   assert.equal(packageJson.files.includes('../src'), false);

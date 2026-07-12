@@ -7,8 +7,8 @@ import {
   Center,
   Group,
   Loader,
+  NativeSelect,
   Paper,
-  Select,
   Slider,
   Stack,
   Text,
@@ -27,23 +27,10 @@ import {
   createPlayerMessageBridge,
   parseAllowedOrigins,
 } from '@excalimate/player-runtime';
-import type {
-  PlayerPackageV1,
-  PlayerState,
-} from '@excalimate/player-runtime';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import {
-  loadHostedPlayer,
-} from './loadHostedPlayer';
-import type {
-  HostedPlayerLoadResult,
-} from './loadHostedPlayer';
+import type { PlayerPackageV1, PlayerState } from '@excalimate/player-runtime';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { loadHostedPlayer } from './loadHostedPlayer';
+import type { HostedPlayerLoadResult } from './loadHostedPlayer';
 
 const INITIAL_STATE: PlayerState = {
   currentTimeMs: 0,
@@ -59,10 +46,7 @@ export interface PlayerAppProps {
   reducedMotionOverride?: boolean;
 }
 
-export function PlayerApp({
-  load = loadHostedPlayer,
-  reducedMotionOverride,
-}: PlayerAppProps) {
+export function PlayerApp({ load = loadHostedPlayer, reducedMotionOverride }: PlayerAppProps) {
   const detectedReducedMotion = useReducedMotion();
   const reducedMotion = reducedMotionOverride ?? detectedReducedMotion;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -70,9 +54,7 @@ export function PlayerApp({
   const playerRef = useRef<PlayerRuntime | null>(null);
   const [playerPackage, setPlayerPackage] = useState<PlayerPackageV1 | null>(null);
   const [state, setState] = useState<PlayerState>(INITIAL_STATE);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'legacy' | 'error'>(
-    'loading',
-  );
+  const [status, setStatus] = useState<'loading' | 'ready' | 'legacy' | 'error'>('loading');
   const [editorUrl, setEditorUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -118,9 +100,7 @@ export function PlayerApp({
         unsubscribe = player.subscribe((nextState) => {
           setState({ ...nextState });
         });
-        const allowedOrigins = parseAllowedOrigins(
-          import.meta.env.VITE_PLAYER_ALLOWED_ORIGINS,
-        );
+        const allowedOrigins = parseAllowedOrigins(import.meta.env.VITE_PLAYER_ALLOWED_ORIGINS);
         if (allowedOrigins.length > 0) {
           destroyBridge = createPlayerMessageBridge(player, { allowedOrigins });
         }
@@ -131,9 +111,7 @@ export function PlayerApp({
         player?.destroy();
         playerRef.current = null;
         setError(
-          runtimeError instanceof Error
-            ? runtimeError.message
-            : 'The animation package is invalid',
+          runtimeError instanceof Error ? runtimeError.message : 'The animation package is invalid',
         );
         setStatus('error');
       }
@@ -153,8 +131,7 @@ export function PlayerApp({
       setFullscreen(document.fullscreenElement === rootRef.current);
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
-    return () =>
-      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
 
   const togglePlayback = useCallback(() => {
@@ -194,9 +171,7 @@ export function PlayerApp({
   };
   const aspectRatio = useMemo(
     () =>
-      playerPackage
-        ? playerPackage.dimensions.width / playerPackage.dimensions.height
-        : 16 / 9,
+      playerPackage ? playerPackage.dimensions.width / playerPackage.dimensions.height : 16 / 9,
     [playerPackage],
   );
 
@@ -221,11 +196,7 @@ export function PlayerApp({
             <Alert
               icon={<IconAlertTriangle size={20} />}
               color={status === 'error' ? 'red' : 'yellow'}
-              title={
-                status === 'legacy'
-                  ? 'This is a legacy share'
-                  : 'Unable to play animation'
-              }
+              title={status === 'legacy' ? 'This is a legacy share' : 'Unable to play animation'}
               role="alert"
               aria-live="assertive"
               className="player-alert"
@@ -237,7 +208,7 @@ export function PlayerApp({
                     : error}
                 </Text>
                 {editorUrl && (
-                  <Anchor href={editorUrl} fw={600}>
+                  <Anchor href={editorUrl} target="_top" fw={600}>
                     Open in Excalimate
                   </Anchor>
                 )}
@@ -288,18 +259,17 @@ export function PlayerApp({
                     <IconPlayerPlay size={22} />
                   )}
                 </ActionIcon>
-                <Select
+                <NativeSelect
                   className="player-rate"
                   size="xs"
                   aria-label="Playback rate"
                   value={String(state.rate)}
-                  allowDeselect={false}
                   data={RATES.map((rate) => ({
                     value: rate,
                     label: `${rate}x`,
                   }))}
-                  onChange={(rate) => {
-                    if (rate) playerRef.current?.setRate(Number(rate));
+                  onChange={(event) => {
+                    playerRef.current?.setRate(Number(event.currentTarget.value));
                   }}
                 />
                 {reducedMotion && (
@@ -317,11 +287,7 @@ export function PlayerApp({
                     onClick={() => void toggleFullscreen()}
                     aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
                   >
-                    {fullscreen ? (
-                      <IconMinimize size={21} />
-                    ) : (
-                      <IconMaximize size={21} />
-                    )}
+                    {fullscreen ? <IconMinimize size={21} /> : <IconMaximize size={21} />}
                   </ActionIcon>
                 )}
                 <Anchor

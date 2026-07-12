@@ -1,6 +1,6 @@
 {
   "name": "@excalimate/share-worker",
-  "version": "0.1.0",
+  "version": "0.5.0-rc.1",
   "private": true,
   "description": "Cloudflare Worker for E2E encrypted animation sharing",
   "scripts": {

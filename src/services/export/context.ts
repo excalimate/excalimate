@@ -1,4 +1,3 @@
-import { getNonDeletedElements } from '@excalidraw/excalidraw';
 import type {
   ExcalidrawElement,
   NonDeletedExcalidrawElement,
@@ -20,14 +19,16 @@ import type { PlayerPackageV1 } from '@excalimate/player-runtime';
 import type { ProjectDocument } from '@excalimate/project-schema';
 import { toProjectDocument } from '../../core/models/Project';
 import { useAnimationStore } from '../../stores/animationStore';
-import {
-  getExportResolution,
-  useProjectStore,
-} from '../../stores/projectStore';
+import { getExportResolution, getFrameHeight, useProjectStore } from '../../stores/projectStore';
 import type { AnimatableTarget } from '../../types/excalidraw';
 import { generatePlayerPackage } from '../playerPackage';
 import { QUALITY_SETTINGS } from './types';
 import type { ExportOptions } from './types';
+import {
+  collectOpacityTrackTargetIds,
+  getRenderableAnimationElements,
+} from '../../core/engine/renderUtils';
+import { getLottieFallbackIssues } from './lottieFallbacks';
 
 export interface ExportSnapshot {
   project: ProjectDocument;
@@ -54,22 +55,11 @@ export function captureExportSnapshot(options: ExportOptions): ExportSnapshot {
   const project = projectState.project;
   if (!project?.scene) throw new Error('No scene loaded');
   const fps = options.fps ?? (options.format === 'gif' ? 15 : 30);
-  const baseResolution = getExportResolution(
-    projectState.cameraFrame.aspectRatio,
-  );
+  const baseResolution = getExportResolution(projectState.cameraFrame.aspectRatio);
   const quality = options.quality ?? 'high';
   const maxGifWidth =
-    quality === 'low'
-      ? 480
-      : quality === 'medium'
-        ? 640
-        : quality === 'high'
-          ? 800
-          : 1280;
-  const scale =
-    options.format === 'gif'
-      ? Math.min(1, maxGifWidth / baseResolution.width)
-      : 1;
+    quality === 'low' ? 480 : quality === 'medium' ? 640 : quality === 'high' ? 800 : 1280;
+  const scale = options.format === 'gif' ? Math.min(1, maxGifWidth / baseResolution.width) : 1;
   const width = Math.round(baseResolution.width * scale);
   const height = Math.round(baseResolution.height * scale);
   const canonical = toProjectDocument(project);
@@ -82,8 +72,9 @@ export function captureExportSnapshot(options: ExportOptions): ExportSnapshot {
       cameraFrame: projectState.cameraFrame,
     },
   };
-  const elements = getNonDeletedElements(
+  const elements = getRenderableAnimationElements(
     project.scene.elements as ExcalidrawElement[],
+    collectOpacityTrackTargetIds(exportProject.timeline),
   ) as NonDeletedExcalidrawElement[];
 
   return {
@@ -99,17 +90,15 @@ export function captureExportSnapshot(options: ExportOptions): ExportSnapshot {
   };
 }
 
-export async function preflightSnapshot(
-  snapshot: ExportSnapshot,
-): Promise<ExportPreflightResult> {
-  const bitrate =
-    QUALITY_SETTINGS[snapshot.options.quality ?? 'high'].bitrate;
+export async function preflightSnapshot(snapshot: ExportSnapshot): Promise<ExportPreflightResult> {
+  const bitrate = QUALITY_SETTINGS[snapshot.options.quality ?? 'high'].bitrate;
   const capabilities = await detectExportCapabilities({
     width: snapshot.width,
     height: snapshot.height,
     bitrate,
   });
-  return preflightExport(
+  const enabledTracks = snapshot.project.timeline.tracks.filter((track) => track.enabled);
+  const result = preflightExport(
     {
       format: snapshot.options.format,
       width: snapshot.width,
@@ -118,17 +107,40 @@ export async function preflightSnapshot(
       clipStart: snapshot.project.playback.clipStart,
       clipEnd: snapshot.project.playback.clipEnd,
       bitrate,
-      sourceBytes: new TextEncoder().encode(
-        JSON.stringify(snapshot.project.scene),
-      ).byteLength,
-      sourceKeyframes: snapshot.project.timeline.tracks.reduce(
+      sourceBytes: new TextEncoder().encode(JSON.stringify(snapshot.project.scene)).byteLength,
+      sourceKeyframes: enabledTracks.reduce((total, track) => total + track.keyframes.length, 0),
+      nonlinearSegments: enabledTracks.reduce(
         (total, track) =>
-          total + (track.enabled ? track.keyframes.length : 0),
+          total +
+          track.keyframes
+            .slice(0, -1)
+            .filter((keyframe) => keyframe.easing !== 'linear' && keyframe.easing !== 'step')
+            .length,
         0,
       ),
+      animatedTargets: new Set(enabledTracks.map((track) => track.targetId)).size,
+      groupedTargets: snapshot.targets.filter(
+        (target) => target.type === 'element' && Boolean(target.parentGroupId),
+      ).length,
     },
     capabilities,
   );
+  const fallbackIssues = getLottieFallbackIssues(
+    snapshot.options.format,
+    snapshot.elements,
+    snapshot.project.timeline,
+    {
+      x: snapshot.width / snapshot.project.playback.cameraFrame.width,
+      y: snapshot.height / getFrameHeight(snapshot.project.playback.cameraFrame),
+    },
+  );
+  return fallbackIssues.length === 0
+    ? result
+    : {
+        ...result,
+        issues: [...result.issues, ...fallbackIssues],
+        supported: result.supported && !fallbackIssues.some((issue) => issue.severity === 'error'),
+      };
 }
 
 export async function prepareExportContext(
@@ -137,11 +149,9 @@ export async function prepareExportContext(
   task: ExportTaskContext,
 ): Promise<PreparedExportContext> {
   task.report('prepare', 0.1, 'Generating sanitized export package');
-  const playerPackage = await generatePlayerPackage(
-    snapshot.project,
-    snapshot.targets,
-    { theme: snapshot.options.theme },
-  );
+  const playerPackage = await generatePlayerPackage(snapshot.project, snapshot.targets, {
+    theme: snapshot.options.theme,
+  });
   task.throwIfCancelled();
   const sampler = createFrameSampler({
     timeline: playerPackage.animation.timeline,
@@ -178,16 +188,11 @@ export async function prepareExportContext(
     playerPackage,
     sampler,
     capabilities: preflight.capabilities,
-    async sampleFrame(
-      index: number,
-      signal: AbortSignal,
-    ): Promise<FrameState> {
+    async sampleFrame(index: number, signal: AbortSignal): Promise<FrameState> {
       if (signal.aborted) {
         throw new DOMException('Export cancelled', 'AbortError');
       }
-      return workerSampler
-        ? workerSampler.sampleFrame(index, signal)
-        : sampler.sampleFrame(index);
+      return workerSampler ? workerSampler.sampleFrame(index, signal) : sampler.sampleFrame(index);
     },
   };
 }

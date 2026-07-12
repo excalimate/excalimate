@@ -63,7 +63,7 @@ class MemoryBucket {
 }
 
 class MemoryQuota {
-  readonly reservations = new Map<string, { size: number; expiresAt: number }>();
+  readonly reservations = new Map<string, { size: number; expiresAt: number; clientKey: string }>();
 
   readonly stub = {
     fetch: async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -83,6 +83,8 @@ class MemoryQuota {
       const size = Number(body.size);
       const maxShares = Number(body.maxShares);
       const maxBytes = Number(body.maxBytes);
+      const clientKey = String(body.clientKey);
+      const maxClientShares = Number(body.maxClientShares);
       const totalBytes = [...this.reservations.values()].reduce(
         (total, reservation) => total + reservation.size,
         0,
@@ -90,14 +92,22 @@ class MemoryQuota {
       const accepted =
         !this.reservations.has(id) &&
         this.reservations.size < maxShares &&
-        totalBytes + size <= maxBytes;
+        totalBytes + size <= maxBytes &&
+        [...this.reservations.values()].filter((reservation) => reservation.clientKey === clientKey)
+          .length < maxClientShares;
+      const reason =
+        [...this.reservations.values()].filter((reservation) => reservation.clientKey === clientKey)
+          .length >= maxClientShares
+          ? 'client'
+          : 'capacity';
       if (accepted) {
         this.reservations.set(id, {
           expiresAt: Number(body.expiresAt),
           size,
+          clientKey,
         });
       }
-      return Response.json({ accepted });
+      return Response.json({ accepted, ...(accepted ? {} : { reason }) });
     },
   };
 
@@ -119,6 +129,8 @@ function createHarness(overrides: Partial<Env> = {}) {
     MAX_TOTAL_SHARES: '2',
     MAX_TOTAL_STORAGE_MB: '2',
     SHARE_TTL_DAYS: '30',
+    MAX_SHARES_PER_CLIENT: '20',
+    CLIENT_ID_HASH_KEY: 'test-client-identity-hmac-key-32-bytes',
     LEGACY_SHARE_BUCKET: legacyBucket as unknown as R2Bucket,
     SHARE_BUCKET: bucket as unknown as R2Bucket,
     SHARE_QUOTA: quota.namespace as unknown as DurableObjectNamespace,
@@ -136,6 +148,7 @@ function uploadRequest(
     headers: {
       'Content-Type': 'application/octet-stream',
       Origin: allowedOrigin,
+      'CF-Connecting-IP': '203.0.113.10',
       ...headers,
     },
     body,
@@ -359,6 +372,23 @@ describe('share worker', () => {
     expect(second.response.headers.get('Retry-After')).toBe('3600');
     expect(bucket.putCalls).toBe(1);
     expect(quota.reservations.size).toBe(1);
+  });
+
+  it('limits live shares per pseudonymous Cloudflare client without sharing raw addresses', async () => {
+    const { bucket, env, quota } = createHarness({ MAX_SHARES_PER_CLIENT: '1' });
+    const first = await upload(env);
+    const second = await upload(env);
+    const otherClient = await worker.fetch(
+      uploadRequest(new Uint8Array([5]), { 'CF-Connecting-IP': '203.0.113.11' }),
+      env,
+    );
+
+    expect(first.response.status).toBe(201);
+    expect(second.response.status).toBe(429);
+    expect(otherClient.status).toBe(201);
+    expect(bucket.putCalls).toBe(2);
+    expect(JSON.stringify([...quota.reservations.values()])).not.toContain('203.0.113.');
+    expect([...quota.reservations.values()][0]?.clientKey).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it('deletes only with the returned capability and releases quota', async () => {

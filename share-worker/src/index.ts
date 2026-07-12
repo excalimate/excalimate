@@ -10,7 +10,9 @@ export interface Env {
   SHARE_TTL_DAYS?: string;
   MAX_TOTAL_SHARES?: string;
   MAX_TOTAL_STORAGE_MB?: string;
+  MAX_SHARES_PER_CLIENT?: string;
   ALLOWED_ORIGINS?: string;
+  CLIENT_ID_HASH_KEY?: string;
 }
 
 interface ShareConfig {
@@ -18,6 +20,8 @@ interface ShareConfig {
   maxShareSizeBytes: number;
   maxTotalShares: number;
   maxTotalStorageBytes: number;
+  maxSharesPerClient: number;
+  clientIdHashKey: string;
   ttlDays: number;
 }
 
@@ -27,10 +31,13 @@ interface QuotaReservation {
   expiresAt: number;
   maxShares: number;
   maxBytes: number;
+  clientKey: string;
+  maxClientShares: number;
 }
 
 interface QuotaResponse {
   accepted: boolean;
+  reason?: 'capacity' | 'client';
 }
 
 const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
@@ -41,6 +48,7 @@ const DEFAULT_MAX_SHARE_SIZE_MB = 2;
 const DEFAULT_SHARE_TTL_DAYS = 30;
 const DEFAULT_MAX_TOTAL_SHARES = 2_000;
 const DEFAULT_MAX_TOTAL_STORAGE_MB = 4_096;
+const DEFAULT_MAX_SHARES_PER_CLIENT = 20;
 const MAX_CONFIGURED_SHARE_SIZE_MB = 25;
 const MAX_CONFIGURED_TTL_DAYS = 365;
 
@@ -126,6 +134,9 @@ function parseConfig(env: Env): ShareConfig {
     100_000,
   );
 
+  if (!env.CLIENT_ID_HASH_KEY || env.CLIENT_ID_HASH_KEY.length < 32) {
+    throw new Error('CLIENT_ID_HASH_KEY must contain at least 32 characters.');
+  }
   return {
     allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
     maxShareSizeBytes: maxShareSizeMb * 1024 * 1024,
@@ -137,6 +148,14 @@ function parseConfig(env: Env): ShareConfig {
       100_000,
     ),
     maxTotalStorageBytes: maxTotalStorageMb * 1024 * 1024,
+    maxSharesPerClient: parseInteger(
+      env.MAX_SHARES_PER_CLIENT,
+      DEFAULT_MAX_SHARES_PER_CLIENT,
+      'MAX_SHARES_PER_CLIENT',
+      1,
+      1_000,
+    ),
+    clientIdHashKey: env.CLIENT_ID_HASH_KEY,
     ttlDays: parseInteger(
       env.SHARE_TTL_DAYS,
       DEFAULT_SHARE_TTL_DAYS,
@@ -250,6 +269,22 @@ async function hashDeleteSecret(secret: string): Promise<string> {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+async function hashClientIdentity(request: Request, keyMaterial: string): Promise<string> {
+  const address = request.headers.get('CF-Connecting-IP');
+  if (!address || address.length > 64 || !/^[A-Fa-f0-9:.]+$/.test(address)) {
+    throw new HttpError(503, 'Client identity is unavailable.');
+  }
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(keyMaterial),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const digest = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(address));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function constantTimeEqual(left: Uint8Array, right: Uint8Array): boolean {
   const length = Math.max(left.length, right.length);
   let difference = left.length ^ right.length;
@@ -314,7 +349,7 @@ function quotaStub(env: Env): DurableObjectStub {
   return env.SHARE_QUOTA.get(id);
 }
 
-async function reserveQuota(env: Env, reservation: QuotaReservation): Promise<boolean> {
+async function reserveQuota(env: Env, reservation: QuotaReservation): Promise<QuotaResponse> {
   const response = await quotaStub(env).fetch('https://quota.internal/reserve', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -323,7 +358,7 @@ async function reserveQuota(env: Env, reservation: QuotaReservation): Promise<bo
   if (!response.ok) throw new Error('Share quota service unavailable.');
 
   const result = await response.json<QuotaResponse>();
-  return result.accepted;
+  return result;
 }
 
 async function releaseQuota(env: Env, id: string): Promise<void> {
@@ -366,6 +401,7 @@ async function handleUpload(
   requestId: string,
 ): Promise<Response> {
   requireAllowedOrigin(request, config);
+  const clientKey = await hashClientIdentity(request, config.clientIdHashKey);
   if (request.headers.get('Content-Type') !== 'application/octet-stream') {
     throw new HttpError(415, 'Content-Type must be application/octet-stream.');
   }
@@ -382,17 +418,25 @@ async function handleUpload(
   const deleteVerifier = await hashDeleteSecret(deleteSecret);
   const expiresAtMs = Date.now() + config.ttlDays * DAY_MS;
   const expiresAt = new Date(expiresAtMs).toISOString();
-  const accepted = await reserveQuota(env, {
+  const reservation = await reserveQuota(env, {
     id,
     size: body.byteLength,
     expiresAt: expiresAtMs,
     maxShares: config.maxTotalShares,
     maxBytes: config.maxTotalStorageBytes,
+    clientKey,
+    maxClientShares: config.maxSharesPerClient,
   });
-  if (!accepted) {
-    throw new HttpError(429, 'Share storage capacity is currently full.', {
-      'Retry-After': '3600',
-    });
+  if (!reservation.accepted) {
+    throw new HttpError(
+      429,
+      reservation.reason === 'client'
+        ? 'The client share limit is currently full.'
+        : 'Share storage capacity is currently full.',
+      {
+        'Retry-After': '3600',
+      },
+    );
   }
 
   try {

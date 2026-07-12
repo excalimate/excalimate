@@ -1,15 +1,15 @@
 import type { NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import type {
-  ProjectDocument,
-} from '@excalimate/project-schema';
-import {
-  parsePlayerPackage,
-} from '@excalimate/player-runtime';
-import type {
-  PlayerPackageV1,
-} from '@excalimate/player-runtime';
+import type { ProjectDocument } from '@excalimate/project-schema';
+import { parseProjectDocument } from '@excalimate/project-schema';
+import { parsePlayerPackage } from '@excalimate/player-runtime';
+import type { PlayerPackageV1 } from '@excalimate/player-runtime';
 import type { AnimatableTarget } from '../types/excalidraw';
 import { buildGroupHierarchy } from '../core/models/GroupHierarchy';
+import {
+  collectAbsoluteOpacityTargetIds,
+  collectOpacityTrackTargetIds,
+  getRenderableAnimationElements,
+} from '../core/engine/renderUtils';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const OUTPUT_WIDTHS: Record<ProjectDocument['playback']['cameraFrame']['aspectRatio'], number> = {
@@ -30,33 +30,34 @@ export async function generatePlayerPackage(
   targets: readonly AnimatableTarget[],
   options: { theme?: 'light' | 'dark' } = {},
 ): Promise<PlayerPackageV1> {
-  const { exportToSvg, getCommonBounds, getNonDeletedElements } = await import(
-    '@excalidraw/excalidraw'
+  project = parseProjectDocument(project);
+  const { exportToSvg, getCommonBounds } = await import('@excalidraw/excalidraw');
+  const opacityTrackTargetIds = collectOpacityTrackTargetIds(project.timeline);
+  const absoluteOpacityTargetIds = collectAbsoluteOpacityTargetIds(
+    project.scene.elements,
+    opacityTrackTargetIds,
   );
-  const elements = getNonDeletedElements(
-    project.scene.elements as unknown as Parameters<
-      typeof getNonDeletedElements
-    >[0],
-  ) as readonly NonDeletedExcalidrawElement[];
+  const elements = getRenderableAnimationElements(
+    project.scene
+      .elements as unknown as readonly import('@excalidraw/excalidraw/element/types').ExcalidrawElement[],
+    opacityTrackTargetIds,
+  );
   if (elements.length === 0) {
     throw new Error('The project has no visible elements to share');
   }
-  const exportElements = elements.map((element) =>
-    element.link ? { ...element, link: null } : element,
-  ) as readonly NonDeletedExcalidrawElement[];
+  const exportElements = elements.map((element) => {
+    const withoutLink = element.link ? { ...element, link: null } : element;
+    return absoluteOpacityTargetIds.has(element.id)
+      ? { ...withoutLink, opacity: 100 }
+      : withoutLink;
+  }) as readonly NonDeletedExcalidrawElement[];
   const frameIds = new Set(
     exportElements
-      .filter(
-        (element) =>
-          element.type === 'frame' || element.type === 'magicframe',
-      )
+      .filter((element) => element.type === 'frame' || element.type === 'magicframe')
       .map((element) => element.id),
   );
   const rootElements = exportElements.filter(
-    (element) =>
-      frameIds.has(element.id) ||
-      !element.frameId ||
-      !frameIds.has(element.frameId),
+    (element) => frameIds.has(element.id) || !element.frameId || !frameIds.has(element.frameId),
   );
   const [sceneMinX, sceneMinY] = getCommonBounds(rootElements);
   const sceneOffsetX = -sceneMinX;
@@ -79,16 +80,11 @@ export async function generatePlayerPackage(
       viewBackgroundColor:
         options.theme === 'dark'
           ? '#ffffff'
-          : readString(project.scene.appState['viewBackgroundColor']) ?? '#ffffff',
+          : (readString(project.scene.appState['viewBackgroundColor']) ?? '#ffffff'),
     },
     exportPadding: 0,
   });
-  markAnimationTargets(
-    svg,
-    getExportRenderOrder(exportElements),
-    sceneOffsetX,
-    sceneOffsetY,
-  );
+  markAnimationTargets(svg, getExportRenderOrder(exportElements), sceneOffsetX, sceneOffsetY);
   wrapScene(svg);
 
   const cameraFrame = project.playback.cameraFrame;
@@ -103,6 +99,9 @@ export async function generatePlayerPackage(
     schemaVersion: project.version,
     scene: {
       svg: new XMLSerializer().serializeToString(svg),
+      ...(absoluteOpacityTargetIds.size > 0
+        ? { absoluteOpacityTargetIds: [...absoluteOpacityTargetIds].sort() }
+        : {}),
     },
     animation: {
       timeline: project.timeline,
@@ -143,8 +142,7 @@ function markAnimationTargets(
 ): void {
   const exportedElements = Array.from(svg.children).filter(
     (child): child is SVGGraphicsElement =>
-      child instanceof SVGGraphicsElement &&
-      (child.localName === 'g' || child.localName === 'use'),
+      child instanceof SVGGraphicsElement && (child.localName === 'g' || child.localName === 'use'),
   );
   if (exportedElements.length !== elements.length) {
     throw new Error('The exported SVG scene does not match its source elements');
@@ -165,6 +163,29 @@ function markAnimationTargets(
     );
     if (element.type === 'text' && element.containerId) {
       wrapper.setAttribute('data-excalimate-bound-to', element.containerId);
+    }
+    if ((element.type === 'arrow' || element.type === 'line') && element.points.length >= 2) {
+      const startBinding = element.startBinding?.elementId;
+      const endBinding = element.endBinding?.elementId;
+      if (startBinding) {
+        wrapper.setAttribute('data-excalimate-start-bound-to', startBinding);
+      }
+      if (endBinding) {
+        wrapper.setAttribute('data-excalimate-end-bound-to', endBinding);
+      }
+      if (startBinding || endBinding) {
+        const start = element.points[0];
+        const end = element.points[element.points.length - 1];
+        wrapper.setAttribute(
+          'data-excalimate-binding-points',
+          [
+            element.x + start[0] + sceneOffsetX,
+            element.y + start[1] + sceneOffsetY,
+            element.x + end[0] + sceneOffsetX,
+            element.y + end[1] + sceneOffsetY,
+          ].join(' '),
+        );
+      }
     }
     exported.replaceWith(wrapper);
     wrapper.append(exported);
@@ -200,11 +221,7 @@ function getExportRenderOrder(
   };
 
   for (const element of [...regularElements, ...iframeElements]) {
-    if (
-      element.type === 'text' &&
-      element.containerId &&
-      byId.has(element.containerId)
-    ) {
+    if (element.type === 'text' && element.containerId && byId.has(element.containerId)) {
       continue;
     }
     append(element);
@@ -220,9 +237,7 @@ function wrapScene(svg: SVGSVGElement): void {
     scene.setAttribute('filter', rootFilter);
     svg.removeAttribute('filter');
   }
-  const renderableChildren = Array.from(svg.children).filter(
-    (child) => child.localName !== 'defs',
-  );
+  const renderableChildren = Array.from(svg.children).filter((child) => child.localName !== 'defs');
   for (const child of renderableChildren) scene.append(child);
   svg.append(scene);
 }

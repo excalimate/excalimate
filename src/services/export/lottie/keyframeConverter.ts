@@ -2,20 +2,24 @@
  * Convert Excalimate animation tracks to Lottie transform keyframes.
  */
 import type {
-  LottieTransform, LottieKeyframe, LottieSingleValue, LottieMultiValue,
+  LottieTransform,
+  LottieKeyframe,
+  LottieSingleValue,
+  LottieMultiValue,
   LottieTrimPath,
 } from './types';
 import { staticVal, staticMulti, animatedVal } from './types';
 import { getEasing } from './easingMap';
 import type { AnimationTrack, Keyframe } from '../../../types/animation';
-import {
-  findKeyframeIndexBefore,
-  interpolate,
-} from '@excalimate/animation-core';
+import { interpolate } from '@excalimate/animation-core';
+import { sampleEasingProgresses } from '@excalimate/export-runtime';
+
+const ADAPTIVE_EASING_TOLERANCE = 0.0025;
+const MAX_ADAPTIVE_SAMPLES_PER_SEGMENT = 24;
 
 /** Convert time in milliseconds to Lottie frame number. */
 function msToFrame(ms: number, fps: number, clipStart: number): number {
-  return Math.round(((ms - clipStart) / 1000) * fps);
+  return ((ms - clipStart) / 1000) * fps;
 }
 
 /** Convert a single Excalimate keyframe to Lottie format. */
@@ -46,10 +50,10 @@ function buildSingleKeyframes(
   const clipped = clipKeyframes(keyframes, property, clipStart, clipEnd);
   if (clipped.length === 0) return staticVal(valueTransform(0));
   if (clipped.length === 1) return staticVal(valueTransform(clipped[0].value));
-  return animatedVal(clipped.map(kf => toLottieKeyframe(kf, fps, clipStart, valueTransform)));
+  return animatedVal(clipped.map((kf) => toLottieKeyframe(kf, fps, clipStart, valueTransform)));
 }
 
-interface TracksByProperty {
+export interface TracksByProperty {
   opacity: Keyframe[];
   translateX: Keyframe[];
   translateY: Keyframe[];
@@ -106,9 +110,11 @@ export function buildTransform(
   const clippedProps = clipProperties(props, clipStart, clipEnd);
   // Position: base + translateX/Y keyframes
   const includeScaleOriginCompensation = Boolean(scaleOriginCompensation);
-  const positionAnimated = clippedProps.translateX.length > 0 ||
+  const positionAnimated =
+    clippedProps.translateX.length > 0 ||
     clippedProps.translateY.length > 0 ||
-    (includeScaleOriginCompensation && (clippedProps.scaleX.length > 0 || clippedProps.scaleY.length > 0));
+    (includeScaleOriginCompensation &&
+      (clippedProps.scaleX.length > 0 || clippedProps.scaleY.length > 0));
   let p: LottieMultiValue;
 
   if (positionAnimated) {
@@ -123,7 +129,7 @@ export function buildTransform(
     }
     const sortedTimes = [...times].sort((a, b) => a - b);
 
-    const keyframes: LottieKeyframe[] = sortedTimes.map(t => {
+    const keyframes: LottieKeyframe[] = sortedTimes.map((t) => {
       const currentTx = valueAt(clippedProps.translateX, t, 'translateX', 0);
       const currentTy = valueAt(clippedProps.translateY, t, 'translateY', 0);
       const currentSx = valueAt(clippedProps.scaleX, t, 'scaleX', 1);
@@ -136,13 +142,7 @@ export function buildTransform(
         px += ((currentSx - 1) * scaleOriginCompensation.width) / 2;
         py += ((currentSy - 1) * scaleOriginCompensation.height) / 2;
       }
-      // Use easing from whichever keyframe exists at this time
-      const easing = getEasing(sharedEasing([
-        easingAt(clippedProps.translateX, t),
-        easingAt(clippedProps.translateY, t),
-        easingAt(clippedProps.scaleX, t),
-        easingAt(clippedProps.scaleY, t),
-      ]));
+      const easing = getEasing('linear');
       return {
         t: msToFrame(t, fps, clipStart),
         s: [px, py, 0],
@@ -166,13 +166,10 @@ export function buildTransform(
     for (const kf of clippedProps.scaleY) times.add(kf.time);
     const sortedTimes = [...times].sort((a, b) => a - b);
 
-    const keyframes: LottieKeyframe[] = sortedTimes.map(t => {
+    const keyframes: LottieKeyframe[] = sortedTimes.map((t) => {
       const sx = valueAt(clippedProps.scaleX, t, 'scaleX', 1) * 100;
       const sy = valueAt(clippedProps.scaleY, t, 'scaleY', 1) * 100;
-      const easing = getEasing(sharedEasing([
-        easingAt(clippedProps.scaleX, t),
-        easingAt(clippedProps.scaleY, t),
-      ]));
+      const easing = getEasing('linear');
       return {
         t: msToFrame(t, fps, clipStart),
         s: [sx, sy, 100],
@@ -187,14 +184,30 @@ export function buildTransform(
   }
 
   // Rotation: base angle + animated rotation
-  const r = clippedProps.rotation.length > 0
-    ? buildSingleKeyframes(clippedProps.rotation, 'rotation', fps, clipStart, clipEnd, v => baseAngle + v)
-    : staticVal(baseAngle);
+  const r =
+    clippedProps.rotation.length > 0
+      ? buildSingleKeyframes(
+          clippedProps.rotation,
+          'rotation',
+          fps,
+          clipStart,
+          clipEnd,
+          (v) => baseAngle + v,
+        )
+      : staticVal(baseAngle);
 
   // Opacity: Excalimate 0–1 → Lottie 0–100
-  const o = clippedProps.opacity.length > 0
-    ? buildSingleKeyframes(clippedProps.opacity, 'opacity', fps, clipStart, clipEnd, v => baseOpacity * v)
-    : staticVal(baseOpacity);
+  const o =
+    clippedProps.opacity.length > 0
+      ? buildSingleKeyframes(
+          clippedProps.opacity,
+          'opacity',
+          fps,
+          clipStart,
+          clipEnd,
+          (v) => baseOpacity * v,
+        )
+      : staticVal(baseOpacity);
 
   return {
     a: staticMulti([0, 0, 0]),
@@ -215,19 +228,14 @@ export function buildTrimPath(
   clipStart: number,
   clipEnd: number,
 ): LottieTrimPath | null {
-  const keyframes = clipKeyframes(
-    props.drawProgress,
-    'drawProgress',
-    clipStart,
-    clipEnd,
-  );
+  const keyframes = clipKeyframes(props.drawProgress, 'drawProgress', clipStart, clipEnd);
   if (keyframes.length === 0) return null;
 
   return {
     ty: 'tm',
     nm: 'Trim',
     s: staticVal(0),
-    e: buildSingleKeyframes(keyframes, 'drawProgress', fps, clipStart, clipEnd, v => v * 100),
+    e: buildSingleKeyframes(keyframes, 'drawProgress', fps, clipStart, clipEnd, (v) => v * 100),
     o: staticVal(0),
   };
 }
@@ -256,24 +264,42 @@ function clipKeyframes(
 ): Keyframe[] {
   if (keyframes.length === 0) return [];
   const sorted = [...keyframes].sort((left, right) => left.time - right.time);
-  const clipped = sorted.filter(
-    (keyframe) => keyframe.time > clipStart && keyframe.time < clipEnd,
-  );
-  return [
-    {
-      id: `${property}-clip-start`,
-      time: clipStart,
-      value: interpolate(sorted, clipStart, property),
-      easing: easingAt(sorted, clipStart),
-    },
-    ...clipped,
-    {
-      id: `${property}-clip-end`,
-      time: clipEnd,
-      value: interpolate(sorted, clipEnd, property),
+  const times = new Set<number>([clipStart, clipEnd]);
+  for (const keyframe of sorted) {
+    if (keyframe.time > clipStart && keyframe.time < clipEnd) {
+      times.add(keyframe.time);
+    }
+  }
+  for (let index = 0; index < sorted.length - 1; index += 1) {
+    const start = sorted[index];
+    const end = sorted[index + 1];
+    if (!start || !end || end.time <= clipStart || start.time >= clipEnd) continue;
+    if (start.easing === 'linear') continue;
+    if (start.easing === 'step') {
+      if (end.time > clipStart && end.time <= clipEnd) {
+        times.add(Math.max(clipStart, end.time - 0.001));
+      }
+      continue;
+    }
+    for (const progress of sampleEasingProgresses(
+      start.easing,
+      ADAPTIVE_EASING_TOLERANCE,
+      MAX_ADAPTIVE_SAMPLES_PER_SEGMENT,
+    )) {
+      if (progress <= 0 || progress >= 1) continue;
+      const time = start.time + (end.time - start.time) * progress;
+      if (time > clipStart && time < clipEnd) times.add(time);
+    }
+  }
+
+  return [...times]
+    .sort((left, right) => left - right)
+    .map((time, index) => ({
+      id: `${property}-sample-${index}`,
+      time,
+      value: interpolate(sorted, time, property),
       easing: 'linear',
-    },
-  ];
+    }));
 }
 
 function valueAt(
@@ -282,23 +308,5 @@ function valueAt(
   property: AnimationTrack['property'],
   fallback: number,
 ): number {
-  return keyframes.length === 0
-    ? fallback
-    : interpolate(keyframes, time, property);
-}
-
-function easingAt(keyframes: Keyframe[], time: number): Keyframe['easing'] {
-  if (keyframes.length === 0) return 'linear';
-  const index = findKeyframeIndexBefore(keyframes, time);
-  return keyframes[Math.max(0, index)]?.easing ?? 'linear';
-}
-
-function sharedEasing(
-  easings: readonly Keyframe['easing'][],
-): Keyframe['easing'] {
-  const active = easings.filter((easing) => easing !== 'linear');
-  if (active.length === 0) return 'linear';
-  return active.every((easing) => easing === active[0])
-    ? active[0]!
-    : 'linear';
+  return keyframes.length === 0 ? fallback : interpolate(keyframes, time, property);
 }

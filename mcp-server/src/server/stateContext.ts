@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { parseMcpStateDelta, parseMcpStateSnapshot } from '@excalimate/project-schema';
+import type { McpStateDelta, McpStateSnapshot } from '@excalimate/project-schema';
 import { getRequestId } from '../requestContext.js';
 import {
   createDefaultState,
@@ -9,69 +11,16 @@ import {
   serializeServerState,
 } from '../state.js';
 import type { AnimationAction, ServerState } from '../types.js';
-import {
-  assertInputWithinLimits,
-  assertStateWithinLimits,
-  mergeResourceLimits,
-} from './limits.js';
+import { assertInputWithinLimits, assertStateWithinLimits, mergeResourceLimits } from './limits.js';
 import type { ResourceLimits } from './limits.js';
 
-type DirtyArea =
-  | 'scene'
-  | 'timeline'
-  | 'clip'
-  | 'cameraFrame'
-  | 'authoring'
-  | 'project';
+type DirtyArea = 'scene' | 'timeline' | 'clip' | 'cameraFrame' | 'authoring' | 'project';
 
-export interface StateDelta {
-  revision: number;
-  sequence: number;
-  baseRevision: number;
-  scene?: {
-    upsert: any[];
-    removed: string[];
-    appState?: Record<string, unknown>;
-    files?: Record<string, unknown>;
-  };
-  timeline?: {
-    upsertedTracks: any[];
-    removedTrackIds: string[];
-    meta?: {
-      id: string;
-      name: string;
-      duration: number;
-      fps: number;
-    };
-  };
-  authoring?: {
-    upsertedActions: AnimationAction[];
-    removedActionIds: string[];
-    meta: {
-      version: 1;
-      documentRevision: number;
-      timelineRevision: number;
-    };
-  };
-  project?: {
-    version: ServerState['version'];
-    metadata: ServerState['metadata'];
-    preferredWorkspace?: ServerState['preferredWorkspace'];
-  };
-  clipStart?: number;
-  clipEnd?: number;
-  cameraFrame?: ServerState['playback']['cameraFrame'];
-}
+export type StateDelta = McpStateDelta;
 
 export type StateChangeListener = (delta: StateDelta) => void;
 
-export type StateSnapshot = ServerState & {
-  clipStart: number;
-  clipEnd: number;
-  cameraFrame: ServerState['playback']['cameraFrame'];
-  revision: number;
-  sequence: number;
-};
+export type StateSnapshot = McpStateSnapshot;
 
 export interface StateContextOptions {
   resourceLimits?: Partial<ResourceLimits>;
@@ -147,10 +96,7 @@ function computeSceneDelta(
   current: ServerState,
 ): StateDelta['scene'] | undefined {
   const previousElements = new Map(
-    previous.scene.elements.map((element) => [
-      element.id,
-      fingerprint(element),
-    ]),
+    previous.scene.elements.map((element) => [element.id, fingerprint(element)]),
   );
   const currentIds = new Set<string>();
   const upsert: any[] = [];
@@ -162,19 +108,11 @@ function computeSceneDelta(
     }
   }
 
-  const removed = [...previousElements.keys()].filter(
-    (id) => !currentIds.has(id),
-  );
+  const removed = [...previousElements.keys()].filter((id) => !currentIds.has(id));
   const appStateChanged =
     fingerprint(previous.scene.appState) !== fingerprint(current.scene.appState);
-  const filesChanged =
-    fingerprint(previous.scene.files) !== fingerprint(current.scene.files);
-  if (
-    upsert.length === 0 &&
-    removed.length === 0 &&
-    !appStateChanged &&
-    !filesChanged
-  ) {
+  const filesChanged = fingerprint(previous.scene.files) !== fingerprint(current.scene.files);
+  if (upsert.length === 0 && removed.length === 0 && !appStateChanged && !filesChanged) {
     return undefined;
   }
   return {
@@ -202,9 +140,7 @@ function computeTimelineDelta(
     }
   }
 
-  const removedTrackIds = [...previousTracks.keys()].filter(
-    (id) => !currentTrackIds.has(id),
-  );
+  const removedTrackIds = [...previousTracks.keys()].filter((id) => !currentTrackIds.has(id));
   const previousMeta = {
     id: previous.timeline.id,
     name: previous.timeline.name,
@@ -219,11 +155,7 @@ function computeTimelineDelta(
   };
   const metaChanged = fingerprint(previousMeta) !== fingerprint(currentMeta);
 
-  if (
-    upsertedTracks.length === 0 &&
-    removedTrackIds.length === 0 &&
-    !metaChanged
-  ) {
+  if (upsertedTracks.length === 0 && removedTrackIds.length === 0 && !metaChanged) {
     return undefined;
   }
   return {
@@ -242,10 +174,7 @@ function computeAuthoringDelta(
   if (!previousAuthoring && !currentAuthoring) return undefined;
 
   const previousActions = new Map(
-    (previousAuthoring?.actions ?? []).map((action) => [
-      action.id,
-      fingerprint(action),
-    ]),
+    (previousAuthoring?.actions ?? []).map((action) => [action.id, fingerprint(action)]),
   );
   const currentActionIds = new Set<string>();
   const upsertedActions: AnimationAction[] = [];
@@ -255,8 +184,40 @@ function computeAuthoringDelta(
       upsertedActions.push(action);
     }
   }
-  const removedActionIds = [...previousActions.keys()].filter(
-    (id) => !currentActionIds.has(id),
+  const removedActionIds = [...previousActions.keys()].filter((id) => !currentActionIds.has(id));
+  const previousSceneStates = new Map(
+    (previousAuthoring?.sceneStates ?? []).map((sceneState) => [
+      sceneState.id,
+      fingerprint(sceneState),
+    ]),
+  );
+  const currentSceneStateIds = new Set<string>();
+  const upsertedSceneStates = [];
+  for (const sceneState of currentAuthoring?.sceneStates ?? []) {
+    currentSceneStateIds.add(sceneState.id);
+    if (previousSceneStates.get(sceneState.id) !== fingerprint(sceneState)) {
+      upsertedSceneStates.push(sceneState);
+    }
+  }
+  const removedSceneStateIds = [...previousSceneStates.keys()].filter(
+    (id) => !currentSceneStateIds.has(id),
+  );
+  const previousSceneTransitions = new Map(
+    (previousAuthoring?.sceneTransitions ?? []).map((transition) => [
+      transition.id,
+      fingerprint(transition),
+    ]),
+  );
+  const currentSceneTransitionIds = new Set<string>();
+  const upsertedSceneTransitions = [];
+  for (const transition of currentAuthoring?.sceneTransitions ?? []) {
+    currentSceneTransitionIds.add(transition.id);
+    if (previousSceneTransitions.get(transition.id) !== fingerprint(transition)) {
+      upsertedSceneTransitions.push(transition);
+    }
+  }
+  const removedSceneTransitionIds = [...previousSceneTransitions.keys()].filter(
+    (id) => !currentSceneTransitionIds.has(id),
   );
   const meta = {
     version: 1 as const,
@@ -271,11 +232,23 @@ function computeAuthoringDelta(
   if (
     upsertedActions.length === 0 &&
     removedActionIds.length === 0 &&
+    upsertedSceneStates.length === 0 &&
+    removedSceneStateIds.length === 0 &&
+    upsertedSceneTransitions.length === 0 &&
+    removedSceneTransitionIds.length === 0 &&
     fingerprint(meta) === fingerprint(previousMeta)
   ) {
     return undefined;
   }
-  return { upsertedActions, removedActionIds, meta };
+  return {
+    upsertedActions,
+    removedActionIds,
+    upsertedSceneStates,
+    removedSceneStateIds,
+    upsertedSceneTransitions,
+    removedSceneTransitionIds,
+    meta,
+  };
 }
 
 function computeProjectDelta(
@@ -294,7 +267,11 @@ function computeProjectDelta(
   };
   return fingerprint(previousProject) === fingerprint(currentProject)
     ? undefined
-    : currentProject;
+    : {
+        version: currentProject.version,
+        metadata: currentProject.metadata,
+        preferredWorkspace: currentProject.preferredWorkspace ?? null,
+      };
 }
 
 export function computeStateDelta(
@@ -324,8 +301,7 @@ export function computeStateDelta(
   }
   if (
     areas.has('cameraFrame') &&
-    fingerprint(previous.playback.cameraFrame) !==
-      fingerprint(current.playback.cameraFrame)
+    fingerprint(previous.playback.cameraFrame) !== fingerprint(current.playback.cameraFrame)
   ) {
     delta.cameraFrame = current.playback.cameraFrame;
   }
@@ -378,23 +354,17 @@ export function createStateContext(
     }
   }
 
-  function publishChange(
-    previous: ServerState,
-    areas: ReadonlySet<DirtyArea>,
-  ): void {
+  function publishChange(previous: ServerState, areas: ReadonlySet<DirtyArea>): void {
     const nextRevision = revision + 1;
     const nextSequence = sequence + 1;
-    const delta = computeStateDelta(
+    const candidate = computeStateDelta(
       previous,
       state,
-      {
-        revision: nextRevision,
-        sequence: nextSequence,
-        baseRevision: revision,
-      },
+      { revision: nextRevision, sequence: nextSequence, baseRevision: revision },
       areas,
     );
-    if (!delta) return;
+    if (!candidate) return;
+    const delta = parseMcpStateDelta(candidate);
 
     revision = nextRevision;
     sequence = nextSequence;
@@ -404,18 +374,14 @@ export function createStateContext(
       onStateChange?.(structuredClone(delta));
     } catch {
       const requestId = getRequestId();
-      console.error(
-        `[excalimate] State listener failed (request ID: ${requestId})`,
-      );
+      console.error(`[excalimate] State listener failed (request ID: ${requestId})`);
     }
   }
 
   function emitChange(): void {
     assertStateWithinLimits(state, limits);
     const areas =
-      pendingDirtyAreas.size > 0
-        ? new Set(pendingDirtyAreas)
-        : new Set<DirtyArea>(ALL_DIRTY_AREAS);
+      pendingDirtyAreas.size > 0 ? new Set(pendingDirtyAreas) : new Set<DirtyArea>(ALL_DIRTY_AREAS);
     pendingDirtyAreas.clear();
     publishChange(lastPublishedState, areas);
   }
@@ -438,8 +404,7 @@ export function createStateContext(
   }
 
   function bumpDocumentRevisions(previous: ServerState): void {
-    const timelineChanged =
-      fingerprint(previous.timeline) !== fingerprint(state.timeline);
+    const timelineChanged = fingerprint(previous.timeline) !== fingerprint(state.timeline);
     const previousAuthoring = previous.authoring ?? {
       version: 1 as const,
       documentRevision: 0,
@@ -461,16 +426,12 @@ export function createStateContext(
       authoring: {
         ...currentAuthoring,
         documentRevision: previousAuthoring.documentRevision + 1,
-        timelineRevision:
-          previousAuthoring.timelineRevision + (timelineChanged ? 1 : 0),
+        timelineRevision: previousAuthoring.timelineRevision + (timelineChanged ? 1 : 0),
       },
     };
   }
 
-  async function runSafely<T>(
-    name: string,
-    handler: () => Promise<T>,
-  ): Promise<T> {
+  async function runSafely<T>(name: string, handler: () => Promise<T>): Promise<T> {
     if (closed) {
       throw new McpError(ErrorCode.ConnectionClosed, 'MCP session is closed');
     }
@@ -479,22 +440,12 @@ export function createStateContext(
     } catch (error) {
       if (isMcpError(error)) throw error;
       const requestId = getRequestId();
-      console.error(
-        `[excalimate] Tool "${name}" failed (request ID: ${requestId})`,
-      );
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Internal tool error (request ID: ${requestId})`,
-      );
+      console.error(`[excalimate] Tool "${name}" failed (request ID: ${requestId})`);
+      throw new McpError(ErrorCode.InternalError, `Internal tool error (request ID: ${requestId})`);
     }
   }
 
-  const tool: StateContext['tool'] = (
-    name,
-    description,
-    schema,
-    handler,
-  ) => {
+  const tool: StateContext['tool'] = (name, description, schema, handler) => {
     server.tool(name, description, schema, async (args: any) =>
       runSafely(name, async () => {
         assertInputWithinLimits(args, limits);
@@ -522,10 +473,7 @@ export function createStateContext(
           try {
             const result = await handler(args);
             if (closed) {
-              throw new McpError(
-                ErrorCode.ConnectionClosed,
-                'MCP session is closed',
-              );
+              throw new McpError(ErrorCode.ConnectionClosed, 'MCP session is closed');
             }
             state = reconcileManagedActionMutations(state);
             if (serializeServerState(state) !== previousJson) {
@@ -557,14 +505,14 @@ export function createStateContext(
 
   function getSnapshot(): StateSnapshot {
     const project = cloneState(state);
-    return {
+    return parseMcpStateSnapshot({
       ...project,
       clipStart: project.playback.clipStart,
       clipEnd: project.playback.clipEnd,
       cameraFrame: project.playback.cameraFrame,
       revision,
       sequence,
-    };
+    });
   }
 
   return {
@@ -585,8 +533,7 @@ export function createStateContext(
       stateJsonCache = { revision, sequence, json };
       return json;
     },
-    getSceneElementsJSON: () =>
-      JSON.stringify(state.scene.elements, null, 2),
+    getSceneElementsJSON: () => JSON.stringify(state.scene.elements, null, 2),
     getTimelineJSON: () =>
       JSON.stringify(
         {

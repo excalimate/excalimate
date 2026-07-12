@@ -39,19 +39,17 @@ Commands use the `excalimate-player-v1` channel and are limited to `play`,
 `pause`, `seek`, `rate`, and `state`. Events contain only playback state or a
 safe error string. The parent window and exact origin must both match.
 
-## Security headers and PR #85
+## Security headers
 
 The editor is served only at `/` or `/index.html` and remains frame-denied.
 `wrangler.jsonc` disables SPA fallback so an uncovered path cannot serve an
 embeddable editor document. The player has its own CSP, cross-origin resource
 policy, permissions policy, referrer policy, HSTS, and nosniff headers.
 
-PR #85 currently adds a wildcard editor `_headers` rule. When merging, replace
-that wildcard with the exact editor rules here, retain PR #85's hardened share
-Worker behavior, and keep this `/player.html` rule. Do not combine
-`frame-ancestors 'none'` and the player policy: browsers enforce both and the
-player would remain unembeddable. If the share service origin changes, update
-both `VITE_SHARE_API_URL` and the player `connect-src` directive.
+Do not combine `frame-ancestors 'none'` and the player policy: browsers enforce
+both and the player would remain unembeddable. If the share service origin
+changes, update both `VITE_SHARE_API_URL` and the player `connect-src`
+directive; automated header assertions keep the checked-in default synchronized.
 
 ## Repeatable performance report
 
@@ -63,9 +61,25 @@ npm run benchmark:player
 
 The command builds all entries, rejects forbidden editor modules in the loaded
 player graph, reports the complete player JS/CSS graph and enforces the 150 KB
-gzip JavaScript budget (CSS is reported separately), then reports first-frame
+combined gzip budget, then reports first-frame
 and steady-state results for 200 elements and 1,000 keyframes. The mobile figure
 is a deterministic 4x CPU-cost projection.
 Record network first-frame separately with browser throttling set to fast 4G
 (1.6 Mbps down, 750 Kbps up, 150 ms RTT) and a warm share-worker connection;
 encrypted payload/assets are excluded from the bundle budget.
+
+Reference run on 2026-07-12 (Windows x64, AMD Ryzen 5 2600X, 12 logical CPUs,
+Node 22.17.1):
+
+| Measurement                                   | Result                         |
+| --------------------------------------------- | -----------------------------: |
+| Loaded JavaScript                             |            116,158 bytes gzip |
+| Loaded CSS                                    |              9,172 bytes gzip |
+| Combined player graph                         | 125,330 / 153,600 bytes (pass) |
+| First frame, 200 elements / 1,000 keyframes   | 24.529 ms (target: <1,500 ms) |
+| Average frame, 600 measured frames            |                       0.089 ms |
+| Desktop deterministic sampling projection     |     11,220 FPS (target: >=55) |
+| Mobile deterministic 4x CPU-cost projection   |      2,805 FPS (target: >=28) |
+
+These runtime figures measure deterministic package parsing and sampling, not
+network, DOM paint, or GPU compositing.

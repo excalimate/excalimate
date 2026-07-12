@@ -116,4 +116,33 @@ describe('export job controller', () => {
     expect(ran).toBe(false);
     expect(job.state.status).toBe('error');
   });
+
+  it('preserves cancellation requested during asynchronous cleanup', async () => {
+    let cleanupStarted: (() => void) | undefined;
+    let releaseCleanup: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      cleanupStarted = resolve;
+    });
+    const cleanupGate = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    const job = createExportJob({
+      preflight,
+      async run(task) {
+        task.defer(async () => {
+          cleanupStarted?.();
+          await cleanupGate;
+        });
+        return 'rendered';
+      },
+    });
+
+    const result = job.start();
+    await started;
+    job.cancel('cancel-during-cleanup');
+    releaseCleanup?.();
+
+    await expect(result).rejects.toBeInstanceOf(ExportCancelledError);
+    expect(job.state.status).toBe('cancelled');
+  });
 });

@@ -1,18 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  compileTimeline,
-  computeCompiledFrame,
-} from '@excalimate/animation-core';
-import type {
-  FrameState,
-} from '@excalimate/animation-core';
+import { compileTimeline, computeCompiledFrame } from '@excalimate/animation-core';
+import type { FrameState } from '@excalimate/animation-core';
 import { createTestPlayerPackage } from './package.test.js';
 import { CompiledTimelineAdapter, PlayerRuntime } from './player.js';
 import { SvgSceneAdapter } from './svgAdapter.js';
-import type {
-  PlayerSceneAdapter,
-  PlayerTimingDriver,
-} from './types.js';
+import { createCrossSurfaceParityPackage } from '../../../src/test-fixtures/crossSurfaceParity.js';
+import type { PlayerSceneAdapter, PlayerTimingDriver } from './types.js';
 
 class TestTiming implements PlayerTimingDriver {
   current = 0;
@@ -56,17 +49,130 @@ function testScene(): PlayerSceneAdapter & {
 }
 
 describe('headless player runtime', () => {
+  it('matches the cross-surface golden fixture at keyframes and midpoint', () => {
+    const playerPackage = createCrossSurfaceParityPackage();
+    const timeline = new CompiledTimelineAdapter(playerPackage);
+    const container = document.createElement('div');
+    const pathLength = vi
+      .spyOn(SVGGeometryElement.prototype, 'getTotalLength')
+      .mockReturnValue(100);
+    const scene = new SvgSceneAdapter(container, playerPackage);
+
+    const expected = [
+      {
+        time: 0,
+        removed: 1,
+        returning: 0,
+        zeroOpacity: 0,
+        groupedX: 0,
+        drawOffset: '100',
+        cameraViewBox: '0 1.875 100 56.25',
+      },
+      {
+        time: 500,
+        removed: 0.5,
+        returning: 0.5,
+        zeroOpacity: 0.5,
+        groupedX: 10,
+        drawOffset: '50',
+        cameraViewBox: '-2.5 1.875 125 56.25',
+      },
+      {
+        time: 1_000,
+        removed: 0,
+        returning: 1,
+        zeroOpacity: 1,
+        groupedX: 20,
+        drawOffset: '',
+        cameraViewBox: '-5 1.875 150 56.25',
+      },
+    ];
+
+    for (const golden of expected) {
+      const frame = timeline.frameAt(golden.time);
+      scene.applyFrame(frame);
+      const target = (id: string) =>
+        scene.svg.querySelector<SVGGraphicsElement>(`[data-excalimate-id="${id}"]`);
+
+      expect(frame.get('removed')?.opacity).toBe(golden.removed);
+      expect(target('removed')?.style.opacity).toBe(String(golden.removed));
+      expect(target('returning')?.style.opacity).toBe(String(golden.returning));
+      expect(target('zero-opacity')?.style.opacity).toBe(String(golden.zeroOpacity));
+      expect(target('grouped')?.getAttribute('transform')).toBe(
+        `matrix(1 0 0 1 ${golden.groupedX} 0)`,
+      );
+      expect(target('label')?.getAttribute('transform')).toBe(
+        `matrix(1 0 0 1 ${golden.groupedX} 0)`,
+      );
+      expect(target('grouped')?.querySelector('path')?.style.strokeDashoffset).toBe(
+        golden.drawOffset,
+      );
+      expect(scene.svg.getAttribute('viewBox')).toBe(golden.cameraViewBox);
+    }
+
+    pathLength.mockRestore();
+    scene.destroy();
+  });
+
+  it('keeps serialized arrow endpoints attached to independently moving shapes', () => {
+    const playerPackage = createTestPlayerPackage();
+    playerPackage.scene.svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+        <g data-excalimate-id="arrow"
+           data-excalimate-origin="0 0"
+           data-excalimate-center="5 0"
+           data-excalimate-start-bound-to="start"
+           data-excalimate-end-bound-to="end"
+           data-excalimate-binding-points="0 0 10 0">
+          <path d="M0 0 L10 0"/>
+        </g>
+        <g data-excalimate-id="start"><rect width="1" height="1"/></g>
+        <g data-excalimate-id="end"><rect width="1" height="1"/></g>
+      </svg>
+    `;
+    const scene = new SvgSceneAdapter(document.createElement('div'), playerPackage);
+    const frame: FrameState = new Map([
+      [
+        'start',
+        {
+          targetId: 'start',
+          opacity: 1,
+          translateX: 5,
+          translateY: 0,
+          scaleX: 1,
+          scaleY: 1,
+          rotation: 0,
+          drawProgress: 1,
+        },
+      ],
+      [
+        'end',
+        {
+          targetId: 'end',
+          opacity: 1,
+          translateX: 15,
+          translateY: 0,
+          scaleX: 1,
+          scaleY: 1,
+          rotation: 0,
+          drawProgress: 1,
+        },
+      ],
+    ]);
+
+    scene.applyFrame(frame);
+
+    expect(scene.svg.querySelector('[data-excalimate-id="arrow"]')?.getAttribute('transform')).toBe(
+      'matrix(2 0 0 1 5 0)',
+    );
+  });
+
   it('matches animation-core frames at absolute clip time', () => {
     const playerPackage = createTestPlayerPackage();
     const adapter = new CompiledTimelineAdapter(playerPackage);
-    const expected = computeCompiledFrame(
-      compileTimeline(playerPackage.animation.timeline),
-      600,
-    );
+    const expected = computeCompiledFrame(compileTimeline(playerPackage.animation.timeline), 600);
 
-    expect(adapter.frameAt(600).get('element')).toEqual(
-      expected.get('element'),
-    );
+    expect(adapter.frameAt(600).get('element')).toEqual(expected.get('element'));
   });
 
   it('supports deterministic seek, play, pause, rate, and clip end', () => {
@@ -154,15 +260,11 @@ describe('headless player runtime', () => {
     player.seek(500);
 
     expect(
-      scene.svg
-        .querySelector('[data-excalimate-id="element"]')
-        ?.getAttribute('transform'),
+      scene.svg.querySelector('[data-excalimate-id="element"]')?.getAttribute('transform'),
     ).toBe('matrix(1.5 0 0 1 5 0)');
-    expect(
-      scene.svg
-        .querySelector('[data-excalimate-id="label"]')
-        ?.getAttribute('transform'),
-    ).toBe('matrix(1.5 0 0 1 0 0)');
+    expect(scene.svg.querySelector('[data-excalimate-id="label"]')?.getAttribute('transform')).toBe(
+      'matrix(1.5 0 0 1 0 0)',
+    );
   });
 
   it('applies camera movement and tears down mounted SVG state', () => {

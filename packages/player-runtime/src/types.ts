@@ -1,12 +1,5 @@
-import type {
-  AnimationTimeline,
-  AspectRatio,
-  CameraFrame,
-} from '@excalimate/project-schema';
-import type {
-  FrameState,
-  GroupHierarchy,
-} from '@excalimate/animation-core';
+import type { AnimationTimeline, AspectRatio, CameraFrame } from '@excalimate/project-schema';
+import type { FrameState, GroupHierarchy } from '@excalimate/animation-core';
 
 export const PLAYER_PACKAGE_VERSION = '1.0.0' as const;
 export const PLAYER_RUNTIME_VERSION = '1.0.0' as const;
@@ -14,6 +7,7 @@ export const PLAYER_RUNTIME_VERSION = '1.0.0' as const;
 export const PLAYER_PACKAGE_LIMITS = Object.freeze({
   maxEncodedBytes: 20 * 1024 * 1024,
   maxSvgBytes: 12 * 1024 * 1024,
+  maxAbsoluteOpacityTargets: 10_000,
   maxTitleLength: 128,
   maxHierarchyGroups: 10_000,
   maxHierarchyMembers: 100_000,
@@ -49,6 +43,7 @@ export interface PlayerPackageV1 {
   schemaVersion: '2.0.0';
   scene: {
     svg: string;
+    absoluteOpacityTargetIds?: string[];
   };
   animation: {
     timeline: AnimationTimeline;

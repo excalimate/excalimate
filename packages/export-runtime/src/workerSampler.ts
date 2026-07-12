@@ -30,15 +30,21 @@ export type FrameSamplerWorkerResponse =
   | { type: 'cancelled'; requestId: number }
   | { type: 'error'; requestId: number; message: string };
 
+export interface ExportWorkerEventMap {
+  message: MessageEvent<FrameSamplerWorkerResponse>;
+  messageerror: MessageEvent<unknown>;
+  error: ErrorEvent;
+}
+
 export interface ExportWorkerLike {
   postMessage(message: FrameSamplerWorkerRequest): void;
-  addEventListener(
-    type: 'message',
-    listener: (event: MessageEvent<FrameSamplerWorkerResponse>) => void,
+  addEventListener<K extends keyof ExportWorkerEventMap>(
+    type: K,
+    listener: (event: ExportWorkerEventMap[K]) => void,
   ): void;
-  removeEventListener(
-    type: 'message',
-    listener: (event: MessageEvent<FrameSamplerWorkerResponse>) => void,
+  removeEventListener<K extends keyof ExportWorkerEventMap>(
+    type: K,
+    listener: (event: ExportWorkerEventMap[K]) => void,
   ): void;
   terminate(): void;
 }
@@ -48,6 +54,8 @@ interface PendingRequest {
   reject(error: Error): void;
   removeAbortListener?: () => void;
 }
+
+const WORKER_STARTUP_TIMEOUT_MS = 10_000;
 
 export class WorkerFrameSampler {
   readonly frameCount: number;
@@ -66,32 +74,55 @@ export class WorkerFrameSampler {
     this.frameCount = frameCount;
     this.sampleCount = sampleCount;
     this.worker.addEventListener('message', this.handleMessage);
+    this.worker.addEventListener('error', this.handleWorkerError);
+    this.worker.addEventListener('messageerror', this.handleMessageError);
   }
 
   static async create(
     worker: ExportWorkerLike,
     spec: FrameSamplerSpec,
+    startupTimeoutMs = WORKER_STARTUP_TIMEOUT_MS,
   ): Promise<WorkerFrameSampler> {
     const requestId = 0;
+    let cleanupStartupListeners = (): void => {};
     const ready = new Promise<Extract<FrameSamplerWorkerResponse, { type: 'ready' }>>(
       (resolve, reject) => {
-        const listener = (
-          event: MessageEvent<FrameSamplerWorkerResponse>,
-        ): void => {
+        const cleanup = (): void => {
+          clearTimeout(timeoutId);
+          worker.removeEventListener('message', handleMessage);
+          worker.removeEventListener('error', handleError);
+          worker.removeEventListener('messageerror', handleMessageError);
+        };
+        const handleMessage = (event: MessageEvent<FrameSamplerWorkerResponse>): void => {
           if (event.data.requestId !== requestId) return;
           if (event.data.type === 'ready') {
-            worker.removeEventListener('message', listener);
+            cleanup();
             resolve(event.data);
           } else if (event.data.type === 'error') {
-            worker.removeEventListener('message', listener);
+            cleanup();
             reject(new Error(event.data.message));
           }
         };
-        worker.addEventListener('message', listener);
+        const handleError = (event: ErrorEvent): void => {
+          cleanup();
+          reject(new Error(event.message || 'Frame sampler worker failed to start'));
+        };
+        const handleMessageError = (): void => {
+          cleanup();
+          reject(new Error('Frame sampler worker returned an unreadable startup message'));
+        };
+        cleanupStartupListeners = cleanup;
+        worker.addEventListener('message', handleMessage);
+        worker.addEventListener('error', handleError);
+        worker.addEventListener('messageerror', handleMessageError);
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          reject(new Error('Frame sampler worker startup timed out'));
+        }, startupTimeoutMs);
       },
     );
-    worker.postMessage({ type: 'init', requestId, spec });
     try {
+      worker.postMessage({ type: 'init', requestId, spec });
       const response = await ready;
       return new WorkerFrameSampler(
         worker,
@@ -99,6 +130,7 @@ export class WorkerFrameSampler {
         response.sampleCount,
       );
     } catch (error) {
+      cleanupStartupListeners();
       worker.terminate();
       throw error;
     }
@@ -142,14 +174,13 @@ export class WorkerFrameSampler {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.worker.postMessage({ type: 'dispose' });
-    this.worker.removeEventListener('message', this.handleMessage);
-    this.worker.terminate();
-    for (const pending of this.pending.values()) {
-      pending.removeAbortListener?.();
-      pending.reject(new ExportCancelledError('Frame sampler worker disposed'));
+    try {
+      this.worker.postMessage({ type: 'dispose' });
+    } finally {
+      this.removeWorkerListeners();
+      this.worker.terminate();
+      this.rejectPending(new ExportCancelledError('Frame sampler worker disposed'));
     }
-    this.pending.clear();
   }
 
   private readonly handleMessage = (
@@ -168,6 +199,36 @@ export class WorkerFrameSampler {
       pending.reject(new Error(response.message));
     }
   };
+
+  private readonly handleWorkerError = (event: ErrorEvent): void => {
+    this.failWorker(new Error(event.message || 'Frame sampler worker failed'));
+  };
+
+  private readonly handleMessageError = (): void => {
+    this.failWorker(new Error('Frame sampler worker returned an unreadable message'));
+  };
+
+  private failWorker(error: Error): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.removeWorkerListeners();
+    this.worker.terminate();
+    this.rejectPending(error);
+  }
+
+  private removeWorkerListeners(): void {
+    this.worker.removeEventListener('message', this.handleMessage);
+    this.worker.removeEventListener('error', this.handleWorkerError);
+    this.worker.removeEventListener('messageerror', this.handleMessageError);
+  }
+
+  private rejectPending(error: Error): void {
+    for (const pending of this.pending.values()) {
+      pending.removeAbortListener?.();
+      pending.reject(error);
+    }
+    this.pending.clear();
+  }
 }
 
 export function cloneElementAnimationState(

@@ -4,6 +4,8 @@ interface ReserveRequest {
   expiresAt: number;
   maxShares: number;
   maxBytes: number;
+  clientKey: string;
+  maxClientShares: number;
 }
 
 interface ReleaseRequest {
@@ -16,7 +18,7 @@ interface QuotaRow extends Record<string, SqlStorageValue> {
 }
 
 const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
-const DAY_MS = 86_400_000;
+const CLIENT_KEY_PATTERN = /^[a-f0-9]{64}$/;
 
 function isPositiveSafeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) > 0;
@@ -31,7 +33,10 @@ function isReserveRequest(value: unknown): value is ReserveRequest {
     isPositiveSafeInteger(candidate.size) &&
     isPositiveSafeInteger(candidate.expiresAt) &&
     isPositiveSafeInteger(candidate.maxShares) &&
-    isPositiveSafeInteger(candidate.maxBytes)
+    isPositiveSafeInteger(candidate.maxBytes) &&
+    typeof candidate.clientKey === 'string' &&
+    CLIENT_KEY_PATTERN.test(candidate.clientKey) &&
+    isPositiveSafeInteger(candidate.maxClientShares)
   );
 }
 
@@ -39,10 +44,6 @@ function isReleaseRequest(value: unknown): value is ReleaseRequest {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<ReleaseRequest>;
   return typeof candidate.id === 'string' && SHARE_ID_PATTERN.test(candidate.id);
-}
-
-function quotaExpiry(expiresAt: number): number {
-  return Math.ceil(expiresAt / DAY_MS) * DAY_MS;
 }
 
 export class ShareQuota {
@@ -62,9 +63,9 @@ export class ShareQuota {
       CREATE TABLE IF NOT EXISTS shares (
         id TEXT PRIMARY KEY,
         size INTEGER NOT NULL CHECK (size > 0),
-        expires_at INTEGER NOT NULL
+        expires_at INTEGER NOT NULL,
+        client_key TEXT
       );
-      CREATE INDEX IF NOT EXISTS shares_expiry ON shares (expires_at);
       CREATE TRIGGER IF NOT EXISTS shares_after_insert
       AFTER INSERT ON shares
       BEGIN
@@ -81,6 +82,17 @@ export class ShareQuota {
             total_bytes = total_bytes - OLD.size
         WHERE singleton = 1;
       END;
+    `);
+    const columns = this.sql
+      .exec<{ name: string }>('PRAGMA table_info(shares)')
+      .toArray()
+      .map((column) => column.name);
+    if (!columns.includes('client_key')) {
+      this.sql.exec('ALTER TABLE shares ADD COLUMN client_key TEXT');
+    }
+    this.sql.exec(`
+      CREATE INDEX IF NOT EXISTS shares_expiry ON shares (expires_at);
+      CREATE INDEX IF NOT EXISTS shares_client_key ON shares (client_key);
     `);
   }
 
@@ -101,7 +113,7 @@ export class ShareQuota {
       if (!isReserveRequest(body)) {
         return Response.json({ error: 'Invalid request.' }, { status: 400 });
       }
-      return Response.json({ accepted: await this.reserve(body) });
+      return Response.json(await this.reserve(body));
     }
 
     if (pathname === '/release') {
@@ -120,7 +132,9 @@ export class ShareQuota {
     await this.scheduleNextAlarm();
   }
 
-  private async reserve(request: ReserveRequest): Promise<boolean> {
+  private async reserve(
+    request: ReserveRequest,
+  ): Promise<{ accepted: boolean; reason?: 'capacity' | 'client' }> {
     this.pruneExpired(Date.now());
     const quota = this.sql
       .exec<QuotaRow>('SELECT share_count, total_bytes FROM quota WHERE singleton = 1')
@@ -129,19 +143,28 @@ export class ShareQuota {
       quota.share_count >= request.maxShares ||
       quota.total_bytes + request.size > request.maxBytes
     ) {
-      return false;
+      return { accepted: false, reason: 'capacity' };
+    }
+    const clientShares = this.sql
+      .exec<{
+        share_count: number;
+      }>('SELECT COUNT(*) AS share_count FROM shares WHERE client_key = ?', request.clientKey)
+      .one().share_count;
+    if (clientShares >= request.maxClientShares) {
+      return { accepted: false, reason: 'client' };
     }
 
     const result = this.sql.exec(
-      'INSERT OR IGNORE INTO shares (id, size, expires_at) VALUES (?, ?, ?)',
+      'INSERT OR IGNORE INTO shares (id, size, expires_at, client_key) VALUES (?, ?, ?, ?)',
       request.id,
       request.size,
-      quotaExpiry(request.expiresAt),
+      request.expiresAt,
+      request.clientKey,
     );
-    if (result.rowsWritten === 0) return false;
+    if (result.rowsWritten === 0) return { accepted: false, reason: 'capacity' };
 
     await this.scheduleNextAlarm();
-    return true;
+    return { accepted: true };
   }
 
   private pruneExpired(now: number): void {

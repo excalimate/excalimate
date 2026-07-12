@@ -1,9 +1,6 @@
-import {
-  decryptData,
-  importKeyFromString,
-} from './encryption';
+import { decryptData, importKeyFromString } from './encryption';
 
-const DEFAULT_SHARE_ORIGIN = 'https://share.excalimate.com';
+export const DEFAULT_SHARE_ORIGIN = 'https://share.excalimate.com';
 const SHARE_ID_PATTERN = /^(?:[A-Za-z0-9_-]{8}|[A-Za-z0-9_-]{22})$/;
 const KEY_PATTERN = /^(?:[A-Za-z0-9_-]{22}|[A-Za-z0-9_-]{43})$/;
 const MAX_ENCRYPTED_SHARE_BYTES = 20 * 1024 * 1024;
@@ -33,10 +30,8 @@ export async function downloadEncryptedShare(
   } = {},
 ): Promise<unknown> {
   const fetchImplementation = options.fetch ?? fetch;
-  const shareOrigin = parseShareOrigin(
-    options.shareOrigin ??
-      import.meta.env.VITE_SHARE_API_URL ??
-      DEFAULT_SHARE_ORIGIN,
+  const shareOrigin = resolveShareOrigin(
+    options.shareOrigin ?? import.meta.env.VITE_SHARE_API_URL ?? DEFAULT_SHARE_ORIGIN,
   );
   const response = await fetchImplementation(
     `${shareOrigin}/share/${encodeURIComponent(reference.shareId)}`,
@@ -52,19 +47,13 @@ export async function downloadEncryptedShare(
   return decryptData(encrypted, key);
 }
 
-export function buildHostedPlayerUrl(
-  appOrigin: string,
-  reference: ShareReference,
-): string {
+export function buildHostedPlayerUrl(appOrigin: string, reference: ShareReference): string {
   const origin = new URL(appOrigin).origin;
   const validated = validateReference(reference.shareId, reference.keyString);
   return `${origin}/player.html#share=${validated.shareId},${validated.keyString}`;
 }
 
-export function buildEditorShareUrl(
-  appOrigin: string,
-  reference: ShareReference,
-): string {
+export function buildEditorShareUrl(appOrigin: string, reference: ShareReference): string {
   const origin = new URL(appOrigin).origin;
   const validated = validateReference(reference.shareId, reference.keyString);
   return `${origin}/#share=${validated.shareId},${validated.keyString}`;
@@ -74,18 +63,13 @@ function validateReference(
   shareId: string | undefined,
   keyString: string | undefined,
 ): ShareReference {
-  if (
-    !shareId ||
-    !keyString ||
-    !SHARE_ID_PATTERN.test(shareId) ||
-    !KEY_PATTERN.test(keyString)
-  ) {
+  if (!shareId || !keyString || !SHARE_ID_PATTERN.test(shareId) || !KEY_PATTERN.test(keyString)) {
     throw new Error('Invalid encrypted share reference');
   }
   return { shareId, keyString };
 }
 
-function parseShareOrigin(input: string): string {
+export function resolveShareOrigin(input: string): string {
   let url: URL;
   try {
     url = new URL(input);
@@ -93,27 +77,20 @@ function parseShareOrigin(input: string): string {
     throw new Error('The configured share origin is invalid');
   }
   if (
-    (url.protocol !== 'https:' &&
-      !(url.protocol === 'http:' && isLoopbackHost(url.hostname))) ||
+    (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLoopbackHost(url.hostname))) ||
     url.username ||
     url.password ||
     url.pathname !== '/' ||
     url.search ||
     url.hash
   ) {
-    throw new Error(
-      'The configured share origin must use HTTPS or loopback HTTP',
-    );
+    throw new Error('The configured share origin must use HTTPS or loopback HTTP');
   }
   return url.origin;
 }
 
 function isLoopbackHost(hostname: string): boolean {
-  return (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '[::1]'
-  );
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
 }
 
 async function readResponseBytes(response: Response): Promise<ArrayBuffer> {

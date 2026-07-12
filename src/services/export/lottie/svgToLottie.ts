@@ -4,11 +4,16 @@
  * including roughjs hand-drawn strokes, arrowheads, and text rendering.
  */
 import type {
-  LottieShapeGroup, LottieShapeItem, LottiePath, LottieFill, LottieStroke,
+  LottieShapeGroup,
+  LottieShapeItem,
+  LottiePath,
+  LottieFill,
+  LottieStroke,
   LottieShapeTransform,
 } from './types';
 import { staticVal, staticMulti } from './types';
 import { hexToLottie } from './colorUtils';
+import { MAX_LOTTIE_RASTER_DIMENSION, MAX_LOTTIE_RASTER_PIXELS } from '../lottieFallbacks';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExcalElement = Record<string, any>;
@@ -38,7 +43,7 @@ export async function renderElementToSvg(
       viewBackgroundColor: 'transparent',
     },
     exportPadding: 0,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 }
 
@@ -79,10 +84,17 @@ export async function elementToLottiePngImageAsset(
   sy: number,
   sourceSvg?: SVGSVGElement,
 ): Promise<LottieImageDataAsset> {
-  const svg = sourceSvg ?? await renderElementToSvg(el, files);
+  const svg = sourceSvg ?? (await renderElementToSvg(el, files));
   const { width, height } = getSvgDimensions(svg, el, sx, sy);
   const outWidth = Math.max(1, Math.round(width));
   const outHeight = Math.max(1, Math.round(height));
+  if (
+    outWidth > MAX_LOTTIE_RASTER_DIMENSION ||
+    outHeight > MAX_LOTTIE_RASTER_DIMENSION ||
+    outWidth * outHeight > MAX_LOTTIE_RASTER_PIXELS
+  ) {
+    throw new Error('Lottie raster fallback exceeds the canvas pixel budget');
+  }
   const svgForRaster = svg.cloneNode(true) as SVGSVGElement;
   svgForRaster.setAttribute('width', String(outWidth));
   svgForRaster.setAttribute('height', String(outHeight));
@@ -123,7 +135,7 @@ export async function elementToLottieShapes(
   sy: number,
   sourceSvg?: SVGSVGElement,
 ): Promise<LottieShapeGroup> {
-  const svg = sourceSvg ?? await renderElementToSvg(el, files);
+  const svg = sourceSvg ?? (await renderElementToSvg(el, files));
 
   const vb = svg.viewBox?.baseVal;
 
@@ -159,13 +171,26 @@ export async function elementToLottieShapes(
     const y2 = parseFloat(lineEl.getAttribute('y2') ?? '0');
 
     items.push({
-      ty: 'sh', nm: 'Line',
-      ks: { a: 0, k: {
-        c: false,
-        v: [[(x1 + offsetX) * sx, (y1 + offsetY) * sy], [(x2 + offsetX) * sx, (y2 + offsetY) * sy]],
-        i: [[0, 0], [0, 0]],
-        o: [[0, 0], [0, 0]],
-      }},
+      ty: 'sh',
+      nm: 'Line',
+      ks: {
+        a: 0,
+        k: {
+          c: false,
+          v: [
+            [(x1 + offsetX) * sx, (y1 + offsetY) * sy],
+            [(x2 + offsetX) * sx, (y2 + offsetY) * sy],
+          ],
+          i: [
+            [0, 0],
+            [0, 0],
+          ],
+          o: [
+            [0, 0],
+            [0, 0],
+          ],
+        },
+      },
     } as LottiePath);
 
     addFillStroke(items, lineEl, sx);
@@ -180,7 +205,8 @@ function addFillStroke(items: LottieShapeItem[], svgEl: Element, strokeScale: nu
   const fill = svgEl.getAttribute('fill');
   if (fill && fill !== 'none' && fill !== 'transparent') {
     items.push({
-      ty: 'fl', nm: 'Fill',
+      ty: 'fl',
+      nm: 'Fill',
       c: staticMulti(hexToLottie(fill)),
       o: staticVal(100),
       r: 1,
@@ -190,7 +216,8 @@ function addFillStroke(items: LottieShapeItem[], svgEl: Element, strokeScale: nu
   const stroke = svgEl.getAttribute('stroke');
   if (stroke && stroke !== 'none') {
     items.push({
-      ty: 'st', nm: 'Stroke',
+      ty: 'st',
+      nm: 'Stroke',
       c: staticMulti(hexToLottie(stroke)),
       o: staticVal(100),
       w: staticVal(parseFloat(svgEl.getAttribute('stroke-width') ?? '2') * strokeScale),
@@ -238,7 +265,8 @@ function parseSvgPathToLottie(
   if (!tokens) return null;
 
   let i = 0;
-  let curX = 0, curY = 0;
+  let curX = 0,
+    curY = 0;
 
   function num(): number {
     return parseFloat(tokens![i++]) || 0;
@@ -254,13 +282,15 @@ function parseSvgPathToLottie(
 
     switch (cmd) {
       case 'M':
-        curX = num(); curY = num();
+        curX = num();
+        curY = num();
         vertices.push([tx(curX), ty(curY)]);
         inTangents.push([0, 0]);
         outTangents.push([0, 0]);
         // Implicit lineTo after moveTo
         while (i < tokens.length && /[-+\d.]/.test(tokens[i])) {
-          curX = num(); curY = num();
+          curX = num();
+          curY = num();
           vertices.push([tx(curX), ty(curY)]);
           inTangents.push([0, 0]);
           outTangents.push([0, 0]);
@@ -268,13 +298,16 @@ function parseSvgPathToLottie(
         break;
 
       case 'm': {
-        const dx = num(), dy = num();
-        curX += dx; curY += dy;
+        const dx = num(),
+          dy = num();
+        curX += dx;
+        curY += dy;
         vertices.push([tx(curX), ty(curY)]);
         inTangents.push([0, 0]);
         outTangents.push([0, 0]);
         while (i < tokens.length && /[-+\d.]/.test(tokens[i])) {
-          curX += num(); curY += num();
+          curX += num();
+          curY += num();
           vertices.push([tx(curX), ty(curY)]);
           inTangents.push([0, 0]);
           outTangents.push([0, 0]);
@@ -284,7 +317,8 @@ function parseSvgPathToLottie(
 
       case 'L':
         while (i < tokens.length && /[-+\d.]/.test(tokens[i])) {
-          curX = num(); curY = num();
+          curX = num();
+          curY = num();
           vertices.push([tx(curX), ty(curY)]);
           inTangents.push([0, 0]);
           outTangents.push([0, 0]);
@@ -293,7 +327,8 @@ function parseSvgPathToLottie(
 
       case 'l':
         while (i < tokens.length && /[-+\d.]/.test(tokens[i])) {
-          curX += num(); curY += num();
+          curX += num();
+          curY += num();
           vertices.push([tx(curX), ty(curY)]);
           inTangents.push([0, 0]);
           outTangents.push([0, 0]);
@@ -302,82 +337,90 @@ function parseSvgPathToLottie(
 
       case 'C':
         while (i < tokens.length && /[-+\d.]/.test(tokens[i])) {
-          const cp1x = num(), cp1y = num();
-          const cp2x = num(), cp2y = num();
-          const ex = num(), ey = num();
+          const cp1x = num(),
+            cp1y = num();
+          const cp2x = num(),
+            cp2y = num();
+          const ex = num(),
+            ey = num();
 
           // Out-tangent on the previous vertex
           if (outTangents.length > 0) {
             const prevVert = vertices[vertices.length - 1];
-            outTangents[outTangents.length - 1] = [
-              tx(cp1x) - prevVert[0],
-              ty(cp1y) - prevVert[1],
-            ];
+            outTangents[outTangents.length - 1] = [tx(cp1x) - prevVert[0], ty(cp1y) - prevVert[1]];
           }
 
           // New vertex with in-tangent
-          const vx = tx(ex), vy = ty(ey);
+          const vx = tx(ex),
+            vy = ty(ey);
           vertices.push([vx, vy]);
           inTangents.push([tx(cp2x) - vx, ty(cp2y) - vy]);
           outTangents.push([0, 0]);
 
-          curX = ex; curY = ey;
+          curX = ex;
+          curY = ey;
         }
         break;
 
       case 'c':
         while (i < tokens.length && /[-+\d.]/.test(tokens[i])) {
-          const dcp1x = num(), dcp1y = num();
-          const dcp2x = num(), dcp2y = num();
-          const dex = num(), dey = num();
+          const dcp1x = num(),
+            dcp1y = num();
+          const dcp2x = num(),
+            dcp2y = num();
+          const dex = num(),
+            dey = num();
 
-          const cp1x = curX + dcp1x, cp1y = curY + dcp1y;
-          const cp2x = curX + dcp2x, cp2y = curY + dcp2y;
-          const ex = curX + dex, ey = curY + dey;
+          const cp1x = curX + dcp1x,
+            cp1y = curY + dcp1y;
+          const cp2x = curX + dcp2x,
+            cp2y = curY + dcp2y;
+          const ex = curX + dex,
+            ey = curY + dey;
 
           if (outTangents.length > 0) {
             const prevVert = vertices[vertices.length - 1];
-            outTangents[outTangents.length - 1] = [
-              tx(cp1x) - prevVert[0],
-              ty(cp1y) - prevVert[1],
-            ];
+            outTangents[outTangents.length - 1] = [tx(cp1x) - prevVert[0], ty(cp1y) - prevVert[1]];
           }
 
-          const vx = tx(ex), vy = ty(ey);
+          const vx = tx(ex),
+            vy = ty(ey);
           vertices.push([vx, vy]);
           inTangents.push([tx(cp2x) - vx, ty(cp2y) - vy]);
           outTangents.push([0, 0]);
 
-          curX = ex; curY = ey;
+          curX = ex;
+          curY = ey;
         }
         break;
 
       case 'Q':
         // Quadratic bezier — convert to cubic approximation
         while (i < tokens.length && /[-+\d.]/.test(tokens[i])) {
-          const qx = num(), qy = num();
-          const ex = num(), ey = num();
+          const qx = num(),
+            qy = num();
+          const ex = num(),
+            ey = num();
 
           // Approximate Q with C: CP1 = P0 + 2/3*(Q-P0), CP2 = E + 2/3*(Q-E)
-          const cp1x = curX + 2 / 3 * (qx - curX);
-          const cp1y = curY + 2 / 3 * (qy - curY);
-          const cp2x = ex + 2 / 3 * (qx - ex);
-          const cp2y = ey + 2 / 3 * (qy - ey);
+          const cp1x = curX + (2 / 3) * (qx - curX);
+          const cp1y = curY + (2 / 3) * (qy - curY);
+          const cp2x = ex + (2 / 3) * (qx - ex);
+          const cp2y = ey + (2 / 3) * (qy - ey);
 
           if (outTangents.length > 0) {
             const prevVert = vertices[vertices.length - 1];
-            outTangents[outTangents.length - 1] = [
-              tx(cp1x) - prevVert[0],
-              ty(cp1y) - prevVert[1],
-            ];
+            outTangents[outTangents.length - 1] = [tx(cp1x) - prevVert[0], ty(cp1y) - prevVert[1]];
           }
 
-          const vx = tx(ex), vy = ty(ey);
+          const vx = tx(ex),
+            vy = ty(ey);
           vertices.push([vx, vy]);
           inTangents.push([tx(cp2x) - vx, ty(cp2y) - vy]);
           outTangents.push([0, 0]);
 
-          curX = ex; curY = ey;
+          curX = ex;
+          curY = ey;
         }
         break;
 

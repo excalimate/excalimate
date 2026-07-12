@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  PLAYER_PACKAGE_LIMITS,
-  PLAYER_PACKAGE_VERSION,
-} from './types.js';
+import { PLAYER_PACKAGE_LIMITS, PLAYER_PACKAGE_VERSION } from './types.js';
 import {
   PlayerPackageV1Schema,
   decodePlayerPackage,
@@ -18,6 +15,7 @@ export function createTestPlayerPackage(): PlayerPackageV1 {
     schemaVersion: '2.0.0',
     scene: {
       svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><g data-excalimate-scene="true"><g data-excalimate-id="element"><rect width="10" height="10"/></g></g></svg>',
+      absoluteOpacityTargetIds: ['element'],
     },
     animation: {
       timeline: {
@@ -71,6 +69,7 @@ describe('PlayerPackageV1 codec', () => {
 
     expect(decoded.version).toBe(PLAYER_PACKAGE_VERSION);
     expect(decoded.scene.svg).toContain('data-excalimate-id="element"');
+    expect(decoded.scene.absoluteOpacityTargetIds).toEqual(['element']);
     expect(PlayerPackageV1Schema.safeParse(decoded).success).toBe(true);
   });
 
@@ -79,15 +78,23 @@ describe('PlayerPackageV1 codec', () => {
       ...createTestPlayerPackage(),
       version: '2.0.0',
     };
-    expect(() => parsePlayerPackage(unsupported)).toThrow(
-      'Unsupported player package version',
-    );
+    expect(() => parsePlayerPackage(unsupported)).toThrow('Unsupported player package version');
     expect(() =>
       parsePlayerPackage({
         ...createTestPlayerPackage(),
         unexpected: true,
       }),
     ).toThrow('unknown fields');
+
+    expect(() =>
+      parsePlayerPackage({
+        ...createTestPlayerPackage(),
+        scene: {
+          ...createTestPlayerPackage().scene,
+          absoluteOpacityTargetIds: ['missing'],
+        },
+      }),
+    ).toThrow('missing from the SVG scene');
   });
 
   it('rejects invalid limits, targets, and clip metadata', () => {
@@ -101,9 +108,7 @@ describe('PlayerPackageV1 codec', () => {
     const missingTarget = createTestPlayerPackage();
     missingTarget.scene.svg =
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="1" height="1"/></svg>';
-    expect(() => parsePlayerPackage(missingTarget)).toThrow(
-      'missing from the SVG scene',
-    );
+    expect(() => parsePlayerPackage(missingTarget)).toThrow('missing from the SVG scene');
 
     expect(() =>
       parsePlayerPackage({
@@ -114,6 +119,31 @@ describe('PlayerPackageV1 codec', () => {
         },
       }),
     ).toThrow('clip range is invalid');
+  });
+
+  it('rejects camera and output dimensions that contradict their ratio labels', () => {
+    expect(() =>
+      parsePlayerPackage({
+        ...createTestPlayerPackage(),
+        playback: {
+          ...createTestPlayerPackage().playback,
+          camera: {
+            ...createTestPlayerPackage().playback.camera,
+            height: 100,
+          },
+        },
+      }),
+    ).toThrow('camera dimensions do not match 16:9');
+
+    expect(() =>
+      parsePlayerPackage({
+        ...createTestPlayerPackage(),
+        dimensions: {
+          ...createTestPlayerPackage().dimensions,
+          height: 1_920,
+        },
+      }),
+    ).toThrow('output dimensions do not match 16:9');
   });
 
   it('rejects encoded input above the package byte budget', () => {

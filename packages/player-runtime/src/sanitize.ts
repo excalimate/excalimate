@@ -83,6 +83,9 @@ const ALLOWED_ATTRIBUTES = new Set([
   'data-excalimate-origin',
   'data-excalimate-center',
   'data-excalimate-bound-to',
+  'data-excalimate-start-bound-to',
+  'data-excalimate-end-bound-to',
+  'data-excalimate-binding-points',
   'data-excalimate-scene',
 ]);
 const ALLOWED_STYLE_PROPERTIES = new Set([
@@ -115,13 +118,7 @@ const ALLOWED_DATA_IMAGE_MIMES = new Set([
   'image/avif',
   'image/svg+xml',
 ]);
-const LOCAL_URL_ATTRIBUTES = new Set([
-  'fill',
-  'stroke',
-  'clip-path',
-  'mask',
-  'filter',
-]);
+const LOCAL_URL_ATTRIBUTES = new Set(['fill', 'stroke', 'clip-path', 'mask', 'filter']);
 const TARGET_ID_PATTERN = /^[A-Za-z0-9_-]{1,256}$/;
 
 export interface SanitizedSvg {
@@ -169,10 +166,7 @@ export function sanitizeSvg(svg: string): SanitizedSvg {
   root.setAttribute('xmlns', SVG_NAMESPACE);
 
   const serialized = new XMLSerializer().serializeToString(root);
-  if (
-    new TextEncoder().encode(serialized).byteLength >
-    PLAYER_PACKAGE_LIMITS.maxSvgBytes
-  ) {
+  if (new TextEncoder().encode(serialized).byteLength > PLAYER_PACKAGE_LIMITS.maxSvgBytes) {
     throw new SvgSanitizationError('Sanitized SVG exceeds the size limit');
   }
 
@@ -185,9 +179,7 @@ export function sanitizeSvg(svg: string): SanitizedSvg {
 
 function collectAllowedElements(root: Element): Element[] {
   const elements: Element[] = [];
-  const stack: Array<{ element: Element; depth: number }> = [
-    { element: root, depth: 1 },
-  ];
+  const stack: Array<{ element: Element; depth: number }> = [{ element: root, depth: 1 }];
 
   while (stack.length > 0) {
     const current = stack.pop();
@@ -196,10 +188,7 @@ function collectAllowedElements(root: Element): Element[] {
     if (depth > MAX_SVG_DEPTH) {
       throw new SvgSanitizationError('SVG scene nesting exceeds the depth limit');
     }
-    if (
-      element.namespaceURI !== SVG_NAMESPACE ||
-      !ALLOWED_ELEMENTS.has(element.localName)
-    ) {
+    if (element.namespaceURI !== SVG_NAMESPACE || !ALLOWED_ELEMENTS.has(element.localName)) {
       element.remove();
       continue;
     }
@@ -264,10 +253,7 @@ function sanitizeAttributes(
       targetIds.add(attribute.value);
       continue;
     }
-    if (
-      name === 'data-excalimate-origin' ||
-      name === 'data-excalimate-center'
-    ) {
+    if (name === 'data-excalimate-origin' || name === 'data-excalimate-center') {
       if (!isFiniteNumberPair(attribute.value)) element.removeAttribute(name);
       continue;
     }
@@ -275,17 +261,20 @@ function sanitizeAttributes(
       if (!TARGET_ID_PATTERN.test(attribute.value)) element.removeAttribute(name);
       continue;
     }
+    if (name === 'data-excalimate-start-bound-to' || name === 'data-excalimate-end-bound-to') {
+      if (!TARGET_ID_PATTERN.test(attribute.value)) element.removeAttribute(name);
+      continue;
+    }
+    if (name === 'data-excalimate-binding-points') {
+      if (!isFiniteNumberList(attribute.value, 4)) element.removeAttribute(name);
+      continue;
+    }
     if (name === 'data-excalimate-scene') {
       if (attribute.value !== 'true') element.removeAttribute(name);
       continue;
     }
     if (name === 'href' || name === 'xlink:href') {
-      const safeHref = sanitizeHref(
-        element,
-        attribute.value,
-        rewrittenIds,
-        allowSvgDataImages,
-      );
+      const safeHref = sanitizeHref(element, attribute.value, rewrittenIds, allowSvgDataImages);
       if (safeHref === null) element.removeAttribute(name);
       else element.setAttribute(name, safeHref);
       continue;
@@ -336,10 +325,7 @@ function sanitizeHref(
   }
 }
 
-function sanitizeStyle(
-  style: string,
-  rewrittenIds: ReadonlyMap<string, string>,
-): string {
+function sanitizeStyle(style: string, rewrittenIds: ReadonlyMap<string, string>): string {
   const declarations: string[] = [];
   for (const declaration of style.split(';')) {
     const separator = declaration.indexOf(':');
@@ -357,10 +343,7 @@ function sanitizeStyle(
   return declarations.join(';');
 }
 
-function sanitizeLocalUrl(
-  value: string,
-  rewrittenIds: ReadonlyMap<string, string>,
-): string | null {
+function sanitizeLocalUrl(value: string, rewrittenIds: ReadonlyMap<string, string>): string | null {
   const match = /^url\(\s*['"]?#([^'")\s]+)['"]?\s*\)$/i.exec(value.trim());
   if (!match) return null;
   const controlled = rewrittenIds.get(match[1] ?? '');
@@ -390,9 +373,7 @@ function containsUrlFunction(value: string): boolean {
 function decodeBase64Utf8(value: string): string | null {
   try {
     const binary = atob(value);
-    const bytes = Uint8Array.from(binary, (character) =>
-      character.charCodeAt(0),
-    );
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
     return null;
@@ -449,6 +430,11 @@ function isFiniteNumberPair(value: string): boolean {
     if (!/^-?(?:\d+|\d*\.\d+)(?:e[+-]?\d+)?$/i.test(part)) return false;
     return Number.isFinite(Number(part));
   });
+}
+
+function isFiniteNumberList(value: string, expectedLength: number): boolean {
+  const values = value.trim().split(/\s+/).map(Number);
+  return values.length === expectedLength && values.every(Number.isFinite);
 }
 
 function parseViewBox(

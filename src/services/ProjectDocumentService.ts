@@ -8,7 +8,9 @@ import { useUIStore } from '../stores/uiStore';
 import { replaceProject } from './AnimationCommandService';
 import { trackCreatorEvent } from './analytics/posthog';
 
-export function captureProjectDocument(): ProjectDocument | null {
+export function captureProjectDocument(
+  options: { touchUpdatedAt?: boolean } = {},
+): ProjectDocument | null {
   const project = useProjectStore.getState().project;
   if (!project) return null;
 
@@ -23,7 +25,8 @@ export function captureProjectDocument(): ProjectDocument | null {
     documentRevision,
   } = useAnimationStore.getState();
   const cameraFrame = useProjectStore.getState().cameraFrame;
-  const updatedAt = new Date().toISOString();
+  const updatedAt =
+    options.touchUpdatedAt === false ? project.metadata.updatedAt : new Date().toISOString();
   return parseProjectDocument(
     toProjectDocument({
       ...project,
@@ -48,13 +51,19 @@ export function captureProjectDocument(): ProjectDocument | null {
 
 export function loadProjectDocumentIntoStores(
   project: AnimationProject | ProjectDocument,
-  options: { activateAnimationMode?: boolean; pushUndo?: boolean } = {},
+  options: {
+    activateAnimationMode?: boolean;
+    pushUndo?: boolean;
+    trackWorkspaceChange?: boolean;
+  } = {},
 ): AnimationProject {
   const result = replaceProject(project, options);
   if (!result.ok) throw new Error(result.error.message);
-  trackCreatorEvent('creator_workspace_changed', {
-    workspace: useUIStore.getState().workspace,
-    source: 'project-load',
-  });
+  if (options.trackWorkspaceChange ?? true) {
+    trackCreatorEvent('creator_workspace_changed', {
+      workspace: useUIStore.getState().workspace,
+      source: 'project-load',
+    });
+  }
   return result.value;
 }

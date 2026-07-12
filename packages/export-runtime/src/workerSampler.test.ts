@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   ExportWorkerLike,
+  ExportWorkerEventMap,
   FrameSamplerWorkerRequest,
   FrameSamplerWorkerResponse,
 } from './workerSampler.js';
@@ -9,12 +10,27 @@ import type { FrameSamplerSpec } from './sampler.js';
 
 class FakeWorker implements ExportWorkerLike {
   terminated = false;
-  private listeners = new Set<
+  private readonly startupFailure: 'error' | 'messageerror' | 'timeout' | null;
+  constructor(startupFailure: 'error' | 'messageerror' | 'timeout' | null = null) {
+    this.startupFailure = startupFailure;
+  }
+  private messageListeners = new Set<
     (event: MessageEvent<FrameSamplerWorkerResponse>) => void
   >();
+  private errorListeners = new Set<(event: ErrorEvent) => void>();
+  private messageErrorListeners = new Set<(event: MessageEvent<unknown>) => void>();
 
   postMessage(message: FrameSamplerWorkerRequest): void {
     if (message.type === 'init') {
+      if (this.startupFailure === 'error') {
+        this.emitError('startup failed');
+        return;
+      }
+      if (this.startupFailure === 'messageerror') {
+        this.emitMessageError();
+        return;
+      }
+      if (this.startupFailure === 'timeout') return;
       this.emit({
         type: 'ready',
         requestId: message.requestId,
@@ -44,18 +60,38 @@ class FakeWorker implements ExportWorkerLike {
     }
   }
 
-  addEventListener(
-    _type: 'message',
-    listener: (event: MessageEvent<FrameSamplerWorkerResponse>) => void,
+  addEventListener<K extends keyof ExportWorkerEventMap>(
+    type: K,
+    listener: (event: ExportWorkerEventMap[K]) => void,
   ): void {
-    this.listeners.add(listener);
+    if (type === 'message') {
+      this.messageListeners.add(
+        listener as (event: MessageEvent<FrameSamplerWorkerResponse>) => void,
+      );
+    } else if (type === 'error') {
+      this.errorListeners.add(listener as (event: ErrorEvent) => void);
+    } else {
+      this.messageErrorListeners.add(
+        listener as (event: MessageEvent<unknown>) => void,
+      );
+    }
   }
 
-  removeEventListener(
-    _type: 'message',
-    listener: (event: MessageEvent<FrameSamplerWorkerResponse>) => void,
+  removeEventListener<K extends keyof ExportWorkerEventMap>(
+    type: K,
+    listener: (event: ExportWorkerEventMap[K]) => void,
   ): void {
-    this.listeners.delete(listener);
+    if (type === 'message') {
+      this.messageListeners.delete(
+        listener as (event: MessageEvent<FrameSamplerWorkerResponse>) => void,
+      );
+    } else if (type === 'error') {
+      this.errorListeners.delete(listener as (event: ErrorEvent) => void);
+    } else {
+      this.messageErrorListeners.delete(
+        listener as (event: MessageEvent<unknown>) => void,
+      );
+    }
   }
 
   terminate(): void {
@@ -64,7 +100,17 @@ class FakeWorker implements ExportWorkerLike {
 
   private emit(response: FrameSamplerWorkerResponse): void {
     const event = { data: response } as MessageEvent<FrameSamplerWorkerResponse>;
-    for (const listener of this.listeners) listener(event);
+    for (const listener of this.messageListeners) listener(event);
+  }
+
+  private emitError(message: string): void {
+    const event = { message } as ErrorEvent;
+    for (const listener of this.errorListeners) listener(event);
+  }
+
+  private emitMessageError(): void {
+    const event = { data: null } as MessageEvent<unknown>;
+    for (const listener of this.messageErrorListeners) listener(event);
   }
 }
 
@@ -98,5 +144,15 @@ describe('worker frame sampler', () => {
     sampler.destroy();
     expect(worker.terminated).toBe(true);
     await expect(sampler.sampleFrame(1)).rejects.toThrow('disposed');
+  });
+
+  it.each([
+    ['error', 'startup failed'],
+    ['messageerror', 'unreadable startup message'],
+    ['timeout', 'startup timed out'],
+  ] as const)('rejects and terminates on worker %s during startup', async (failure, message) => {
+    const worker = new FakeWorker(failure);
+    await expect(WorkerFrameSampler.create(worker, spec, 5)).rejects.toThrow(message);
+    expect(worker.terminated).toBe(true);
   });
 });

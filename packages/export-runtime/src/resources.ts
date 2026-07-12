@@ -17,27 +17,24 @@ export const EXPORT_RESOURCE_BUDGETS = Object.freeze({
   maxEstimatedOutputBytes: 2 * 1024 * 1024 * 1024,
 });
 
-export function estimateExportResources(
-  request: ExportRequest,
-): ExportResourceEstimate {
+export const ANIMATED_SVG_LIMITS = Object.freeze({
+  maxSamples: 4_096,
+  maxDeclarations: 200_000,
+  maxOutputBytes: 8 * 1024 * 1024,
+  maxAdaptiveSamplesPerSegment: 64,
+});
+
+export const LOTTIE_LIMITS = Object.freeze({
+  maxFlattenedPropertySamples: 200_000,
+});
+
+export function estimateExportResources(request: ExportRequest): ExportResourceEstimate {
   const durationMs = request.clipEnd - request.clipStart;
-  const frameCount = Math.max(
-    1,
-    Math.ceil((Math.max(0, durationMs) / 1000) * request.fps),
-  );
+  const frameCount = Math.max(1, Math.ceil((Math.max(0, durationMs) / 1000) * request.fps));
   const sampleCount = frameCount + 1;
   const rawFrameBytes = request.width * request.height * 4;
-  const estimatedPeakMemoryBytes = estimatePeakMemory(
-    request.format,
-    rawFrameBytes,
-    sampleCount,
-  );
-  const estimatedOutputBytes = estimateOutputBytes(
-    request,
-    durationMs,
-    rawFrameBytes,
-    sampleCount,
-  );
+  const estimatedPeakMemoryBytes = estimatePeakMemory(request.format, rawFrameBytes, sampleCount);
+  const estimatedOutputBytes = estimateOutputBytes(request, durationMs, rawFrameBytes, sampleCount);
   return {
     width: request.width,
     height: request.height,
@@ -57,11 +54,7 @@ export function preflightExport(
 ): ExportPreflightResult {
   const estimate = estimateExportResources(request);
   const issues: ExportPreflightIssue[] = [];
-  const add = (
-    code: string,
-    severity: ExportPreflightIssue['severity'],
-    message: string,
-  ): void => {
+  const add = (code: string, severity: ExportPreflightIssue['severity'], message: string): void => {
     issues.push({ code, severity, message });
   };
 
@@ -78,6 +71,35 @@ export function preflightExport(
       'dimensions-out-of-range',
       'error',
       `Export dimensions exceed the ${EXPORT_RESOURCE_BUDGETS.maxDimension}px / ${EXPORT_RESOURCE_BUDGETS.maxPixels.toLocaleString()} pixel client-side budget.`,
+    );
+  }
+  if (request.format === 'svg') {
+    const sourceKeyframes = Math.max(0, request.sourceKeyframes ?? 0);
+    const nonlinearSegments = Math.max(0, request.nonlinearSegments ?? 0);
+    const estimatedSamples =
+      sourceKeyframes + nonlinearSegments * (ANIMATED_SVG_LIMITS.maxAdaptiveSamplesPerSegment - 2);
+    const estimatedDeclarations = estimatedSamples * Math.max(1, request.animatedTargets ?? 0) * 4;
+    if (
+      estimatedSamples > ANIMATED_SVG_LIMITS.maxSamples ||
+      estimatedDeclarations > ANIMATED_SVG_LIMITS.maxDeclarations ||
+      estimate.estimatedOutputBytes > ANIMATED_SVG_LIMITS.maxOutputBytes
+    ) {
+      add(
+        'svg-complexity-budget-exceeded',
+        'error',
+        'Animated SVG complexity exceeds the bounded sample, declaration, or serialized output budget.',
+      );
+    }
+  }
+  if (
+    (request.format === 'lottie' || request.format === 'dotlottie') &&
+    estimate.sampleCount * Math.max(0, request.groupedTargets ?? 0) * 6 >
+      LOTTIE_LIMITS.maxFlattenedPropertySamples
+  ) {
+    add(
+      'lottie-group-sample-budget-exceeded',
+      'error',
+      'Grouped Lottie animation exceeds the bounded canonical transform sample budget.',
     );
   }
   if (
@@ -109,10 +131,7 @@ export function preflightExport(
       'error',
       'Estimated peak memory exceeds the 2 GiB client-side export budget.',
     );
-  } else if (
-    estimate.estimatedPeakMemoryBytes >
-    EXPORT_RESOURCE_BUDGETS.warningPeakMemoryBytes
-  ) {
+  } else if (estimate.estimatedPeakMemoryBytes > EXPORT_RESOURCE_BUDGETS.warningPeakMemoryBytes) {
     add(
       'high-memory',
       'warning',
@@ -129,10 +148,7 @@ export function preflightExport(
       'Estimated peak export memory exceeds 25% of reported device memory.',
     );
   }
-  if (
-    estimate.estimatedOutputBytes >
-    EXPORT_RESOURCE_BUDGETS.maxEstimatedOutputBytes
-  ) {
+  if (estimate.estimatedOutputBytes > EXPORT_RESOURCE_BUDGETS.maxEstimatedOutputBytes) {
     add(
       'output-budget-exceeded',
       'error',
@@ -161,9 +177,7 @@ export function preflightExport(
     );
   }
   if (
-    (request.format === 'mp4' ||
-      request.format === 'webm' ||
-      request.format === 'gif') &&
+    (request.format === 'mp4' || request.format === 'webm' || request.format === 'gif') &&
     capabilities.executionMode === 'cooperative-main'
   ) {
     add(
@@ -202,10 +216,7 @@ function estimateOutputBytes(
   sampleCount: number,
 ): number {
   if (request.format === 'mp4' || request.format === 'webm') {
-    return Math.ceil(
-      ((request.bitrate ?? 8_000_000) * Math.max(0, durationMs)) /
-        8_000,
-    );
+    return Math.ceil(((request.bitrate ?? 8_000_000) * Math.max(0, durationMs)) / 8_000);
   }
   if (request.format === 'gif') {
     return Math.ceil(rawFrameBytes * sampleCount * 0.12);

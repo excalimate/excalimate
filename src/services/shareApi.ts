@@ -1,3 +1,5 @@
+import { DEFAULT_SHARE_ORIGIN, resolveShareOrigin } from './shareTransport';
+
 export interface ShareUploadResult {
   id: string;
   expiresAt: string;
@@ -13,7 +15,7 @@ const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
 const DELETE_SECRET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 function shareApiUrl(): string {
-  return import.meta.env.VITE_SHARE_API_URL ?? 'https://share.excalimate.com';
+  return resolveShareOrigin(import.meta.env.VITE_SHARE_API_URL ?? DEFAULT_SHARE_ORIGIN);
 }
 
 async function responseError(response: Response, fallback: string): Promise<Error> {

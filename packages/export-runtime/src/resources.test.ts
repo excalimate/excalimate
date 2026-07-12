@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  estimateExportResources,
-  preflightExport,
-} from './resources.js';
-import type {
-  ExportCapabilityReport,
-  ExportRequest,
-} from './types.js';
+import { estimateExportResources, preflightExport } from './resources.js';
+import type { ExportCapabilityReport, ExportRequest } from './types.js';
 
 const capabilities: ExportCapabilityReport = {
   worker: true,
@@ -36,9 +30,7 @@ describe('export preflight and estimates', () => {
     expect(estimate.frameCount).toBe(300);
     expect(estimate.sampleCount).toBe(301);
     expect(estimate.rawFrameBytes).toBe(1920 * 1080 * 4);
-    expect(estimate.estimatedPeakMemoryBytes).toBe(
-      estimate.rawFrameBytes * 4,
-    );
+    expect(estimate.estimatedPeakMemoryBytes).toBe(estimate.rawFrameBytes * 4);
     expect(estimate.estimatedOutputBytes).toBe(10_000_000);
   });
 
@@ -64,12 +56,8 @@ describe('export preflight and estimates', () => {
         deviceMemoryBytes: 2 * 1024 * 1024 * 1024,
       },
     );
-    expect(result.estimate.estimatedPeakMemoryBytes).toBeGreaterThan(
-      2 * 1024 * 1024 * 1024,
-    );
-    expect(result.issues.map((issue) => issue.code)).toContain(
-      'memory-budget-exceeded',
-    );
+    expect(result.estimate.estimatedPeakMemoryBytes).toBeGreaterThan(2 * 1024 * 1024 * 1024);
+    expect(result.issues.map((issue) => issue.code)).toContain('memory-budget-exceeded');
   });
 
   it('rejects dimensions, FPS, and duration outside client budgets', () => {
@@ -89,6 +77,32 @@ describe('export preflight and estimates', () => {
         'fps-out-of-range',
         'duration-out-of-range',
       ]),
+    );
+  });
+
+  it('rejects oversized animated SVG and grouped Lottie graphs before generation', () => {
+    const svg = preflightExport(
+      {
+        ...request,
+        format: 'svg',
+        sourceKeyframes: 1_000,
+        nonlinearSegments: 500,
+        animatedTargets: 100,
+      },
+      capabilities,
+    );
+    const lottie = preflightExport(
+      {
+        ...request,
+        format: 'lottie',
+        groupedTargets: 1_000,
+      },
+      capabilities,
+    );
+
+    expect(svg.issues.map((issue) => issue.code)).toContain('svg-complexity-budget-exceeded');
+    expect(lottie.issues.map((issue) => issue.code)).toContain(
+      'lottie-group-sample-budget-exceeded',
     );
   });
 });

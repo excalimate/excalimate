@@ -37,15 +37,30 @@ describe('strict SVG sanitization', () => {
     expect(result.elementIds).toEqual(['element']);
   });
 
+  it('preserves validated bound-arrow endpoint metadata', () => {
+    const result = sanitizeSvg(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10">
+        <g data-excalimate-id="arrow"
+           data-excalimate-start-bound-to="start"
+           data-excalimate-end-bound-to="end"
+           data-excalimate-binding-points="0 0 20 10">
+          <path d="M0 0 L20 10"/>
+        </g>
+      </svg>
+    `);
+
+    expect(result.svg).toContain('data-excalimate-start-bound-to="start"');
+    expect(result.svg).toContain('data-excalimate-end-bound-to="end"');
+    expect(result.svg).toContain('data-excalimate-binding-points="0 0 20 10"');
+  });
+
   it('preserves safe dark-mode filters and rejects external filter URLs', () => {
     const result = sanitizeSvg(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" filter="invert(93%) hue-rotate(180deg)">
         <rect width="10" height="10" filter="url(https://attacker.example/filter)"/>
       </svg>
     `);
-    expect(result.svg).toContain(
-      'filter="invert(93%) hue-rotate(180deg)"',
-    );
+    expect(result.svg).toContain('filter="invert(93%) hue-rotate(180deg)"');
     expect(result.svg).not.toContain('attacker.example');
   });
 

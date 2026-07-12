@@ -18,10 +18,7 @@ function collect(key) {
   if (!entry) throw new Error(`Missing manifest entry "${key}"`);
   if (entry.file) files.add(entry.file);
   for (const css of entry.css ?? []) files.add(css);
-  for (const imported of [
-    ...(entry.imports ?? []),
-    ...(entry.dynamicImports ?? []),
-  ]) {
+  for (const imported of [...(entry.imports ?? []), ...(entry.dynamicImports ?? [])]) {
     collect(imported);
   }
 }
@@ -52,11 +49,11 @@ const report = {
   cssGzipBytes,
   totalGzipBytes,
   budgetBytes,
-  withinBudget: javascriptGzipBytes <= budgetBytes,
+  withinBudget: totalGzipBytes <= budgetBytes,
 };
 console.log(JSON.stringify(report, null, 2));
 if (!report.withinBudget) {
   throw new Error(
-    `Player JavaScript is ${(javascriptGzipBytes / 1024).toFixed(1)} KB gzip; budget is 150 KB`,
+    `Player JavaScript and CSS total ${(totalGzipBytes / 1024).toFixed(1)} KB gzip; budget is 150 KB`,
   );
 }

@@ -1,10 +1,4 @@
-export type ExportFormat =
-  | 'mp4'
-  | 'webm'
-  | 'gif'
-  | 'svg'
-  | 'lottie'
-  | 'dotlottie';
+export type ExportFormat = 'mp4' | 'webm' | 'gif' | 'svg' | 'lottie' | 'dotlottie';
 
 export type ExportPhase =
   | 'preflight'
@@ -15,12 +9,7 @@ export type ExportPhase =
   | 'download'
   | 'complete';
 
-export type ExportJobStatus =
-  | 'idle'
-  | 'running'
-  | 'completed'
-  | 'cancelled'
-  | 'error';
+export type ExportJobStatus = 'idle' | 'running' | 'completed' | 'cancelled' | 'error';
 
 export type ExportExecutionMode = 'worker-assisted' | 'cooperative-main';
 
@@ -79,6 +68,9 @@ export interface ExportRequest {
   bitrate?: number;
   sourceBytes?: number;
   sourceKeyframes?: number;
+  nonlinearSegments?: number;
+  animatedTargets?: number;
+  groupedTargets?: number;
 }
 
 export interface ExportJobState<T> {
@@ -100,11 +92,7 @@ export interface ExportJob<T> {
 
 export interface ExportTaskContext {
   readonly signal: AbortSignal;
-  report(
-    phase: Exclude<ExportPhase, 'complete'>,
-    phaseProgress: number,
-    message?: string,
-  ): void;
+  report(phase: Exclude<ExportPhase, 'complete'>, phaseProgress: number, message?: string): void;
   throwIfCancelled(): void;
   yield(): Promise<void>;
   defer(cleanup: () => void | Promise<void>): void;

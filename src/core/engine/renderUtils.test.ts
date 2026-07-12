@@ -79,4 +79,38 @@ describe('Smart Transition rendering', () => {
     expect(tombstone.opacity).toBe(50);
     expect(tombstone.isDeleted).toBe(true);
   });
+
+  it('renders path-only draw progress in the editor element snapshot', () => {
+    const line = {
+      ...element({ type: 'line', width: 100, height: 0 }),
+      points: [
+        [0, 0],
+        [50, 0],
+        [100, 0],
+      ],
+    } as ExcalidrawElement;
+    const frameState: FrameState = new Map([
+      [
+        'node',
+        {
+          targetId: 'node',
+          opacity: 1,
+          translateX: 0,
+          translateY: 0,
+          scaleX: 1,
+          scaleY: 1,
+          rotation: 0,
+          drawProgress: 0.5,
+        },
+      ],
+    ]);
+
+    const [animated] = applyAnimationToElements([line], frameState, []);
+
+    expect('points' in animated! ? animated.points : null).toEqual([
+      [0, 0],
+      [50, 0],
+      [50, 0],
+    ]);
+  });
 });

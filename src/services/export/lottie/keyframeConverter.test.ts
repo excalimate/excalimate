@@ -13,6 +13,7 @@ import type {
 function track(
   property: AnimationTrack['property'],
   values: readonly [number, number][],
+  easing: AnimationTrack['keyframes'][number]['easing'] = 'linear',
 ): AnimationTrack {
   return {
     id: property,
@@ -24,7 +25,7 @@ function track(
       id: `${property}-${index}`,
       time,
       value,
-      easing: 'linear',
+      easing,
     })),
   };
 }
@@ -113,4 +114,56 @@ describe('Lottie compiled-timeline mappings', () => {
     expect(trim.e.k[0]?.s).toEqual([25]);
     expect(trim.e.k.at(-1)?.s).toEqual([75]);
   });
+
+  it('samples independent nonlinear transform curves without collapsing their easing', () => {
+    const props = groupTracksByProperty(
+      [
+        track('translateX', [[0, 0], [1000, 100]], 'easeIn'),
+        track('translateY', [[0, 0], [1000, 100]], 'easeOut'),
+      ],
+      'element',
+    );
+    const transform = buildTransform(0, 0, 0, 100, props, 30, 0, 1000);
+    const midpoint = animatedMultiKeyframes(transform.p).find(
+      (keyframe) => keyframe.t === 15,
+    );
+
+    expect(midpoint?.s[0]).toBeCloseTo(29.2893, 3);
+    expect(midpoint?.s[1]).toBeCloseTo(70.7107, 3);
+    expect(midpoint?.i).toEqual(getLinearHandles().i);
+    expect(midpoint?.o).toEqual(getLinearHandles().o);
+  });
+
+  it('preserves nonlinear progress when a clip begins mid-segment', () => {
+    const props = groupTracksByProperty(
+      [track('rotation', [[0, 0], [1000, 100]], 'easeIn')],
+      'element',
+    );
+    const transform = buildTransform(0, 0, 0, 100, props, 30, 500, 1000);
+    if (!Array.isArray(transform.r.k)) {
+      throw new Error('Expected animated rotation');
+    }
+    const before = transform.r.k.filter((keyframe) => keyframe.t <= 7.5).at(-1);
+    const after = transform.r.k.find((keyframe) => keyframe.t >= 7.5);
+    if (!before || !after) throw new Error('Expected samples around the clipped midpoint');
+    const fraction = (7.5 - before.t) / (after.t - before.t);
+    const midpoint =
+      before.t === after.t
+        ? before.s[0]
+        : before.s[0] + (after.s[0] - before.s[0]) * fraction;
+
+    expect(transform.r.k[0]?.s[0]).toBeCloseTo(29.2893, 3);
+    expect(Math.abs(midpoint - 61.7317)).toBeLessThan(0.25);
+    expect(transform.r.k.at(-1)?.s[0]).toBeCloseTo(100, 3);
+  });
+
+  function getLinearHandles(): {
+    i: { x: number[]; y: number[] };
+    o: { x: number[]; y: number[] };
+  } {
+    return {
+      i: { x: [1], y: [1] },
+      o: { x: [0], y: [0] },
+    };
+  }
 });

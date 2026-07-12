@@ -23,8 +23,8 @@ const PHASES = Object.keys(PHASE_WEIGHTS) as readonly Exclude<
 >[];
 
 export class ExportCancelledError extends Error {
-  constructor(message = 'Export cancelled') {
-    super(message);
+  constructor(message = 'Export cancelled', options?: ErrorOptions) {
+    super(message, options);
     this.name = 'ExportCancelledError';
   }
 }
@@ -141,7 +141,17 @@ export function createExportJob<T>(
           failure = error;
         }
         const cleanupErrors = await runCleanups(cleanups);
-        if (failure === undefined && cleanupErrors.length > 0) {
+        if (controller.signal.aborted) {
+          const causes = [
+            ...(failure === undefined ? [] : [failure]),
+            ...cleanupErrors,
+          ];
+          failure = new ExportCancelledError(abortReason(controller.signal), {
+            ...(causes.length > 0
+              ? { cause: new AggregateError(causes, 'Export cancellation cleanup failed') }
+              : {}),
+          });
+        } else if (failure === undefined && cleanupErrors.length > 0) {
           failure = new AggregateError(
             cleanupErrors,
             'Export resource cleanup failed',

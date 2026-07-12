@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { compileTimeline, computeCompiledFrame } from '@excalimate/animation-core';
 import { GENERATED_TEMPLATE_MANIFEST } from './generatedManifest';
-import { filterTemplates, loadTemplateDocument, templateManifest } from './registry';
+import {
+  filterTemplates,
+  loadTemplateDocument,
+  loadTemplatePlayerPackage,
+  templateManifest,
+} from './registry';
 import { TemplateManifestSchema } from './schema';
 import { createSyntheticV2Project } from '../test-fixtures/projectDocuments';
 import { validateTemplateDocumentSecurity } from './validation';
+import { createPlayerTestPackage } from '../player/playerTestFixture';
 
 describe('template registry', () => {
   it('uses a strict manifest and rejects duplicates and unsafe paths', () => {
@@ -65,6 +71,34 @@ describe('template registry', () => {
         async () => new Response('{"version":"2.0.0"}', { status: 200 }),
       ),
     ).rejects.toThrow(/integrity/);
+  });
+
+  it('loads and validates player previews lazily with integrity metadata', async () => {
+    const source = createPlayerTestPackage();
+    const bytes = new TextEncoder().encode(JSON.stringify(source));
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    const contentHash = [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+    const template = {
+      ...templateManifest.templates[0]!,
+      preview: {
+        ...templateManifest.templates[0]!.preview,
+        playerPackage: {
+          path: '/templates/v1/api-request-flow/player.json' as const,
+          mimeType: 'application/vnd.excalimate.player+json' as const,
+          byteLength: bytes.byteLength,
+          contentHash,
+        },
+      },
+    };
+
+    await expect(
+      loadTemplatePlayerPackage(template, async () => new Response(bytes.slice(), { status: 200 })),
+    ).resolves.toMatchObject({
+      version: '1.0.0',
+      animation: { timeline: { id: 'timeline' } },
+    });
   });
 
   it('filters by category and searchable metadata without loading documents', () => {

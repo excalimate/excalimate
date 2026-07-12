@@ -34,6 +34,7 @@
     "SHARE_TTL_DAYS": "30",
     "MAX_TOTAL_SHARES": "2000",
     "MAX_TOTAL_STORAGE_MB": "4096",
+    "MAX_SHARES_PER_CLIENT": "20",
     "ALLOWED_ORIGINS": "https://app.excalimate.com,https://excalimate.com,https://www.excalimate.com,http://localhost:5173",
   },
 }

@@ -1,6 +1,6 @@
 {
   "name": "excalimate",
-  "version": "0.4.1",
+  "version": "0.5.0-rc.1",
   "license": "MIT",
   "description": "Excalimate — Create keyframe animations from Excalidraw designs, with an MCP server for AI-driven animation",
   "type": "module",
@@ -18,8 +18,10 @@
     "benchmark:export": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run build --workspace @excalimate/player-runtime && npm run build --workspace @excalimate/export-runtime && npm run benchmark --workspace @excalimate/export-runtime",
     "check:player-bundle": "node scripts/check-player-bundle.mjs",
     "check:export-bundle": "node scripts/check-export-bundle.mjs",
-    "templates:generate": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && node scripts/generate-templates.mjs",
-    "templates:validate": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run templates:validate:built",
+    "check:release-metadata": "node scripts/check-release-metadata.mjs",
+    "sbom": "cyclonedx-npm --ignore-npm-errors --output-reproducible --omit dev --output-file dist/excalimate-sbom.cdx.json",
+    "templates:generate": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run build --workspace @excalimate/player-runtime && node scripts/generate-templates.mjs",
+    "templates:validate": "npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run build --workspace @excalimate/player-runtime && npm run templates:validate:built",
     "templates:validate:built": "node scripts/validate-templates.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -57,11 +59,12 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "webm-muxer": "^5.1.4",
-    "zustand": "^5.0.11",
-    "zod": "^3.24.0"
+    "zod": "^3.24.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.28.0",
+    "@cyclonedx/cyclonedx-npm": "6.0.0",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",

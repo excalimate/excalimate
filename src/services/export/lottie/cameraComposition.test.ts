@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AnimationTrack } from '../../../types/animation';
 import { buildCameraLayer } from './cameraComposition';
+import type { LottieKeyframe } from './types';
 
 function cameraTrack(
   property: AnimationTrack['property'],
@@ -56,6 +57,13 @@ describe('Lottie camera composition', () => {
     expect(layer.ks.p.k[0]?.t).toBe(0);
     expect(layer.ks.p.k[0]?.s).toEqual([920, 520, 0]);
     expect(layer.ks.s.k[0]?.s).toEqual([80, 80, 100]);
+    const midpointScale = layer.ks.s.k.find(
+      (keyframe): keyframe is LottieKeyframe =>
+        typeof keyframe !== 'number' && keyframe.t === 15,
+    )?.s;
+    expect(midpointScale?.[0]).toBeCloseTo(100 / 1.5, 10);
+    expect(midpointScale?.[1]).toBeCloseTo(100 / 1.5, 10);
+    expect(midpointScale?.[2]).toBe(100);
     expect(layer.ks.r.k[0]?.s).toEqual([-22.5]);
     expect(layer.ks.r.k.at(-1)?.s).toEqual([-67.5]);
   });

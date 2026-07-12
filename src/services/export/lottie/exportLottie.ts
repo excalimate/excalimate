@@ -35,9 +35,7 @@ export async function exportDotLottie(
   const { DotLottie } = await import('@dotlottie/dotlottie-js');
   task.throwIfCancelled();
   const dotLottie = new DotLottie();
-  type DotLottieAnimation = Parameters<
-    typeof dotLottie.addAnimation
-  >[0]['data'];
+  type DotLottieAnimation = Parameters<typeof dotLottie.addAnimation>[0]['data'];
   dotLottie.addAnimation({
     id: 'animation',
     // dotlottie-js narrows assets to images even though Lottie also permits precomps.
@@ -49,16 +47,10 @@ export async function exportDotLottie(
   task.report('encode', 1, 'dotLottie package encoded');
   task.report('package', 1, 'dotLottie package ready');
   task.report('download', 0.5, 'Starting dotLottie download');
-  downloadBlob(
-    new Blob([buffer], { type: 'application/zip' }),
-    `${context.projectName}.lottie`,
-  );
+  downloadBlob(new Blob([buffer], { type: 'application/zip' }), `${context.projectName}.lottie`);
 }
 
-async function generateLottieDocument(
-  context: PreparedExportContext,
-  options: ExportOptions,
-) {
+async function generateLottieDocument(context: PreparedExportContext, options: ExportOptions) {
   const camera = context.playerPackage.playback.camera;
   return generateLottie({
     elements: context.elements.map((element) => ({ ...element })),
@@ -67,6 +59,7 @@ async function generateLottieDocument(
       ...track,
       keyframes: track.keyframes.map((keyframe) => ({ ...keyframe })),
     })),
+    absoluteOpacityTargetIds: new Set(context.playerPackage.scene.absoluteOpacityTargetIds ?? []),
     files: context.files,
     fps: context.fps,
     clipStart: context.playerPackage.playback.clipStart,

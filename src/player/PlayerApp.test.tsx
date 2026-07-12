@@ -44,7 +44,7 @@ describe('hosted player controls', () => {
       'aria-valuemin',
       '0',
     );
-    expect(screen.getByRole('textbox', { name: 'Playback rate' })).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Playback rate' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Made with Excalimate' })).toHaveAttribute(
       'rel',
       'noreferrer',
@@ -89,7 +89,7 @@ describe('hosted player controls', () => {
       await screen.findByRole('button', { name: 'Play animation' }),
     ).toBeVisible();
     expect(screen.getByRole('slider', { name: 'Animation position' })).toBeVisible();
-    expect(screen.getByRole('textbox', { name: 'Playback rate' })).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Playback rate' })).toBeVisible();
     expect(screen.getByText('0:00.0')).toBeVisible();
   });
 

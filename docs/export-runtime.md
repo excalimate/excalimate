@@ -15,10 +15,19 @@ Timeline frame-state generation uses a dedicated module Worker whenever Worker s
 Animated SVG is generated from the same sanitized `PlayerPackageV1` scene as hosted playback. The compiler has explicit `css-keyframes` and `smil` capability profiles.
 
 - Output scales with source keyframes, not `duration × FPS`.
-- Linear/common easing maps to native timing functions or key splines.
-- Elastic, bounce, back, step edges, and other non-representable curves use bounded adaptive samples.
+- Linear easing remains native. Every nonlinear curve uses bounded adaptive
+  piecewise-linear samples so sine curves, mixed transform-component easing,
+  and clips that begin mid-segment do not silently change shape.
 - Opacity, translation, scale, rotation, draw progress, nested groups, bound labels, transform origins, camera pan/zoom/rotation, clip range, and light/dark backgrounds share animation-core frame states.
 - The source scene is sanitized before generated animation is inserted. Generated content cannot contain scripts, events, `foreignObject`, external references, or CSS URLs.
+
+Lottie and dotLottie retain vector layers where supported. Images, freehand
+content, and frame elements are embedded as raster layers while transform,
+opacity, group, and camera animation remains active. Nonlinear and independently
+eased transform components use the same bounded adaptive sampling, and the
+exclusive composition out point includes the exact clip-end sample. Draw progress is not
+representable on those raster layers, so they remain fully drawn and preflight
+shows an explicit warning.
 
 ### Static fallback
 
@@ -28,13 +37,13 @@ The root viewBox, scene camera transform, target transforms/opacities, normalize
 
 Host behavior changes by product version, tenant policy, upload path, and import pipeline. The matrix deliberately distinguishes implemented fallback from externally verified active-animation behavior.
 
-| Surface | Active animation evidence | Static poster behavior | Validation status |
-| --- | --- | --- | --- |
-| Chrome, Firefox, Safari | CSS and SMIL are standards-targeted profiles | Compiler-authored poster attributes remain without active nodes | Run the browser procedure for the release versions being supported |
-| GitHub README | Not asserted; GitHub sanitization may change | Poster is designed to survive removal of active nodes | Upload a synthetic fixture to a private test repository and record rendered DOM/screenshot |
-| Notion | Not asserted; upload and embed paths may differ | Same poster contract | Test both file upload and link/embed paths in the target workspace |
-| Confluence | Not asserted; Cloud/Data Center and macro policy may differ | Same poster contract | Test the exact deployment/version and attachment/macro path |
-| Presentation imports | Not asserted; Keynote, PowerPoint, and Google Slides import differently | Same poster contract when SVG itself is retained | Import the fixture into each target application/version and export a slide screenshot |
+| Surface                 | Active animation evidence                                               | Static poster behavior                                          | Validation status                                                                          |
+| ----------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Chrome, Firefox, Safari | CSS and SMIL are standards-targeted profiles                            | Compiler-authored poster attributes remain without active nodes | Run the browser procedure for the release versions being supported                         |
+| GitHub README           | Not asserted; GitHub sanitization may change                            | Poster is designed to survive removal of active nodes           | Upload a synthetic fixture to a private test repository and record rendered DOM/screenshot |
+| Notion                  | Not asserted; upload and embed paths may differ                         | Same poster contract                                            | Test both file upload and link/embed paths in the target workspace                         |
+| Confluence              | Not asserted; Cloud/Data Center and macro policy may differ             | Same poster contract                                            | Test the exact deployment/version and attachment/macro path                                |
+| Presentation imports    | Not asserted; Keynote, PowerPoint, and Google Slides import differently | Same poster contract when SVG itself is retained                | Import the fixture into each target application/version and export a slide screenshot      |
 
 Validation procedure:
 
@@ -57,17 +66,23 @@ npm run benchmark:player
 
 The export benchmark reports reference-device timeline sampling throughput, compiler time, compact SVG bytes versus the old sampled-keyframe approximation, cancellation acknowledgement against the 250 ms target, and the estimator's peak memory/output for a 1920×1080, 30 FPS, 10-second H.264 export. Results are machine-readable JSON so release measurements can be compared without fragile unit-test timing assertions.
 
-Reference run on 2026-07-11 (Windows x64, AMD Ryzen 5 2600X, 12 logical CPUs, Node 22.17.1):
+Reference run on 2026-07-12 (Windows x64, AMD Ryzen 5 2600X, 12 logical CPUs, Node 22.17.1):
 
-| Measurement | Result |
-| --- | ---: |
-| 120-second compiled-timeline sampling | 3,601 samples in 20.696 ms (173,993 samples/s) |
-| 120-second compact animated SVG compile | 21.229 ms |
-| Compact SVG size | 2,704 bytes / 21 emitted declarations |
-| Old 60 FPS sampled approximation | 21,603 declarations / approximately 2,376,330 bytes |
-| Compact/legacy approximate size ratio | 0.001 |
-| Cancellation acknowledgement | 1.011 ms (target: less than 250 ms) |
-| Estimated peak memory, 1920×1080 30 FPS 10-second H.264 | 33,177,600 bytes |
-| Estimated output, 20 Mbps 10-second H.264 | 25,000,000 bytes |
+| Measurement                                             |                                              Result |
+| ------------------------------------------------------- | --------------------------------------------------: |
+| 120-second compiled-timeline sampling                   |      3,601 samples in 21.108 ms (170,600 samples/s) |
+| 120-second compact animated SVG compile                 |                                           23.363 ms |
+| Compact SVG size                                        | 14,280 bytes / 196 declarations / 25 adaptive samples |
+| Old 60 FPS sampled approximation                        | 21,603 declarations / approximately 2,376,330 bytes |
+| Compact/legacy approximate size ratio                   |                                               0.006 |
+| Cancellation acknowledgement                            |                 1.004 ms (target: less than 250 ms) |
+| Estimated peak memory, 1920×1080 30 FPS 10-second H.264 |                                    33,177,600 bytes |
+| Estimated output, 20 Mbps 10-second H.264               |                                    25,000,000 bytes |
 
 This Node harness measures deterministic timeline/compiler throughput, not DOM rasterization or hardware codec speed. End-to-end MP4/WebM/GIF throughput must be recorded in the target browser because SVG image decode and WebCodecs performance are browser/GPU dependent; the estimator remains deterministic across those runs.
+
+The compact SVG is 11,576 bytes larger than the previous reference because
+nonlinear and independently eased transforms now use explicit adaptive samples
+instead of divergent single-bezier substitutions. It remains 0.6% of the
+sampled approximation, and all enforced size, cancellation, and bundle targets
+pass.

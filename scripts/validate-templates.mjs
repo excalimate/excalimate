@@ -1,13 +1,19 @@
 import { createHash } from 'node:crypto';
 import { readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
+import { Window } from 'happy-dom';
 import ts from 'typescript';
 import {
   compileTimeline,
   computeCompiledFrame,
   generatedContentHash,
 } from '../packages/animation-core/dist/index.js';
+import { parsePlayerPackage } from '../packages/player-runtime/dist/index.js';
 import { parseProjectDocument } from '../packages/project-schema/dist/index.js';
+
+const domWindow = new Window();
+globalThis.DOMParser = domWindow.DOMParser;
+globalThis.XMLSerializer = domWindow.XMLSerializer;
 
 const root = process.cwd();
 const publicRoot = path.join(root, 'public');
@@ -99,10 +105,25 @@ for (const [index, template] of manifest.templates.entries()) {
   assertExactKeys(template.preview, ['mode', 'posterPath', 'playerPackage'], `${label}.preview`);
   assert(template.preview.mode === 'poster', `${label} preview mode is unsupported`);
   assert(template.preview.posterPath === template.poster.path, `${label} preview poster mismatch`);
-  assert(
-    template.preview.playerPackage === null,
-    `${label} unexpectedly includes a player package`,
+  const playerAsset = template.preview.playerPackage;
+  assert(playerAsset && typeof playerAsset === 'object', `${label} has no player preview`);
+  assertExactKeys(
+    playerAsset,
+    ['path', 'mimeType', 'byteLength', 'contentHash'],
+    `${label}.preview.playerPackage`,
   );
+  assertSafeAssetPath(playerAsset.path, `/templates/v1/${template.id}/`);
+  assert(
+    playerAsset.mimeType === 'application/vnd.excalimate.player+json',
+    `${label} player preview MIME is unsupported`,
+  );
+  assert(
+    Number.isInteger(playerAsset.byteLength) &&
+      playerAsset.byteLength > 0 &&
+      playerAsset.byteLength <= 512 * 1024,
+    `${label} player preview payload is oversized`,
+  );
+  assertHash(playerAsset.contentHash, `${label}.preview.playerPackage.contentHash`);
 
   const projectBytes = await readSafeAsset(template.projectAssetPath);
   assert(projectBytes.byteLength <= 1024 * 1024, `${label} project payload is oversized`);
@@ -126,6 +147,33 @@ for (const [index, template] of manifest.templates.entries()) {
   assert(posterBytes.byteLength === template.poster.byteLength, `${label} poster size mismatch`);
   assert(sha256(posterBytes) === template.poster.contentHash, `${label} poster hash mismatch`);
   validateSvgPoster(posterBytes.toString('utf8'), template, label);
+
+  const playerPackageBytes = await readSafeAsset(playerAsset.path);
+  assert(
+    playerPackageBytes.byteLength === playerAsset.byteLength,
+    `${label} player preview size mismatch`,
+  );
+  assert(
+    sha256(playerPackageBytes) === playerAsset.contentHash,
+    `${label} player preview hash mismatch`,
+  );
+  const playerPackage = parsePlayerPackage(
+    JSON.parse(playerPackageBytes.toString('utf8')),
+  );
+  assert(
+    playerPackage.schemaVersion === firstLoad.version,
+    `${label} player preview schema version mismatch`,
+  );
+  assert(
+    JSON.stringify(playerPackage.animation.timeline) ===
+      JSON.stringify(firstLoad.timeline),
+    `${label} player preview timeline mismatch`,
+  );
+  assert(
+    playerPackage.poster.kind === 'frame' &&
+      playerPackage.poster.timeMs === firstLoad.playback.clipStart,
+    `${label} player preview poster fallback mismatch`,
+  );
 }
 
 const generatedSource = await readFile(

@@ -1,6 +1,6 @@
 {
   "name": "@excalimate/project-schema",
-  "version": "0.1.0",
+  "version": "0.5.0-rc.1",
   "license": "MIT",
   "description": "Versioned, validated Excalimate project document schema and codecs",
   "repository": {

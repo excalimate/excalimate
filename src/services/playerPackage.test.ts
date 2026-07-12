@@ -9,11 +9,12 @@ interface MockExportOptions {
 }
 
 const exportToSvg = vi.hoisted(() =>
-  vi.fn(async (_options?: MockExportOptions) =>
-    new DOMParser().parseFromString(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs/><g><rect width="100" height="100"/></g></svg>',
-      'image/svg+xml',
-    ).documentElement,
+  vi.fn(
+    async (_options?: MockExportOptions) =>
+      new DOMParser().parseFromString(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs/><g><rect width="100" height="100"/></g></svg>',
+        'image/svg+xml',
+      ).documentElement,
   ),
 );
 
@@ -28,12 +29,8 @@ describe('editor PlayerPackage generation', () => {
     const project = createSyntheticV2Project();
     const playerPackage = await generatePlayerPackage(project, []);
 
-    expect(playerPackage.scene.svg).toContain(
-      'data-excalimate-id="synthetic-rectangle"',
-    );
-    expect(playerPackage.scene.svg).toContain(
-      'data-excalimate-scene="true"',
-    );
+    expect(playerPackage.scene.svg).toContain('data-excalimate-id="synthetic-rectangle"');
+    expect(playerPackage.scene.svg).toContain('data-excalimate-scene="true"');
     expect(playerPackage.playback.camera).toMatchObject({
       sceneOffsetX: 10,
       sceneOffsetY: 20,
@@ -66,6 +63,7 @@ describe('editor PlayerPackage generation', () => {
         exportWithDarkMode: true,
         viewBackgroundColor: '#ffffff',
       });
+
       return new DOMParser().parseFromString(
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" filter="invert(93%) hue-rotate(180deg)"><defs/><g><rect width="100" height="100"/></g></svg>',
         'image/svg+xml',
@@ -75,19 +73,80 @@ describe('editor PlayerPackage generation', () => {
     const playerPackage = await generatePlayerPackage(project, [], {
       theme: 'dark',
     });
-    expect(playerPackage.scene.svg).toContain(
-      'filter="invert(93%) hue-rotate(180deg)"',
-    );
-    const document = new DOMParser().parseFromString(
-      playerPackage.scene.svg,
-      'image/svg+xml',
-    );
+    expect(playerPackage.scene.svg).toContain('filter="invert(93%) hue-rotate(180deg)"');
+    const document = new DOMParser().parseFromString(playerPackage.scene.svg, 'image/svg+xml');
     expect(document.documentElement.hasAttribute('filter')).toBe(false);
-    expect(
-      document
-        .querySelector('[data-excalimate-scene="true"]')
-        ?.getAttribute('filter'),
-    ).toBe('invert(93%) hue-rotate(180deg)');
+    expect(document.querySelector('[data-excalimate-scene="true"]')?.getAttribute('filter')).toBe(
+      'invert(93%) hue-rotate(180deg)',
+    );
+  });
+
+  it('revives removed elements and normalizes zero-opacity animation targets', async () => {
+    const project = createSyntheticV2Project();
+    const visible = {
+      ...project.scene.elements[0],
+      opacity: 0,
+    };
+    const removed = {
+      ...project.scene.elements[0],
+      id: 'removed-element',
+      isDeleted: true,
+      opacity: 100,
+    };
+    project.scene.elements = [visible, removed];
+    project.timeline.tracks = [
+      {
+        id: 'visible-opacity',
+        targetId: visible.id,
+        targetType: 'element',
+        property: 'opacity',
+        enabled: true,
+        keyframes: [
+          { id: 'visible-start', time: 0, value: 0, easing: 'linear' },
+          { id: 'visible-end', time: 1000, value: 1, easing: 'linear' },
+        ],
+      },
+      {
+        id: 'removed-opacity',
+        targetId: removed.id,
+        targetType: 'element',
+        property: 'opacity',
+        enabled: true,
+        keyframes: [
+          { id: 'removed-start', time: 0, value: 1, easing: 'linear' },
+          { id: 'removed-end', time: 1000, value: 0, easing: 'linear' },
+        ],
+      },
+    ];
+    exportToSvg.mockImplementationOnce(async (options?: MockExportOptions) => {
+      const elements = options?.elements as Array<{
+        id: string;
+        isDeleted?: boolean;
+        opacity?: number;
+      }>;
+      expect(elements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: visible.id,
+            opacity: 100,
+          }),
+          expect.objectContaining({
+            id: removed.id,
+            isDeleted: false,
+            opacity: 100,
+          }),
+        ]),
+      );
+      return new DOMParser().parseFromString(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs/><g><rect width="1" height="1"/></g><g><rect width="1" height="1"/></g></svg>',
+        'image/svg+xml',
+      ).documentElement;
+    });
+
+    const playerPackage = await generatePlayerPackage(project, []);
+
+    expect(playerPackage.scene.absoluteOpacityTargetIds).toEqual([visible.id]);
+    expect(playerPackage.scene.svg).toContain('data-excalimate-id="removed-element"');
   });
 
   it('matches bound-text and iframe export ordering without preserving links', async () => {
@@ -132,48 +191,69 @@ describe('editor PlayerPackage generation', () => {
       boundElements: null,
     };
     project.scene.elements = [rectangle, iframe, ellipse, label];
-    exportToSvg.mockImplementationOnce(
-      async (options?: MockExportOptions) => {
-        const elements = options?.elements as MockElement[];
-        expect(elements.find((element) => element.id === rectangle.id)?.link).toBeNull();
-        const fills = ['red', 'green', 'blue', 'black'];
-        return new DOMParser().parseFromString(
-          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs/>${fills.map((fill) => `<g><rect fill="${fill}" width="1" height="1"/></g>`).join('')}</svg>`,
-          'image/svg+xml',
-        ).documentElement;
-      },
-    );
+    exportToSvg.mockImplementationOnce(async (options?: MockExportOptions) => {
+      const elements = options?.elements as MockElement[];
+      expect(elements.find((element) => element.id === rectangle.id)?.link).toBeNull();
+      const fills = ['red', 'green', 'blue', 'black'];
+      return new DOMParser().parseFromString(
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs/>${fills.map((fill) => `<g><rect fill="${fill}" width="1" height="1"/></g>`).join('')}</svg>`,
+        'image/svg+xml',
+      ).documentElement;
+    });
 
     const playerPackage = await generatePlayerPackage(project, []);
-    const document = new DOMParser().parseFromString(
-      playerPackage.scene.svg,
-      'image/svg+xml',
-    );
+    const document = new DOMParser().parseFromString(playerPackage.scene.svg, 'image/svg+xml');
 
     expect(
-      document
-        .querySelector(`[data-excalimate-id="${rectangle.id}"] rect`)
-        ?.getAttribute('fill'),
+      document.querySelector(`[data-excalimate-id="${rectangle.id}"] rect`)?.getAttribute('fill'),
     ).toBe('red');
     expect(
-      document
-        .querySelector('[data-excalimate-id="bound-label"] rect')
-        ?.getAttribute('fill'),
+      document.querySelector('[data-excalimate-id="bound-label"] rect')?.getAttribute('fill'),
     ).toBe('green');
     expect(
-      document
-        .querySelector('[data-excalimate-id="ellipse"] rect')
-        ?.getAttribute('fill'),
+      document.querySelector('[data-excalimate-id="ellipse"] rect')?.getAttribute('fill'),
     ).toBe('blue');
-    expect(
-      document
-        .querySelector('[data-excalimate-id="embed"] rect')
-        ?.getAttribute('fill'),
-    ).toBe('black');
+    expect(document.querySelector('[data-excalimate-id="embed"] rect')?.getAttribute('fill')).toBe(
+      'black',
+    );
     expect(
       document
         .querySelector('[data-excalimate-id="bound-label"]')
         ?.getAttribute('data-excalimate-bound-to'),
     ).toBe(rectangle.id);
+  });
+
+  it('serializes safe bound-arrow endpoint metadata', async () => {
+    const project = createSyntheticV2Project();
+    const start = { ...project.scene.elements[0], id: 'start' };
+    const end = { ...project.scene.elements[0], id: 'end' };
+    const arrow = {
+      ...project.scene.elements[0],
+      id: 'arrow',
+      type: 'arrow',
+      x: 5,
+      y: 10,
+      width: 40,
+      height: 20,
+      points: [[0, 0], [40, 20]],
+      startBinding: { elementId: start.id },
+      endBinding: { elementId: end.id },
+    };
+    project.scene.elements = [start, arrow, end];
+    project.timeline.tracks = [];
+    exportToSvg.mockResolvedValueOnce(
+      new DOMParser().parseFromString(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs/><g/><g/><g/></svg>',
+        'image/svg+xml',
+      ).documentElement,
+    );
+
+    const playerPackage = await generatePlayerPackage(project, []);
+    const document = new DOMParser().parseFromString(playerPackage.scene.svg, 'image/svg+xml');
+    const wrapper = document.querySelector('[data-excalimate-id="arrow"]');
+
+    expect(wrapper?.getAttribute('data-excalimate-start-bound-to')).toBe(start.id);
+    expect(wrapper?.getAttribute('data-excalimate-end-bound-to')).toBe(end.id);
+    expect(wrapper?.getAttribute('data-excalimate-binding-points')).toBe('15 30 55 50');
   });
 });
