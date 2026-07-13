@@ -6,12 +6,14 @@ import {
   Group,
   Modal,
   Select,
+  SimpleGrid,
   Slider,
   Stack,
   Switch,
   Text,
   TextInput,
   Title,
+  type ButtonProps,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -24,8 +26,13 @@ import {
   IconLayoutBoard,
   IconPlayerPlay,
 } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { EasingType, SceneState, SmartTransitionSettings } from '@excalimate/project-schema';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  PROJECT_LIMITS,
+  type EasingType,
+  type SceneState,
+  type SmartTransitionSettings,
+} from '@excalimate/project-schema';
 import { sceneStateFingerprint } from '@excalimate/animation-core';
 import type { SmartTransitionProposal } from '../../services/AnimationCommandService';
 import {
@@ -54,13 +61,79 @@ const EASING_OPTIONS: Array<{ value: EasingType; label: string }> = [
   { value: 'easeOutBack', label: 'Playful' },
 ];
 
+const CONTROL_BUTTON_STYLES: ButtonProps['styles'] = {
+  root: {
+    height: 'auto',
+    minHeight: 44,
+    paddingBlock: 'var(--mantine-spacing-xs)',
+  },
+  inner: {
+    minWidth: 0,
+  },
+  label: {
+    lineHeight: 1.2,
+    overflow: 'visible',
+    textOverflow: 'clip',
+    whiteSpace: 'normal',
+  },
+};
+
 export function SceneStateControls({ compact = false }: SceneStateControlsProps) {
   const sceneStates = useAnimationStore((state) => state.sceneStates);
   const project = useProjectStore((state) => state.project);
   const [captureOpened, setCaptureOpened] = useState(false);
   const [transitionOpened, setTransitionOpened] = useState(false);
+  const [transitionModalRevision, setTransitionModalRevision] = useState(0);
   const [stateName, setStateName] = useState('');
   const hasElements = project?.scene.elements.some((element) => !element.isDeleted) ?? false;
+  const workflowHelpId = useId();
+  const captureBlockerId = useId();
+  const stateCount = sceneStates.length;
+  const canCapture = hasElements && stateCount < PROJECT_LIMITS.maxSceneStates;
+  const canCreateTransition = stateCount >= 2;
+  const workflowInstruction =
+    stateCount === 0
+      ? 'Capture your starting state.'
+      : stateCount === 1
+        ? 'Make changes, then capture the next state.'
+        : 'Ready to create a transition.';
+  const captureBlocker = !hasElements
+    ? 'Add something to your diagram before capturing a state.'
+    : stateCount >= PROJECT_LIMITS.maxSceneStates
+      ? `The ${PROJECT_LIMITS.maxSceneStates}-state limit is reached. Delete a state before capturing another.`
+      : null;
+
+  useEffect(() => {
+    if (!transitionOpened) return;
+
+    const initialStateKey = sceneStates.map(sceneStateFingerprint).join('|');
+    const initialProject = useProjectStore.getState().project;
+    let closed = false;
+    const closeForContextChange = () => {
+      if (closed) return;
+      closed = true;
+      setTransitionOpened(false);
+      setTransitionModalRevision((revision) => revision + 1);
+    };
+    const unsubscribeAnimation = useAnimationStore.subscribe((state, previousState) => {
+      if (
+        state.sceneStates !== previousState.sceneStates &&
+        state.sceneStates.map(sceneStateFingerprint).join('|') !== initialStateKey
+      ) {
+        closeForContextChange();
+      }
+    });
+    const unsubscribeProject = useProjectStore.subscribe((state, previousState) => {
+      if (state.project !== previousState.project && state.project !== initialProject) {
+        closeForContextChange();
+      }
+    });
+
+    return () => {
+      unsubscribeAnimation();
+      unsubscribeProject();
+    };
+  }, [sceneStates, transitionOpened]);
 
   const capture = () => {
     const result = captureSceneState(stateName.trim() || `State ${sceneStates.length + 1}`);
@@ -78,8 +151,8 @@ export function SceneStateControls({ compact = false }: SceneStateControlsProps)
       element_count_bucket: countBucket(count),
     });
     notifications.show({
-      title: 'Scene state captured',
-      message: 'Only animatable properties and local file references were saved.',
+      title: 'State captured',
+      message: "Your diagram's current look is ready to use in a transition.",
       color: 'green',
       icon: <IconCircleCheck size={18} aria-hidden="true" />,
     });
@@ -89,49 +162,84 @@ export function SceneStateControls({ compact = false }: SceneStateControlsProps)
 
   return (
     <>
-      <Stack gap="xs" p={compact ? 'sm' : 0}>
-        <Group justify="space-between" align="center">
-          <Stack gap={0}>
-            <Text fw={700}>Scene states</Text>
-            <Text size="xs" c="dimmed">
-              {sceneStates.length} of 50 captured
-            </Text>
-          </Stack>
-          <Badge variant="light">{sceneStates.length}</Badge>
-        </Group>
-        <Group grow wrap={compact ? 'wrap' : 'nowrap'}>
+      <Stack gap="xs" p={compact ? 'sm' : 0} miw={0} w="100%">
+        <Stack gap={2}>
+          <Text fw={700}>Create a transition</Text>
+          <Text size="xs" c="dimmed">
+            {stateCount} of {PROJECT_LIMITS.maxSceneStates} states
+          </Text>
+        </Stack>
+        <Text id={workflowHelpId} size="sm" c="dimmed" aria-live="polite">
+          {workflowInstruction}
+        </Text>
+        {captureBlocker && (
+          <Text id={captureBlockerId} size="xs" c="dimmed">
+            {captureBlocker}
+          </Text>
+        )}
+        <SimpleGrid
+          data-testid="transition-control-grid"
+          cols={2}
+          spacing="xs"
+          w="100%"
+          miw={0}
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))',
+          }}
+        >
           <Button
+            fullWidth
             variant="light"
             size="md"
-            disabled={!hasElements}
+            styles={CONTROL_BUTTON_STYLES}
+            data-disabled={!canCapture || undefined}
+            aria-disabled={!canCapture}
+            aria-describedby={
+              captureBlocker ? `${workflowHelpId} ${captureBlockerId}` : workflowHelpId
+            }
             leftSection={<IconDeviceFloppy size={18} aria-hidden="true" />}
-            onClick={() => setCaptureOpened(true)}
+            onClick={(event) => {
+              if (!canCapture) {
+                event.preventDefault();
+                return;
+              }
+              setCaptureOpened(true);
+            }}
           >
             Capture state
           </Button>
           <Button
+            fullWidth
             variant="light"
             size="md"
-            disabled={sceneStates.length < 2}
+            styles={CONTROL_BUTTON_STYLES}
+            data-disabled={!canCreateTransition || undefined}
+            aria-disabled={!canCreateTransition}
+            aria-describedby={workflowHelpId}
             leftSection={<IconGitCompare size={18} aria-hidden="true" />}
-            onClick={() => setTransitionOpened(true)}
+            onClick={(event) => {
+              if (!canCreateTransition) {
+                event.preventDefault();
+                return;
+              }
+              setTransitionOpened(true);
+            }}
           >
-            Smart Transition
+            Create transition
           </Button>
-        </Group>
+        </SimpleGrid>
       </Stack>
 
       <Modal
         opened={captureOpened}
         onClose={() => setCaptureOpened(false)}
-        title="Capture scene state"
+        title={stateCount === 0 ? 'Capture starting state' : 'Capture next state'}
         centered
-        closeButtonProps={{ 'aria-label': 'Close scene state capture' }}
+        closeButtonProps={{ 'aria-label': 'Close state capture' }}
       >
         <Stack>
           <Text size="sm" c="dimmed">
-            Capture records presence, transforms, groups, bindings, and shared file references. It
-            does not copy binary file data.
+            Save how your diagram looks now. Local files stay in this project.
           </Text>
           <TextInput
             autoFocus
@@ -154,7 +262,8 @@ export function SceneStateControls({ compact = false }: SceneStateControlsProps)
       </Modal>
 
       <SmartTransitionModal
-        opened={transitionOpened}
+        key={transitionModalRevision}
+        opened={transitionOpened && canCreateTransition}
         onClose={() => setTransitionOpened(false)}
         sceneStates={sceneStates}
       />
@@ -184,6 +293,18 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
   const [loading, setLoading] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const proposalRef = useRef<SmartTransitionProposal | null>(null);
+  const proposalProjectRef = useRef(useProjectStore.getState().project);
+  const acceptedRef = useRef(false);
+  const updateProposal = (next: SmartTransitionProposal | null) => {
+    proposalRef.current = next;
+    proposalProjectRef.current = next ? useProjectStore.getState().project : null;
+    setProposal(next);
+  };
+  const updateAccepted = (next: boolean) => {
+    acceptedRef.current = next;
+    setAccepted(next);
+  };
   const stateOptions = sceneStates.map((state) => ({
     value: state.id,
     label: `${state.name} (${state.elements.filter((element) => element.present).length} elements)`,
@@ -210,8 +331,8 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
         }
       }
     }
-    setProposal(null);
-    setAccepted(false);
+    updateProposal(null);
+    updateAccepted(false);
     return true;
   };
   const changeSettings = (
@@ -221,12 +342,44 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
     setSettings(update);
   };
 
+  useEffect(
+    () => () => {
+      analysisRequestRef.current += 1;
+      abortRef.current?.abort();
+      abortRef.current = null;
+      const pendingProposal = proposalRef.current;
+      if (
+        pendingProposal &&
+        !acceptedRef.current &&
+        useProjectStore.getState().project === proposalProjectRef.current
+      ) {
+        const currentDraft = useAnimationStore
+          .getState()
+          .sceneTransitions.find(
+            (transition) =>
+              transition.id === pendingProposal.transition.id && transition.status === 'draft',
+          );
+        if (currentDraft) {
+          const result = deleteSceneTransition(currentDraft.id);
+          if (!result.ok) {
+            notifications.show({
+              title: 'Transition draft was not removed',
+              message: result.error.message,
+              color: 'red',
+            });
+          }
+        }
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (opened && !wasOpenedRef.current) {
       setFromStateId(sceneStates.at(-2)?.id ?? null);
       setToStateId(sceneStates.at(-1)?.id ?? null);
-      setProposal(null);
-      setAccepted(false);
+      updateProposal(null);
+      updateAccepted(false);
       setError(null);
     } else if (!opened) {
       analysisRequestRef.current += 1;
@@ -243,11 +396,11 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
 
   const preview = async () => {
     if (!fromState || !toState) {
-      setError('Choose both a from state and a to state.');
+      setError('Choose both a starting point and a next state.');
       return;
     }
     if (fromState.id === toState.id) {
-      setError('Choose two different scene states.');
+      setError('Choose two different states.');
       return;
     }
     abortRef.current?.abort();
@@ -258,7 +411,18 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
     setLoading(true);
     setError(null);
     try {
-      const existingMappings = proposal?.transition.mappings ?? [];
+      const existingDraft = proposal
+        ? null
+        : useAnimationStore
+            .getState()
+            .sceneTransitions.find(
+              (transition) =>
+                transition.fromStateId === fromState.id &&
+                transition.toStateId === toState.id &&
+                transition.status === 'draft',
+            );
+      const existingMappings =
+        proposal?.transition.mappings ?? existingDraft?.mappings ?? [];
       const fromStateFingerprint = sceneStateFingerprint(fromState);
       const toStateFingerprint = sceneStateFingerprint(toState);
       const diff = await analyzeSceneDiff(fromState, toState, {
@@ -269,7 +433,7 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
       const result = proposeSmartTransition({
         fromStateId: fromState.id,
         toStateId: toState.id,
-        transitionId: proposal?.transition.id,
+        transitionId: proposal?.transition.id ?? existingDraft?.id,
         settings,
         analysis: {
           diff,
@@ -278,8 +442,11 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
           toStateFingerprint,
         },
       });
-      if (!result.ok) throw new Error(result.error.message);
-      setProposal(result.value);
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      updateProposal(result.value);
       trackCreatorEvent('creator_smart_transition_previewed', {
         change_count_bucket: countBucket(result.value.diff.changes.length),
         ambiguous_mapping_count_bucket: ambiguityBucket(
@@ -290,7 +457,7 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return;
       setError(
-        caught instanceof Error ? caught.message : 'The local scene comparison could not complete.',
+        'We could not compare the captured states. Check them and preview the transition again.',
       );
     } finally {
       if (requestId === analysisRequestRef.current) {
@@ -339,18 +506,16 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
           sceneStateFingerprint(currentFrom) !== fromStateFingerprint ||
           sceneStateFingerprint(currentTo) !== toStateFingerprint
         ) {
-          setProposal(null);
-          setError('A scene state changed during analysis. Preview the transition again.');
+          updateProposal(null);
+          setError('A captured state changed. Preview the transition again.');
           return;
         }
-        setProposal({ transition, diff });
+        updateProposal({ transition, diff });
       }
     } catch (caught) {
       if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
         setError(
-          caught instanceof Error
-            ? caught.message
-            : 'The local scene comparison could not complete.',
+          'We could not compare the captured states. Check them and preview the transition again.',
         );
       }
     } finally {
@@ -369,17 +534,17 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
       return;
     }
     if (result.value.transition) {
-      setProposal({ ...proposal, transition: result.value.transition });
+      updateProposal({ ...proposal, transition: result.value.transition });
     }
-    setAccepted(true);
+    updateAccepted(true);
     useUIStore.getState().setCanvasMode('preview');
     trackCreatorEvent('creator_smart_transition_decided', {
       decision: 'accepted',
       ambiguous_mapping_count_bucket: ambiguityBucket(proposal.diff.ambiguousFromElementIds.length),
     });
     notifications.show({
-      title: 'Smart Transition accepted',
-      message: 'Managed tracks were added without changing the baseline scene.',
+      title: 'Transition created',
+      message: 'Your transition is ready to preview or customize.',
       color: 'green',
       icon: <IconCircleCheck size={18} aria-hidden="true" />,
     });
@@ -432,12 +597,12 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
     <Modal
       opened={opened}
       onClose={reject}
-      title="Smart Transition"
+      title="Create transition"
       size="xl"
       fullScreen={mobile}
       centered={!mobile}
       closeButtonProps={{
-        'aria-label': accepted ? 'Close Smart Transition' : 'Reject Smart Transition',
+        'aria-label': accepted ? 'Close transition' : 'Cancel transition',
       }}
     >
       <Stack gap="md">
@@ -448,7 +613,7 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
         )}
         <Group grow align="flex-start" wrap="wrap">
           <Select
-            label="From state"
+            label="Starting point"
             data={stateOptions}
             value={fromStateId}
             allowDeselect={false}
@@ -459,7 +624,7 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
             }}
           />
           <Select
-            label="To state"
+            label="Next state"
             data={stateOptions}
             value={toStateId}
             allowDeselect={false}
@@ -559,26 +724,27 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
                 {proposal.diff.removedElementIds.length} removed
               </Badge>
               <Badge color="blue" variant="light">
-                {proposal.diff.matches.length} matched
+                {proposal.diff.matches.length} paired
               </Badge>
             </Group>
             <Text size="sm" c="dimmed" aria-live="polite">
-              Stable IDs are matched automatically. Suggested heuristic pairs are never accepted
-              without your explicit mapping.
+              We paired unchanged elements automatically. Review any choices below before creating
+              the transition.
             </Text>
 
             {ambiguousSuggestions.length > 0 &&
               (mobile ? (
                 <Alert
                   color="orange"
-                  title="Mapping review needs a larger screen"
+                  title="Review element pairs on a larger screen"
                   icon={<IconAlertTriangle size={18} aria-hidden="true" />}
                 >
-                  Open this project on a tablet or desktop to review ambiguous element pairs.
+                  Open this project on a tablet or desktop to choose how these elements connect
+                  between states.
                 </Alert>
               ) : (
                 <Stack gap="sm">
-                  <Text fw={700}>Review ambiguous pairs</Text>
+                  <Text fw={700}>Review suggested pairs</Text>
                   {ambiguousSuggestions.map((suggestion) => {
                     const source = fromState?.elements.find(
                       (element) => element.id === suggestion.fromElementId,
@@ -586,9 +752,9 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
                     return (
                       <Select
                         key={suggestion.fromElementId}
-                        label={source?.label ?? `${source?.type ?? 'Element'} source`}
-                        description={`${Math.round(suggestion.confidence * 100)}% suggested match; not accepted yet`}
-                        placeholder="Choose the matching target"
+                        label={source?.label ?? `${source?.type ?? 'Element'} element`}
+                        description="Choose which element this should become."
+                        placeholder="Choose the next element"
                         searchable
                         data={(toState?.elements ?? [])
                           .filter((element) => element.present)
@@ -624,7 +790,7 @@ function SmartTransitionModal({ opened, onClose, sceneStates }: SmartTransitionM
                   leftSection={<IconGitCompare size={18} aria-hidden="true" />}
                   onClick={accept}
                 >
-                  Accept Smart Transition
+                  Create transition
                 </Button>
               )}
             </Group>

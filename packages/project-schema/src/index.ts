@@ -117,12 +117,18 @@ export const AnimationTrackSchema = z
     }
   });
 
+const animationTimelineMetadataShape = {
+  id: identifierSchema,
+  name: nameSchema,
+  duration: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs),
+  fps: finiteNumberSchema.int().min(1).max(240),
+};
+
+export const AnimationTimelineMetadataSchema = z.object(animationTimelineMetadataShape).strict();
+
 export const AnimationTimelineSchema = z
   .object({
-    id: identifierSchema,
-    name: nameSchema,
-    duration: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs),
-    fps: finiteNumberSchema.int().min(1).max(240),
+    ...animationTimelineMetadataShape,
     tracks: z.array(AnimationTrackSchema).max(PROJECT_LIMITS.maxTracks),
   })
   .strict()
@@ -379,11 +385,17 @@ export const SceneTransitionSchema = z
     }
   });
 
+const projectAuthoringMetadataShape = {
+  version: z.literal(1),
+  documentRevision: z.number().int().nonnegative(),
+  timelineRevision: z.number().int().nonnegative(),
+};
+
+export const ProjectAuthoringMetadataSchema = z.object(projectAuthoringMetadataShape).strict();
+
 export const ProjectAuthoringSchema = z
   .object({
-    version: z.literal(1),
-    documentRevision: z.number().int().nonnegative(),
-    timelineRevision: z.number().int().nonnegative(),
+    ...projectAuthoringMetadataShape,
     actions: z.array(AnimationActionSchema).max(PROJECT_LIMITS.maxTracks),
     sceneStates: z.array(SceneStateSchema).max(PROJECT_LIMITS.maxSceneStates).optional(),
     sceneTransitions: z
@@ -428,10 +440,13 @@ export const ProjectAuthoringSchema = z
     }
   });
 
+const clipStartSchema = finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs);
+const clipEndSchema = finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs);
+
 export const PlaybackSchema = z
   .object({
-    clipStart: finiteNumberSchema.nonnegative().max(PROJECT_LIMITS.maxTimelineDurationMs),
-    clipEnd: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs),
+    clipStart: clipStartSchema,
+    clipEnd: clipEndSchema,
     cameraFrame: CameraFrameSchema,
   })
   .strict()
@@ -445,7 +460,7 @@ export const PlaybackSchema = z
     }
   });
 
-const sceneElementSchema = z
+export const ProjectSceneElementSchema = z
   .object({
     id: identifierSchema,
     type: z.string().min(1).max(PROJECT_LIMITS.maxIdentifierLength),
@@ -454,7 +469,7 @@ const sceneElementSchema = z
 
 export const ProjectSceneSchema = z
   .object({
-    elements: z.array(sceneElementSchema).max(PROJECT_LIMITS.maxSceneElements),
+    elements: z.array(ProjectSceneElementSchema).max(PROJECT_LIMITS.maxSceneElements),
     appState: z.record(z.unknown()).default({}),
     files: z.record(z.unknown()).default({}),
   })
@@ -513,6 +528,117 @@ export const ProjectDocumentSchema = z
   .superRefine((project, context) => {
     validateProjectRelationships(project, context);
   });
+
+export const McpStateDeltaSchema = z
+  .object({
+    revision: z.number().int().positive(),
+    sequence: z.number().int().positive(),
+    baseRevision: z.number().int().nonnegative(),
+    scene: z
+      .object({
+        upsert: z.array(ProjectSceneElementSchema).max(PROJECT_LIMITS.maxSceneElements),
+        removed: z.array(identifierSchema).max(PROJECT_LIMITS.maxSceneElements),
+        appState: z.record(z.unknown()).optional(),
+        files: z.record(z.unknown()).optional(),
+      })
+      .strict()
+      .optional(),
+    timeline: z
+      .object({
+        upsertedTracks: z.array(AnimationTrackSchema).max(PROJECT_LIMITS.maxTracks),
+        removedTrackIds: z.array(identifierSchema).max(PROJECT_LIMITS.maxTracks),
+        meta: AnimationTimelineMetadataSchema.optional(),
+      })
+      .strict()
+      .optional(),
+    authoring: z
+      .object({
+        upsertedActions: z.array(AnimationActionSchema).max(PROJECT_LIMITS.maxTracks),
+        removedActionIds: z.array(identifierSchema).max(PROJECT_LIMITS.maxTracks),
+        upsertedSceneStates: z
+          .array(SceneStateSchema)
+          .max(PROJECT_LIMITS.maxSceneStates)
+          .optional(),
+        removedSceneStateIds: z
+          .array(identifierSchema)
+          .max(PROJECT_LIMITS.maxSceneStates)
+          .optional(),
+        upsertedSceneTransitions: z
+          .array(SceneTransitionSchema)
+          .max(PROJECT_LIMITS.maxSceneTransitions)
+          .optional(),
+        removedSceneTransitionIds: z
+          .array(identifierSchema)
+          .max(PROJECT_LIMITS.maxSceneTransitions)
+          .optional(),
+        meta: ProjectAuthoringMetadataSchema,
+      })
+      .strict()
+      .optional(),
+    project: z
+      .object({
+        version: z.literal(PROJECT_VERSION),
+        metadata: ProjectMetadataSchema,
+        preferredWorkspace: z.enum(PREFERRED_WORKSPACES).nullable().optional(),
+      })
+      .strict()
+      .optional(),
+    clipStart: clipStartSchema.optional(),
+    clipEnd: clipEndSchema.optional(),
+    cameraFrame: CameraFrameSchema.optional(),
+  })
+  .strict()
+  .superRefine((delta, context) => {
+    if (delta.baseRevision >= delta.revision) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['baseRevision'],
+        message: 'baseRevision must be less than revision',
+      });
+    }
+    if (
+      !delta.scene &&
+      !delta.timeline &&
+      !delta.authoring &&
+      !delta.project &&
+      delta.clipStart === undefined &&
+      delta.clipEnd === undefined &&
+      !delta.cameraFrame
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'MCP state delta does not contain a state change',
+      });
+    }
+    if ((delta.clipStart === undefined) !== (delta.clipEnd === undefined)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['clipStart'],
+        message: 'clipStart and clipEnd must be provided together',
+      });
+    }
+    if (
+      delta.clipStart !== undefined &&
+      delta.clipEnd !== undefined &&
+      delta.clipEnd <= delta.clipStart
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['clipEnd'],
+        message: 'clipEnd must be greater than clipStart',
+      });
+    }
+  });
+
+const McpStateSnapshotMetadataSchema = z
+  .object({
+    clipStart: clipStartSchema,
+    clipEnd: clipEndSchema,
+    cameraFrame: CameraFrameSchema,
+    revision: z.number().int().nonnegative(),
+    sequence: z.number().int().nonnegative(),
+  })
+  .strict();
 
 export const V1ProjectDocumentSchema = z
   .object({
@@ -578,6 +704,8 @@ export type ProjectScene = z.infer<typeof ProjectSceneSchema>;
 export type ProjectMetadata = z.infer<typeof ProjectMetadataSchema>;
 export type ProjectDocument = z.infer<typeof ProjectDocumentSchema>;
 export type V1ProjectDocument = z.infer<typeof V1ProjectDocumentSchema>;
+export type McpStateDelta = z.infer<typeof McpStateDeltaSchema>;
+export type McpStateSnapshot = ProjectDocument & z.infer<typeof McpStateSnapshotMetadataSchema>;
 
 export interface ProjectContent {
   name?: string;
@@ -647,6 +775,39 @@ export function parseProjectDocument(input: unknown): ProjectDocument {
   }
 
   throw new ProjectValidationError(`Unsupported project version "${version ?? 'missing'}"`);
+}
+
+export function parseMcpStateDelta(input: unknown): McpStateDelta {
+  assertResourceSafety(input);
+  return parseWithSchema(McpStateDeltaSchema, input, 'Invalid MCP state delta');
+}
+
+export function parseMcpStateSnapshot(input: unknown): McpStateSnapshot {
+  assertResourceSafety(input);
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new ProjectValidationError('Invalid MCP state snapshot');
+  }
+
+  const { clipStart, clipEnd, cameraFrame, revision, sequence, ...projectInput } = input as Record<
+    string,
+    unknown
+  >;
+  const project = parseProjectDocument(projectInput);
+  const transport = parseWithSchema(
+    McpStateSnapshotMetadataSchema,
+    { clipStart, clipEnd, cameraFrame, revision, sequence },
+    'Invalid MCP state snapshot metadata',
+  );
+  if (
+    transport.clipStart !== project.playback.clipStart ||
+    transport.clipEnd !== project.playback.clipEnd ||
+    JSON.stringify(transport.cameraFrame) !== JSON.stringify(project.playback.cameraFrame)
+  ) {
+    throw new ProjectValidationError(
+      'MCP state snapshot playback metadata does not match the project document',
+    );
+  }
+  return { ...project, ...transport };
 }
 
 export function migrateV1Project(input: unknown): ProjectDocument {

@@ -47,6 +47,11 @@ export const TemplatePreviewSchema = z
       .object({
         path: localAssetPathSchema,
         mimeType: z.literal('application/vnd.excalimate.player+json'),
+        byteLength: z
+          .number()
+          .int()
+          .positive()
+          .max(512 * 1024),
         contentHash: hashSchema,
       })
       .strict()

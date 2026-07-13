@@ -641,7 +641,7 @@ export function captureSceneState(name: string): AnimationCommandResult<Animatio
   if (current.sceneStates.length >= PROJECT_LIMITS.maxSceneStates) {
     return failure(
       'LIMIT_EXCEEDED',
-      `Projects support at most ${PROJECT_LIMITS.maxSceneStates} scene states`,
+      `You can capture up to ${PROJECT_LIMITS.maxSceneStates} states. Delete one before capturing another.`,
     );
   }
   const trimmedName = name.trim();
@@ -664,7 +664,7 @@ export function captureSceneState(name: string): AnimationCommandResult<Animatio
   } catch (error) {
     return failure(
       'INVALID_INPUT',
-      error instanceof Error ? error.message : 'Scene state could not be captured',
+      error instanceof Error ? error.message : 'The state could not be captured',
     );
   }
   const result = commitAnimationState(current.timeline, current.actions, {
@@ -773,10 +773,10 @@ export function proposeSmartTransition(input: {
   const fromState = current.sceneStates.find((state) => state.id === input.fromStateId);
   const toState = current.sceneStates.find((state) => state.id === input.toStateId);
   if (!fromState || !toState) {
-    return failure('SCENE_STATE_NOT_FOUND', 'Choose two existing scene states for the transition');
+    return failure('SCENE_STATE_NOT_FOUND', 'Choose an existing starting point and next state');
   }
   if (fromState.id === toState.id) {
-    return failure('INVALID_INPUT', 'From and to states must be different');
+    return failure('INVALID_INPUT', 'Starting point and next state must be different');
   }
   const existing = input.transitionId
     ? current.sceneTransitions.find((transition) => transition.id === input.transitionId)
@@ -819,14 +819,14 @@ export function proposeSmartTransition(input: {
       input.analysis &&
       mappingFingerprint(input.analysis.mappings) !== mappingFingerprint(transition.mappings)
     ) {
-      return failure('INVALID_INPUT', 'Scene comparison mappings are stale');
+      return failure('INVALID_INPUT', 'The element choices changed. Preview the transition again');
     }
     if (
       input.analysis &&
       (input.analysis.fromStateFingerprint !== sceneStateFingerprint(fromState) ||
         input.analysis.toStateFingerprint !== sceneStateFingerprint(toState))
     ) {
-      return failure('INVALID_INPUT', 'Scene comparison inputs changed during analysis');
+      return failure('INVALID_INPUT', 'A captured state changed. Preview the transition again');
     }
     diff =
       input.analysis?.diff ??
@@ -836,7 +836,7 @@ export function proposeSmartTransition(input: {
   } catch (error) {
     return failure(
       'INVALID_INPUT',
-      error instanceof Error ? error.message : 'Scene states could not be compared',
+      error instanceof Error ? error.message : 'The captured states could not be compared',
     );
   }
   const sceneTransitions = existing
@@ -879,12 +879,12 @@ export function acceptSmartTransition(
   const current = useAnimationStore.getState();
   const transition = current.sceneTransitions.find((candidate) => candidate.id === transitionId);
   if (!transition) {
-    return failure('TRANSITION_NOT_FOUND', `Scene transition "${transitionId}" was not found`);
+    return failure('TRANSITION_NOT_FOUND', `Transition "${transitionId}" was not found`);
   }
   const fromState = current.sceneStates.find((state) => state.id === transition.fromStateId);
   const toState = current.sceneStates.find((state) => state.id === transition.toStateId);
   if (!fromState || !toState) {
-    return failure('SCENE_STATE_NOT_FOUND', 'The transition references a missing scene state');
+    return failure('SCENE_STATE_NOT_FOUND', 'One of the captured states is no longer available');
   }
   let diff: SceneDiffResult;
   try {
@@ -894,13 +894,13 @@ export function acceptSmartTransition(
   } catch (error) {
     return failure(
       'INVALID_INPUT',
-      error instanceof Error ? error.message : 'Scene states could not be compared',
+      error instanceof Error ? error.message : 'The captured states could not be compared',
     );
   }
   if (diff.ambiguousFromElementIds.length > 0) {
     return failure(
       'AMBIGUOUS_MATCH',
-      'Review every ambiguous element pair before accepting the transition',
+      'Review every suggested element pair before creating the transition',
       diff.ambiguousFromElementIds,
     );
   }
@@ -912,7 +912,7 @@ export function acceptSmartTransition(
     baselineCameraFrame: projectState.cameraFrame,
   });
   if (recipes.length === 0) {
-    return failure('INVALID_INPUT', 'The selected scene states have no animatable changes');
+    return failure('INVALID_INPUT', 'The selected states have no changes that can be animated');
   }
   const actionId =
     transition.managedActionId ?? deterministicId('smart-transition-action', transition.id);
@@ -934,7 +934,7 @@ export function acceptSmartTransition(
   const parsed = AnimationActionSchema.safeParse(action);
   if (!parsed.success) {
     const details = parsed.error.issues.map((issue) => issue.message);
-    return failure('INVALID_INPUT', details[0] ?? 'Invalid Smart Transition', details);
+    return failure('INVALID_INPUT', 'The transition could not be created', details);
   }
   const references = validateReferences(parsed.data);
   if (!references.ok) return references;

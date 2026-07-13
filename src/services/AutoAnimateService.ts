@@ -86,7 +86,7 @@ export async function analyzeAutoAnimateInWorker(input: {
     );
     worker.addEventListener('error', (event) => {
       worker.terminate();
-      reject(new Error(event.message || 'Local arrangement worker failed'));
+      reject(new Error(event.message || 'Auto Animate could not analyze this diagram'));
     });
     worker.postMessage({
       requestId: currentRequestId,

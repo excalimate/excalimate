@@ -32,7 +32,10 @@ import { usePlaybackStore } from '../../stores/playbackStore';
 import { useAnimationStore } from '../../stores/animationStore';
 import {
   applyAnimationToElements,
+  collectAbsoluteOpacityTargetIds,
+  collectOpacityTrackTargetIds,
   getRenderableAnimationElements,
+  mergeNormalizedElementsIntoSource,
 } from '../../core/engine/renderUtils';
 import { getCanvasViewport } from './canvasViewport';
 import { CameraFrameOverlay } from './CameraFrameOverlay';
@@ -119,15 +122,7 @@ export function ExcalidrawAnimateEditor({
   // initialData already rendered elements correctly on the canvas).
   const initialRenderDoneRef = useRef(false);
   const timeline = useAnimationStore((state) => state.timeline);
-  const opacityTrackTargetIds = useMemo(
-    () =>
-      new Set(
-        timeline.tracks
-          .filter((track) => track.enabled && track.property === 'opacity')
-          .map((track) => track.targetId),
-      ),
-    [timeline],
-  );
+  const opacityTrackTargetIds = useMemo(() => collectOpacityTrackTargetIds(timeline), [timeline]);
   const revivedTombstoneIds = useMemo(
     () =>
       new Set(
@@ -141,17 +136,7 @@ export function ExcalidrawAnimateEditor({
     [opacityTrackTargetIds, scene?.elements],
   );
   const absoluteOpacityTargetIds = useMemo(
-    () =>
-      new Set(
-        scene?.elements
-          .filter(
-            (element: { id: string; isDeleted?: boolean; opacity?: number }) =>
-              opacityTrackTargetIds.has(element.id) &&
-              element.isDeleted !== true &&
-              element.opacity === 0,
-          )
-          .map((element: { id: string }) => element.id) ?? [],
-      ),
+    () => collectAbsoluteOpacityTargetIds(scene?.elements ?? [], opacityTrackTargetIds),
     [opacityTrackTargetIds, scene?.elements],
   );
 
@@ -262,13 +247,11 @@ export function ExcalidrawAnimateEditor({
       if (normalizedElements.length > 0) {
         const currentScene = sceneRef.current;
         if (currentScene) {
-          const normalizedById = new Map(
-            normalizedElements.map((element) => [element.id, element]),
-          );
           useProjectStore.getState().updateScene({
             ...currentScene,
-            elements: currentScene.elements.map((element) =>
-              element.isDeleted ? element : (normalizedById.get(element.id) ?? element),
+            elements: mergeNormalizedElementsIntoSource(
+              currentScene.elements as ExcalidrawElement[],
+              normalizedElements,
             ),
           });
         }

@@ -1,15 +1,23 @@
 {
   "name": "@excalimate/share-worker",
-  "version": "0.1.0",
+  "version": "0.5.0-rc.1",
   "private": true,
   "description": "Cloudflare Worker for E2E encrypted animation sharing",
   "scripts": {
+    "check": "npm run typecheck && npm test",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --config ./wrangler.jsonc",
-    "tail": "wrangler tail"
+    "lifecycle:apply": "npm run lifecycle:apply:current && npm run lifecycle:apply:legacy",
+    "lifecycle:apply:current": "wrangler r2 bucket lifecycle set excalimate-shares-v2 --file ./r2-lifecycle.json",
+    "lifecycle:apply:legacy": "wrangler r2 bucket lifecycle set excalimate-shares --file ./r2-lifecycle.json",
+    "test": "vitest run",
+    "tail": "wrangler tail",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250313.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.18",
     "wrangler": "^4.12.0"
   }
 }

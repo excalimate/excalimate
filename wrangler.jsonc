@@ -7,7 +7,7 @@
     "enabled": true,
   },
   "assets": {
-    "not_found_handling": "single-page-application",
+    "not_found_handling": "404-page",
   },
   "compatibility_flags": ["nodejs_compat"],
 }

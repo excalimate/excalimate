@@ -264,7 +264,7 @@ export function MagicWorkspace() {
             w={330}
             miw={300}
           >
-            <ScrollArea h="100%" type="auto">
+            <ScrollArea h="100%" type="auto" offsetScrollbars="present">
               <MagicControls />
             </ScrollArea>
           </Paper>
@@ -279,7 +279,7 @@ export function MagicWorkspace() {
         size="85%"
         closeButtonProps={{ 'aria-label': 'Close animation controls' }}
       >
-        <ScrollArea h="calc(85vh - 72px)">
+        <ScrollArea h="calc(85vh - 72px)" type="auto" offsetScrollbars="present">
           <MagicControls />
         </ScrollArea>
       </Drawer>

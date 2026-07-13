@@ -1,11 +1,17 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { Window } from 'happy-dom';
 import {
   compileManagedActions,
   createAnimationAction,
 } from '../packages/animation-core/dist/index.js';
+import { parsePlayerPackage } from '../packages/player-runtime/dist/index.js';
 import { PROJECT_VERSION, parseProjectDocument } from '../packages/project-schema/dist/index.js';
+
+const domWindow = new Window();
+globalThis.DOMParser = domWindow.DOMParser;
+globalThis.XMLSerializer = domWindow.XMLSerializer;
 
 const root = process.cwd();
 const publicRoot = path.join(root, 'public', 'templates', 'v1');
@@ -103,11 +109,17 @@ for (const definition of definitions) {
   await mkdir(directory, { recursive: true });
   const document = createTemplateDocument(definition);
   const projectBytes = Buffer.from(JSON.stringify(document));
-  const posterBytes = Buffer.from(createPoster(definition));
+  const poster = createPoster(definition);
+  const posterBytes = Buffer.from(poster);
+  const playerPackageBytes = Buffer.from(
+    JSON.stringify(createTemplatePlayerPackage(document, poster)),
+  );
   const projectPath = path.join(directory, 'project.json');
   const posterPath = path.join(directory, 'poster.svg');
+  const playerPackagePath = path.join(directory, 'player.json');
   await writeFile(projectPath, projectBytes);
   await writeFile(posterPath, posterBytes);
+  await writeFile(playerPackagePath, playerPackageBytes);
   const posterPublicPath = `/templates/v1/${definition.id}/poster.svg`;
   manifest.templates.push({
     id: definition.id,
@@ -129,7 +141,12 @@ for (const definition of definitions) {
     preview: {
       mode: 'poster',
       posterPath: posterPublicPath,
-      playerPackage: null,
+      playerPackage: {
+        path: `/templates/v1/${definition.id}/player.json`,
+        mimeType: 'application/vnd.excalimate.player+json',
+        byteLength: playerPackageBytes.byteLength,
+        contentHash: sha256(playerPackageBytes),
+      },
     },
     contentHash: sha256(projectBytes),
     projectAssetPath: `/templates/v1/${definition.id}/project.json`,
@@ -168,6 +185,7 @@ function createTemplateDocument(definition) {
       arrowIds.push(arrowId);
       elements.push(arrow(arrowId, x - gap, nodeY + nodeHeight / 2, gap, previousNodeId, nodeId));
     }
+
   }
   const timeline = {
     id: `${definition.id}-timeline`,
@@ -238,6 +256,42 @@ function createTemplateDocument(definition) {
       actions: compiled.actions,
     },
     preferredWorkspace: 'magic',
+  });
+}
+
+function createTemplatePlayerPackage(document, poster) {
+  const frame = document.playback.cameraFrame;
+  const aspect = 16 / 9;
+  return parsePlayerPackage({
+    version: '1.0.0',
+    runtimeVersion: '1.0.0',
+    schemaVersion: document.version,
+    scene: { svg: poster },
+    animation: { timeline: document.timeline, hierarchy: {} },
+    playback: {
+      clipStart: document.playback.clipStart,
+      clipEnd: document.playback.clipEnd,
+      camera: {
+        ...frame,
+        height: frame.width / aspect,
+        sceneOffsetX: 0,
+        sceneOffsetY: 0,
+      },
+    },
+    dimensions: {
+      width: 960,
+      height: 540,
+      aspectRatio: document.playback.cameraFrame.aspectRatio,
+    },
+    poster: {
+      kind: 'frame',
+      timeMs: document.playback.clipStart,
+    },
+    title: document.metadata.name,
+    attribution: {
+      label: 'Made with Excalimate',
+      url: 'https://excalimate.com',
+    },
   });
 }
 
@@ -328,10 +382,18 @@ function createPoster(definition) {
   const cards = definition.labels
     .map((label, index) => {
       const x = 55 + index * 225;
-      return `<rect x="${x}" y="225" width="175" height="90" rx="18" fill="#ffffff" stroke="${definition.accent}" stroke-width="4"/><text x="${x + 87.5}" y="278" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="650" fill="#1f2937">${escapeXml(label)}</text>${index < definition.labels.length - 1 ? `<path d="M ${x + 175} 270 H ${x + 215}" stroke="${definition.accent}" stroke-width="5"/><path d="m ${x + 207} 262 10 8-10 8" fill="none" stroke="${definition.accent}" stroke-width="5"/>` : ''}`;
+      const nodeId = `${definition.id}-node-${index + 1}`;
+      const labelId = `${definition.id}-label-${index + 1}`;
+      const node = `<g data-excalimate-id="${nodeId}" data-excalimate-origin="${x} 225" data-excalimate-center="${x + 87.5} 270"><rect x="${x}" y="225" width="175" height="90" rx="18" fill="#ffffff" stroke="${definition.accent}" stroke-width="4"/></g>`;
+      const text = `<g data-excalimate-id="${labelId}" data-excalimate-bound-to="${nodeId}" data-excalimate-origin="${x} 225" data-excalimate-center="${x + 87.5} 270"><text x="${x + 87.5}" y="278" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="650" fill="#1f2937">${escapeXml(label)}</text></g>`;
+      const connection =
+        index < definition.labels.length - 1
+          ? `<g data-excalimate-id="${definition.id}-arrow-${index + 1}" data-excalimate-origin="${x + 175} 270" data-excalimate-center="${x + 195} 270"><path d="M ${x + 175} 270 H ${x + 215}" stroke="${definition.accent}" stroke-width="5"/><path d="m ${x + 207} 262 10 8-10 8" fill="none" stroke="${definition.accent}" stroke-width="5"/></g>`
+          : '';
+      return `${node}${text}${connection}`;
     })
     .join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title desc"><title id="title">${escapeXml(definition.title)}</title><desc id="desc">${escapeXml(definition.description)}</desc><rect width="960" height="540" fill="#f8f9fa"/><circle cx="870" cy="70" r="120" fill="${definition.accent}" opacity=".08"/><text x="55" y="90" font-family="system-ui,sans-serif" font-size="18" font-weight="700" letter-spacing="2" fill="${definition.accent}">EXCALIMATE TEMPLATE</text><text x="55" y="145" font-family="system-ui,sans-serif" font-size="38" font-weight="750" fill="#111827">${escapeXml(definition.title)}</text>${cards}<text x="55" y="460" font-family="system-ui,sans-serif" font-size="18" fill="#4b5563">Editable diagram and managed timeline actions</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title desc"><title id="title">${escapeXml(definition.title)}</title><desc id="desc">${escapeXml(definition.description)}</desc><g data-excalimate-scene="true"><rect width="960" height="540" fill="#f8f9fa"/><circle cx="870" cy="70" r="120" fill="${definition.accent}" opacity=".08"/><text x="55" y="90" font-family="system-ui,sans-serif" font-size="18" font-weight="700" letter-spacing="2" fill="${definition.accent}">EXCALIMATE TEMPLATE</text><text x="55" y="145" font-family="system-ui,sans-serif" font-size="38" font-weight="750" fill="#111827">${escapeXml(definition.title)}</text>${cards}<text x="55" y="460" font-family="system-ui,sans-serif" font-size="18" fill="#4b5563">Editable diagram and managed timeline actions</text></g></svg>`;
 }
 
 function sha256(value) {

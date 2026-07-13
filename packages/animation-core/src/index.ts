@@ -7,3 +7,4 @@ export * from './runtime.js';
 export * from './compiler.js';
 export * from './autoAnimate.js';
 export * from './sceneDiff.js';
+export * from './topology.js';

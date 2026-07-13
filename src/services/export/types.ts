@@ -1,3 +1,5 @@
+import type { ExportProgress } from '@excalimate/export-runtime';
+
 export type ExportFormat = 'mp4' | 'webm' | 'gif' | 'svg' | 'lottie' | 'dotlottie';
 export type ExportQuality = 'low' | 'medium' | 'high' | 'very-high';
 export type LottieFontEmbeddingMode = 'inline' | 'glyphs';
@@ -8,7 +10,9 @@ export interface ExportOptions {
   fps?: number;
   theme?: 'light' | 'dark';
   lottieFontEmbeddingModes?: LottieFontEmbeddingMode[];
+  svgProfile?: 'css-keyframes' | 'smil';
   onProgress?: (progress: number) => void;
+  onJobProgress?: (progress: ExportProgress) => void;
 }
 
 export const QUALITY_SETTINGS: Record<ExportQuality, { bitrate: number; gifQuality: number }> = {

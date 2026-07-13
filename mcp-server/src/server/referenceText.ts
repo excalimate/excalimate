@@ -1,98 +1,115 @@
-export const REFERENCE_TEXT = `# Excalimate Reference
+export const REFERENCE_TEXT = `# Excalimate MCP V2 Reference
 
-## Element Format (base properties)
-{ id, type, x, y, width, height, strokeColor, backgroundColor, fillStyle, strokeWidth, opacity, groupIds, angle }
+## Action-first workflow
+1. Create the scene with create_scene or create_animated_scene.
+2. Prefer auto_animate, apply_animation_preset, upsert_action_sequence, or create_camera_move.
+3. Inspect managed authoring with get_action_sequence and validate_project.
+4. Use raw keyframe tools only for effects the action model cannot express.
+5. Set the clip range, verify with inspection tools, then save_checkpoint.
 
+Action tools are local and deterministic. The connected MCP client interprets natural language; this server does not call a hosted model or send scene content anywhere.
+
+auto_animate requires both an explicit scope and style:
+{ scope: { elementIds: ["title", "box"] }, style: { intensity: "subtle"|"balanced"|"energetic" } }
+
+Managed actions never silently replace customized or unmanaged keyframes. Low-level edits to managed tracks mark the owning action customized; deleting generated content detaches it.
+
+## Element format
+Base: { id, type, x, y, width, height, strokeColor, backgroundColor, fillStyle, strokeWidth, opacity, groupIds, angle }
 Types: rectangle, ellipse, diamond, arrow, line, text, freedraw, image
+Text: { text, fontSize, fontFamily: 5, textAlign, verticalAlign }
+Arrow/line: { points: [[0,0],[dx,dy]], endArrowhead: "arrow"|null }
 
-Text extra: { text, fontSize, fontFamily: 5, textAlign, verticalAlign }
-Arrow/Line extra: { points: [[0,0],[dx,dy]], endArrowhead: "arrow"|null }
-Bound text: text with containerId → shape with boundElements:[{id,type:"text"}]
+## Action model
+Types: fade, slide, draw, pop, sequence, cameraMove
+Timing: { startMs, durationMs, staggerMs, startMode: "absolute"|"afterPrevious"|"withPrevious" }
+Presets: fade, draw, pop, slide-left, slide-right, slide-up, slide-down
+Statuses: managed, customized, disabled, detached
 
-## Colors
-Stroke: #1e1e1e #e03131 #2f9e44 #1971c2 #f08c00 #6741d9 #0c8599 #e8590c
-Fill: transparent #ffc9c9 #b2f2bb #a5d8ff #ffec99 #d0bfff #99e9f2 #ffd8a8
-
-## Animation Properties
-opacity (0–1), translateX/Y (px), scaleX/Y (0.1+), rotation (deg), drawProgress (0–1, lines/arrows only)
-
-## Easings
-linear, easeIn, easeOut, easeInOut, easeInQuad, easeOutQuad, easeInOutQuad,
+## Low-level animation
+Properties: opacity, translateX, translateY, scaleX, scaleY, rotation, drawProgress
+Easings: linear, easeIn, easeOut, easeInOut, easeInQuad, easeOutQuad, easeInOutQuad,
 easeInCubic, easeOutCubic, easeInOutCubic, easeInBack, easeOutBack, easeInOutBack,
 easeInElastic, easeOutElastic, easeInBounce, easeOutBounce, step
 
-## Preferred Workflow
-1. Use **create_animated_scene** — one call for elements + keyframes + sequences + camera + clip range
-2. Use add_keyframes_batch or create_sequence for incremental changes
-3. Use save_checkpoint to persist
-4. Verify with animations_of_item, items_visible_in_camera, is_camera_centered
+Nested arrays are the supported input shape. Legacy JSON-encoded arrays remain compatibility wrappers and return deprecation messages.
 
-## Key Tips
-- Set opacity 0 at time 0 for elements that appear later
-- Bound text inherits container animation
-- drawProgress only works on arrows/lines
-- easeOutBack = nice bounce; easeInOutCubic = best general-purpose
-- Camera: scale > 1 = zoomed out, < 1 = zoomed in
-- Set clip range before saving
+## Persistence and sharing
+Checkpoints and snapshots use the shared V2 project codec. Legacy MCP checkpoints are migrated when loaded.
+share_project is deprecated: the share Worker rejects originless writes and no authenticated MCP server-to-server contract exists. Use save_checkpoint, import the V2 project in the browser, then share from the authenticated browser UI.
 `;
 
-// Use string concatenation for EXAMPLES_TEXT to avoid backtick escaping issues
-const CB = '```'; // code block delimiter
-export const EXAMPLES_TEXT = `# Excalimate Examples
+const CB = '```';
+export const EXAMPLES_TEXT = `# Excalimate MCP V2 Examples
 
-## Complete Scene (preferred — one call)
-${CB}
-create_animated_scene({
-  elements: '[
-    {"id":"A","type":"rectangle","x":100,"y":200,"width":150,"height":80,"strokeColor":"#1e1e1e","backgroundColor":"#b2f2bb","fillStyle":"solid","boundElements":[{"id":"A-label","type":"text"}]},
-    {"id":"A-label","type":"text","x":120,"y":225,"width":110,"height":30,"text":"Service A","fontSize":20,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"A"},
-    {"id":"B","type":"rectangle","x":500,"y":200,"width":150,"height":80,"strokeColor":"#1e1e1e","backgroundColor":"#a5d8ff","fillStyle":"solid","boundElements":[{"id":"B-label","type":"text"}]},
-    {"id":"B-label","type":"text","x":520,"y":225,"width":110,"height":30,"text":"Service B","fontSize":20,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"B"},
-    {"id":"arrow1","type":"arrow","x":250,"y":240,"width":250,"height":0,"points":[[0,0],[250,0]],"endArrowhead":"arrow"}
-  ]',
-  keyframes: '[
-    {"targetId":"A","property":"opacity","time":0,"value":0},
-    {"targetId":"A","property":"opacity","time":600,"value":1,"easing":"easeOut"},
-    {"targetId":"arrow1","property":"opacity","time":0,"value":0},
-    {"targetId":"arrow1","property":"opacity","time":600,"value":0},
-    {"targetId":"arrow1","property":"opacity","time":700,"value":1},
-    {"targetId":"arrow1","property":"drawProgress","time":600,"value":0},
-    {"targetId":"arrow1","property":"drawProgress","time":1800,"value":1,"easing":"easeInOut"},
-    {"targetId":"B","property":"opacity","time":0,"value":0},
-    {"targetId":"B","property":"opacity","time":1800,"value":0},
-    {"targetId":"B","property":"opacity","time":2400,"value":1,"easing":"easeOut"}
-  ]',
-  clipEnd: 3000,
-  cameraFrame: { x: 375, y: 240, width: 800 }
-})
+## 1. Create a scene with nested data
+${CB}json
+{
+  "elements": [
+    {"id":"service-a","type":"rectangle","x":100,"y":100,"width":180,"height":90},
+    {"id":"flow","type":"arrow","x":280,"y":145,"width":220,"height":0,"points":[[0,0],[220,0]],"endArrowhead":"arrow"},
+    {"id":"service-b","type":"rectangle","x":500,"y":100,"width":180,"height":90}
+  ]
+}
 ${CB}
 
-## Staggered Reveal (simpler alternative)
-${CB}
-create_animated_scene({
-  elements: '[...elements...]',
-  sequences: '[{"elementIds":["title","box1","arrow1","box2"],"delay":400,"duration":600}]',
-  clipEnd: 3500
-})
+## 2. Let the shared topology analyzer choose a deterministic recipe
+${CB}json
+{
+  "scope": {"elementIds":["service-a","flow","service-b"]},
+  "style": {"intensity":"balanced"}
+}
 ${CB}
 
-## Scale Animation (pop-in from center)
+## 3. Apply an explicit preset
+${CB}json
+{
+  "preset": {
+    "name": "draw",
+    "targetIds": ["flow"],
+    "timing": {
+      "startMs": 600,
+      "durationMs": 900,
+      "staggerMs": 0,
+      "startMode": "absolute"
+    }
+  }
+}
 ${CB}
-add_scale_animation({ targetId: "box1", origin: "center", keyframes: '[{"time":0,"scaleX":0.3,"scaleY":0.3},{"time":600,"scaleX":1,"scaleY":1,"easing":"easeOutBack"}]' })
-${CB}
-Origins: center, top-left, top-right, bottom-left, bottom-right, top, bottom, left, right
 
-## Camera Pan + Zoom
+## 4. Upsert a deterministic action sequence
+${CB}json
+{
+  "sequence": {
+    "actions": [
+      {
+        "id": "services-reveal",
+        "type": "sequence",
+        "targetIds": ["service-a","service-b"],
+        "timing": {
+          "startMs": 0,
+          "durationMs": 500,
+          "staggerMs": 300,
+          "startMode": "absolute"
+        },
+        "easing": "easeOut",
+        "parameters": {"property":"opacity"}
+      }
+    ]
+  }
+}
 ${CB}
-set_camera_frame({ x: 300, y: 200, width: 800 })
-add_camera_keyframes_batch({ keyframes: '[
-  {"property":"translateX","time":0,"value":-200},
-  {"property":"translateX","time":3000,"value":200,"easing":"easeInOut"},
-  {"property":"scaleX","time":0,"value":1.5},
-  {"property":"scaleY","time":0,"value":1.5},
-  {"property":"scaleX","time":3000,"value":1,"easing":"easeInOutCubic"},
-  {"property":"scaleY","time":3000,"value":1,"easing":"easeInOutCubic"}
-]' })
+
+## 5. Add low-level keyframes only when needed
+${CB}json
+{
+  "keyframes": [
+    {"targetId":"service-a","property":"rotation","time":1800,"value":0},
+    {"targetId":"service-a","property":"rotation","time":2200,"value":5,"easing":"easeInOut"},
+    {"targetId":"service-a","property":"rotation","time":2600,"value":0,"easing":"easeInOut"}
+  ]
+}
 ${CB}
+
+Finish with validate_project, set_clip_range, inspection tools, and save_checkpoint.
 `;
-

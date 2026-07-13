@@ -1,7 +1,13 @@
 {
   "name": "@excalimate/animation-core",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.5.0-rc.1",
+  "license": "MIT",
+  "description": "Browser-neutral deterministic animation runtime and managed-action compiler for Excalimate",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/excalimate/excalimate.git",
+    "directory": "packages/animation-core"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,13 +20,17 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "benchmark": "node ./benchmarks/playback.mjs && node ./benchmarks/auto-animate.mjs && node ./benchmarks/scene-diff.mjs",
     "benchmark:scene-diff": "node ./benchmarks/scene-diff.mjs"
   },
   "dependencies": {
-    "@excalimate/project-schema": "*"
+    "@excalimate/project-schema": "^0.5.0-rc.1"
   },
   "devDependencies": {
     "typescript": "~5.9.3"

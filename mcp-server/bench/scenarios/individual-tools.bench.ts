@@ -7,7 +7,6 @@ import { McpTestClient } from '../harness/McpTestClient.js';
 import { SseTrafficMonitor } from '../harness/SseTrafficMonitor.js';
 import { MemoryCheckpointStore } from '../harness/MemoryCheckpointStore.js';
 import { collectMetrics, type BenchmarkResult } from '../harness/metrics.js';
-import { getSharedState } from '../../src/server/stateContext.js';
 
 export async function runIndividualTools(scene: FixtureScene, sceneSize: string): Promise<BenchmarkResult> {
   const store = new MemoryCheckpointStore();
@@ -43,7 +42,7 @@ export async function runIndividualTools(scene: FixtureScene, sceneSize: string)
   const { totalDurationMs, results } = await client.callToolSequence(calls);
   await new Promise(r => setTimeout(r, 100));
 
-  const state = getSharedState();
+  const state = client.getState();
   const kfCount = state.timeline.tracks.reduce((s, t) => s + t.keyframes.length, 0);
 
   const metrics = collectMetrics(
@@ -53,6 +52,7 @@ export async function runIndividualTools(scene: FixtureScene, sceneSize: string)
     totalDurationMs,
     monitor.report(),
     { elementCount: state.scene.elements.length, trackCount: state.timeline.tracks.length, keyframeCount: kfCount },
+    client.getStateJSON(),
   );
 
   await client.close();

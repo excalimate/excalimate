@@ -5,14 +5,14 @@
     <img src="public/excalimate_logo.svg" width="280" alt="Excalimate">
   </picture>
 
-  *Turn hand-drawn Excalidraw diagrams into keyframe animations*
+_Turn hand-drawn Excalidraw diagrams into keyframe animations_
 
-  [![npm version](https://img.shields.io/npm/v/@excalimate/mcp-server?style=flat-square)](https://www.npmjs.com/package/@excalimate/mcp-server)
-  [![npm downloads](https://img.shields.io/npm/dm/@excalimate/mcp-server?style=flat-square)](https://www.npmjs.com/package/@excalimate/mcp-server)
-  [![license](https://img.shields.io/github/license/excalimate/excalimate?style=flat-square)](LICENSE)
-  [![GitHub stars](https://img.shields.io/github/stars/excalimate/excalimate?style=flat-square)](https://github.com/excalimate/excalimate)
+[![npm version](https://img.shields.io/npm/v/@excalimate/mcp-server?style=flat-square)](https://www.npmjs.com/package/@excalimate/mcp-server)
+[![npm downloads](https://img.shields.io/npm/dm/@excalimate/mcp-server?style=flat-square)](https://www.npmjs.com/package/@excalimate/mcp-server)
+[![license](https://img.shields.io/github/license/excalimate/excalimate?style=flat-square)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/excalimate/excalimate?style=flat-square)](https://github.com/excalimate/excalimate)
 
-  [App](https://app.excalimate.com) · [Landing Page](https://excalimate.com) · [MCP Server Docs](mcp-server/README.md) · [Report Bug](https://github.com/excalimate/excalimate/issues)
+[App](https://app.excalimate.com) · [Landing Page](https://excalimate.com) · [MCP Server Docs](mcp-server/README.md) · [Report Bug](https://github.com/excalimate/excalimate/issues)
 
 </div>
 
@@ -23,7 +23,6 @@ Draw diagrams with the full Excalidraw editor, then animate elements with opacit
 ## Demo
 
 https://github.com/user-attachments/assets/77e87c62-0ff4-4a56-aee6-50553b94798c
-
 
 > [!CAUTION]
 > A considerable part of this codebase was built with AI. The process of cleaning up the code and fixing bugs is still ongoing — use it cautiously. If you encounter any issues, please [report them](https://github.com/excalimate/excalimate/issues).
@@ -37,7 +36,7 @@ https://github.com/user-attachments/assets/77e87c62-0ff4-4a56-aee6-50553b94798c
 - **Camera animation** — pan/zoom keyframes with aspect ratio control
 - **Export** — MP4 (H.264), WebM (VP9), GIF, animated SVG
 - **E2E encrypted sharing** — AES-256-GCM, key stays in the URL hash fragment
-- **MCP server** — 23 tools for AI-driven scene creation, animation, and sharing
+- **MCP server** — 35 tools, including all 29 legacy tools and six structured V2 action tools
 - **Live mode** — watch AI changes appear in the editor in real-time via SSE
 
 ## Quick Start
@@ -62,6 +61,8 @@ npm run dev
 
 The MCP server lets AI agents (Copilot, Claude, Cursor, Windsurf) create and animate diagrams for you. Start the server, connect your AI tool, and watch diagrams appear live in [app.excalimate.com](https://app.excalimate.com).
 
+The recommended workflow is action-first: create a scene, then use `auto_animate`, `apply_animation_preset`, `upsert_action_sequence`, or `create_camera_move` before reaching for raw keyframes. These tools use the same browser-neutral V2 schema and deterministic animation core as the app stack. The MCP server does not host a model or send scene content to an AI service.
+
 ```bash
 npx @excalimate/mcp-server              # default port 3001
 npx @excalimate/mcp-server --port 4000  # custom port
@@ -77,9 +78,9 @@ Add to `.vscode/mcp.json`:
   "servers": {
     "excalimate": {
       "type": "http",
-      "url": "http://localhost:3001/mcp"
-    }
-  }
+      "url": "http://localhost:3001/mcp",
+    },
+  },
 }
 ```
 
@@ -102,7 +103,7 @@ Add to `claude_desktop_config.json`:
 ```
 
 > [!NOTE]
-> Claude Desktop uses stdio transport — no live preview. Use `save_checkpoint` or `share_project` to view results in [app.excalimate.com](https://app.excalimate.com).
+> Claude Desktop uses stdio transport — no live preview. Use `save_checkpoint`, import the V2 project in [app.excalimate.com](https://app.excalimate.com), then share from the authenticated browser UI.
 
 </details>
 
@@ -153,6 +154,7 @@ Draw your diagram using the Excalidraw editor. All standard tools work — recta
 ### Animate Mode
 
 Switch to Animate mode (`Ctrl+E`) to:
+
 1. Select elements and modify properties — keyframes are created automatically
 2. Scrub the timeline, move keyframes, and set the clip range
 3. Use **Sequence Reveal** for staggered element animations
@@ -174,24 +176,37 @@ excalimate/
 │   └── hooks/                  # MCP live, hotkeys, auto-save
 ├── mcp-server/                 # MCP server (Node.js + Express)
 │   └── src/server/             # Modular tool registrations
+├── packages/
+│   ├── project-schema/         # Shared V2 project codec and validation
+│   └── animation-core/         # Shared deterministic action compiler/runtime
 ├── skills/                     # AI skill definitions (16 skills)
 └── docs/                       # Design guidelines, plans
 ```
 
 The web app is a **static SPA** — all rendering, animation, and editing happens in the browser. The MCP server is optional, used only for AI integration and live preview.
 
+## V2 release-candidate documentation
+
+- [Migration, architecture, limits, rollout, and rollback](docs/v2-release-candidate.md)
+- [Magic, Sequence, Studio, templates, and transitions](docs/v2-user-guide.md)
+- [Hosted player and embedding](docs/hosted-player.md)
+- [MCP V2 and deprecations](docs/mcp-v2.md)
+- [Security, sharing retention, and deployment](docs/security-and-sharing.md)
+- [Accessibility validation matrix](docs/accessibility.md)
+- [Export runtime and format fallbacks](docs/export-runtime.md)
+
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| UI | React 19, Mantine 8, Tailwind CSS 4, Tabler Icons |
-| Canvas | Excalidraw 0.18 |
-| State | Zustand |
-| Animation | Custom keyframe engine with interpolation + easing |
-| Export | WebCodecs (MP4/WebM), gif.js, SVG |
-| Encryption | Web Crypto API (AES-256-GCM) |
-| MCP Server | Node.js, Express, MCP SDK |
-| Build | Vite 7, TypeScript 5.9 |
+| Layer      | Technology                                          |
+| ---------- | --------------------------------------------------- |
+| UI         | React 19, Mantine 8, Tailwind CSS 4, Tabler Icons   |
+| Canvas     | Excalidraw 0.18                                     |
+| State      | Zustand                                             |
+| Animation  | Custom keyframe engine with interpolation + easing  |
+| Export     | WebCodecs (MP4/WebM), gif.js, SVG                   |
+| Encryption | Web Crypto API (AES-256-GCM)                        |
+| MCP Server | Node.js, Express, MCP SDK                           |
+| Build      | Vite 7, TypeScript 5.9                              |
 | Deployment | Cloudflare Pages, Cloudflare Workers, Cloudflare R2 |
 
 ## Development
@@ -206,8 +221,11 @@ npm run lint         # ESLint
 MCP server:
 
 ```bash
+npm install
+npm run build --workspace @excalimate/project-schema
+npm run build --workspace @excalimate/animation-core
+npm run build --workspace @excalimate/mcp-server
 cd mcp-server
-npm install && npm run build
 node dist/index.js              # HTTP mode
 node dist/index.js --stdio      # stdio mode
 node dist/index.js --port 4000  # custom port

@@ -51,37 +51,66 @@ jobs:
       - name: Test web app
         run: npx vitest run
 
-      # Build MCP server
-      - name: Install MCP server dependencies
-        working-directory: mcp-server
-        run: npm ci
+      - name: Build shared runtimes
+        run: npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core
 
       - name: Type check
-        working-directory: mcp-server
-        run: npx tsc --noEmit
+        run: npx tsc -p mcp-server/tsconfig.json --noEmit
 
-      - name: Build
-        working-directory: mcp-server
-        run: npx tsc
+      - name: Build MCP
+        run: npm run build --workspace @excalimate/mcp-server
 
       - name: Verify build
+        run: node dist/index.js --help
         working-directory: mcp-server
-        run: node -e "require('./dist/index.js'); console.log('Build verified'); process.exit(0)"
 
       - name: Run benchmarks
         working-directory: mcp-server
         run: npx tsx bench/run.ts --markdown --output bench-results.md
 
+      - name: Determine npm dist tag
+        id: npm-tag
+        shell: bash
+        run: |
+          if [[ "${{ steps.version.outputs.version }}" == *-* ]]; then
+            echo "tag=rc" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish shared runtimes to npm
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry-run != 'true'
+        shell: bash
+        run: |
+          for directory in packages/project-schema packages/animation-core; do
+            package_name=$(node -p "require('./$directory/package.json').name")
+            version=$(node -p "require('./$directory/package.json').version")
+            if npm view "$package_name@$version" version >/dev/null 2>&1; then
+              echo "$package_name@$version already published"
+            else
+              npm publish --workspace "$package_name" --access public --provenance --tag "${{ steps.npm-tag.outputs.tag }}"
+            fi
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+
+      - name: Verify shared runtime packages (dry run)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry-run == 'true'
+        run: |
+          npm publish --workspace @excalimate/project-schema --dry-run --access public --tag "${{ steps.npm-tag.outputs.tag }}"
+          npm publish --workspace @excalimate/animation-core --dry-run --access public --tag "${{ steps.npm-tag.outputs.tag }}"
+
       # Publish
       - name: Publish to npm (dry run)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry-run == 'true'
         working-directory: mcp-server
-        run: npm publish --dry-run --access public
+        run: npm publish --dry-run --access public --tag "${{ steps.npm-tag.outputs.tag }}"
 
       - name: Publish to npm
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry-run != 'true'
         working-directory: mcp-server
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --tag "${{ steps.npm-tag.outputs.tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
@@ -110,6 +139,7 @@ jobs:
           fi
 
       - name: Create tag and release
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry-run != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: mcp-server-v${{ steps.version.outputs.version }}

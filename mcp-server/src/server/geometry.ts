@@ -69,7 +69,7 @@ export function getCameraRectAt(
   state: ServerState,
   time: number,
 ): { left: number; top: number; right: number; bottom: number; cx: number; cy: number } {
-  const cf = state.cameraFrame;
+  const cf = state.playback.cameraFrame;
   const camTracks = state.timeline.tracks.filter((t: any) => t.targetId === '__camera_frame__');
   let tx = 0; let ty = 0; let sx = 1; let sy = 1;
   for (const track of camTracks) {

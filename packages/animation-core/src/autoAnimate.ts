@@ -281,6 +281,54 @@ function spread(
   return Math.max(...values) - Math.min(...values);
 }
 
+function getDirectedChainAxis(
+  graph: GraphData,
+  xShare: number,
+  yShare: number,
+): 'horizontal' | 'vertical' | null {
+  if (
+    graph.hasCycle ||
+    graph.nodes.length < 2 ||
+    graph.edgeCount !== graph.nodes.length - 1
+  ) {
+    return null;
+  }
+
+  let sourceCount = 0;
+  let sinkCount = 0;
+  for (const node of graph.nodes) {
+    const incoming = graph.incomingCount.get(node.id) ?? 0;
+    const outgoing = graph.outgoing.get(node.id)?.length ?? 0;
+    if (incoming > 1 || outgoing > 1) return null;
+    if (incoming === 0) sourceCount++;
+    if (outgoing === 0) sinkCount++;
+  }
+  if (sourceCount !== 1 || sinkCount !== 1) return null;
+
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  let horizontal = xShare >= 0.72;
+  let vertical = yShare >= 0.72;
+  for (const connectors of graph.outgoing.values()) {
+    for (const connector of connectors) {
+      const source = connector.sourceId
+        ? byId.get(connector.sourceId)
+        : undefined;
+      const destination = connector.destinationId
+        ? byId.get(connector.destinationId)
+        : undefined;
+      if (!source || !destination) return null;
+      const dx = destination.centerX - source.centerX;
+      const dy = destination.centerY - source.centerY;
+      horizontal &&= dx > 0 && dx >= Math.abs(dy) * 2;
+      vertical &&= dy > 0 && dy >= Math.abs(dx) * 2;
+    }
+  }
+
+  if (horizontal) return 'horizontal';
+  if (vertical) return 'vertical';
+  return null;
+}
+
 function scoreStrategies(graph: GraphData): ScoredStrategy[] {
   const { nodes, edgeCount, hasCycle, outgoing, incomingCount } = graph;
   const xSpread = spread(nodes, 'centerX');
@@ -297,6 +345,7 @@ function scoreStrategies(graph: GraphData): ScoredStrategy[] {
   const maxDegree = degrees.length > 0 ? Math.max(...degrees) : 0;
   const centralization =
     edgeCount > 0 ? maxDegree / Math.max(1, edgeCount * 2) : 0;
+  const chainAxis = getDirectedChainAxis(graph, xShare, yShare);
   const scores: ScoredStrategy[] = [];
 
   if (edgeCount > 0 && !hasCycle) {
@@ -317,16 +366,35 @@ function scoreStrategies(graph: GraphData): ScoredStrategy[] {
       score: Math.min(0.88, 0.61 + xShare * 0.25),
     });
   }
-  if (nodes.length >= 2 && xShare >= 0.55) {
+  if (
+    nodes.length >= 2 &&
+    xShare >= 0.55 &&
+    chainAxis !== 'horizontal'
+  ) {
     scores.push({
       strategy: 'linear-left-to-right',
       score: Math.min(0.79, 0.48 + xShare * 0.31),
     });
   }
-  if (nodes.length >= 2 && yShare >= 0.55) {
+  if (
+    nodes.length >= 2 &&
+    yShare >= 0.55 &&
+    chainAxis !== 'vertical'
+  ) {
     scores.push({
       strategy: 'linear-top-to-bottom',
       score: Math.min(0.79, 0.48 + yShare * 0.31),
+    });
+  }
+  if (chainAxis === 'horizontal') {
+    scores.push({
+      strategy: 'linear-left-to-right',
+      score: 0.99,
+    });
+  } else if (chainAxis === 'vertical') {
+    scores.push({
+      strategy: 'linear-top-to-bottom',
+      score: 0.99,
     });
   }
   scores.push({

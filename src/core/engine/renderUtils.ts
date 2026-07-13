@@ -8,8 +8,35 @@ import type {
   NonDeletedExcalidrawElement,
 } from '@excalidraw/excalidraw/element/types';
 import type { FrameState } from '../../types/animation';
+import type { AnimationTimeline } from '../../types/animation';
 import type { AnimatableTarget } from '../../types/excalidraw';
 import { CAMERA_FRAME_TARGET_ID } from '../../stores/projectStore';
+
+export function collectOpacityTrackTargetIds(
+  timeline: Pick<AnimationTimeline, 'tracks'>,
+): Set<string> {
+  return new Set(
+    timeline.tracks
+      .filter((track) => track.enabled && track.property === 'opacity')
+      .map((track) => track.targetId),
+  );
+}
+
+export function collectAbsoluteOpacityTargetIds(
+  elements: readonly { id: string; isDeleted?: boolean; opacity?: number }[],
+  opacityTrackTargetIds: ReadonlySet<string>,
+): Set<string> {
+  return new Set(
+    elements
+      .filter(
+        (element) =>
+          opacityTrackTargetIds.has(element.id) &&
+          element.isDeleted !== true &&
+          element.opacity === 0,
+      )
+      .map((element) => element.id),
+  );
+}
 
 export function getRenderableAnimationElements(
   elements: readonly ExcalidrawElement[],
@@ -29,10 +56,29 @@ export function getRenderableAnimationElements(
 export function buildElementAnimationStates(
   frameState: FrameState,
   targets: AnimatableTarget[],
-): Map<string, { tx: number; ty: number; sx: number; sy: number; rot: number; opacity: number }> {
+): Map<
+  string,
+  {
+    tx: number;
+    ty: number;
+    sx: number;
+    sy: number;
+    rot: number;
+    opacity: number;
+    drawProgress: number;
+  }
+> {
   const elStates = new Map<
     string,
-    { tx: number; ty: number; sx: number; sy: number; rot: number; opacity: number }
+    {
+      tx: number;
+      ty: number;
+      sx: number;
+      sy: number;
+      rot: number;
+      opacity: number;
+      drawProgress: number;
+    }
   >();
 
   // Pre-build target lookup map for O(1) access
@@ -56,14 +102,33 @@ export function buildElementAnimationStates(
       scaleY: sy,
       rotation: rot,
       opacity,
+      drawProgress,
     } = state;
-    if (tx === 0 && ty === 0 && sx === 1 && sy === 1 && rot === 0 && opacity === 1) continue;
+    if (
+      tx === 0 &&
+      ty === 0 &&
+      sx === 1 &&
+      sy === 1 &&
+      rot === 0 &&
+      opacity === 1 &&
+      drawProgress === 1
+    ) {
+      continue;
+    }
 
     // Skip group entries — their transforms are already composed into
     // member element entries by computeFrame's hierarchy cascade.
     if (groupIds.has(tid)) continue;
 
-    const p = elStates.get(tid) ?? { tx: 0, ty: 0, sx: 1, sy: 1, rot: 0, opacity: 1 };
+    const p = elStates.get(tid) ?? {
+      tx: 0,
+      ty: 0,
+      sx: 1,
+      sy: 1,
+      rot: 0,
+      opacity: 1,
+      drawProgress: 1,
+    };
     elStates.set(tid, {
       tx: p.tx + tx,
       ty: p.ty + ty,
@@ -71,6 +136,7 @@ export function buildElementAnimationStates(
       sy: p.sy * sy,
       rot: p.rot + rot,
       opacity: p.opacity * opacity,
+      drawProgress,
     });
   }
 
@@ -122,6 +188,7 @@ export function applyAnimationToElements(
             sy: textState.sy * containerState.sy,
             rot: textState.rot + containerState.rot,
             opacity: textState.opacity * containerState.opacity,
+            drawProgress: textState.drawProgress,
           });
         } else {
           // Text has no own animation — inherit container's state
@@ -164,6 +231,12 @@ export function applyAnimationToElements(
         a.sx !== 1 ? px * a.sx : px,
         a.sy !== 1 ? py * a.sy : py,
       ]);
+      if (a.drawProgress < 1) {
+        c.points = trimPointsByProgress(c.points, a.drawProgress);
+        if (a.drawProgress <= 0) {
+          c.opacity = 0;
+        }
+      }
     }
 
     // Arrow binding: when bound shapes move, adjust arrow endpoints
@@ -235,5 +308,52 @@ export function applyAnimationToElements(
     }
 
     return c as ExcalidrawElement;
+  });
+}
+
+function trimPointsByProgress(points: number[][], progress: number): number[][] {
+  if (points.length < 2 || progress >= 1) return points;
+  const clamped = Math.max(0, Math.min(1, progress));
+  const lengths = points
+    .slice(1)
+    .map((point, index) => Math.hypot(point[0] - points[index][0], point[1] - points[index][1]));
+  const targetLength = lengths.reduce((total, length) => total + length, 0) * clamped;
+  const trimmed: number[][] = [[...points[0]]];
+  let consumed = 0;
+  for (let index = 0; index < lengths.length; index += 1) {
+    const segmentLength = lengths[index];
+    const start = points[index];
+    const end = points[index + 1];
+    if (consumed + segmentLength <= targetLength) {
+      trimmed.push([...end]);
+      consumed += segmentLength;
+      continue;
+    }
+    const fraction =
+      segmentLength === 0 ? 0 : Math.max(0, (targetLength - consumed) / segmentLength);
+    trimmed.push([
+      start[0] + (end[0] - start[0]) * fraction,
+      start[1] + (end[1] - start[1]) * fraction,
+    ]);
+    break;
+  }
+  const tip = trimmed.at(-1) ?? points[0];
+  while (trimmed.length < points.length) {
+    trimmed.push([...tip]);
+  }
+  return trimmed;
+}
+
+export function mergeNormalizedElementsIntoSource(
+  source: readonly ExcalidrawElement[],
+  normalized: readonly ExcalidrawElement[],
+): ExcalidrawElement[] {
+  const normalizedById = new Map(normalized.map((element) => [element.id, element]));
+  return source.map((element) => {
+    if (element.isDeleted) return element;
+    const normalizedElement = normalizedById.get(element.id);
+    return normalizedElement
+      ? ({ ...normalizedElement, ...element } as ExcalidrawElement)
+      : element;
   });
 }
