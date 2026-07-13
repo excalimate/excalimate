@@ -54,6 +54,13 @@ layers. Draw progress cannot be represented on those raster layers, so they
 remain fully drawn and export preflight announces the fallback. It is never
 silently omitted.
 
+## MCP live preview
+
+Start the MCP server and connect the MCP client to its `/mcp` endpoint. Each
+initialized transport prints an unguessable `/p/...` preview pairing URL. Paste
+that URL into **File > Preferences**, then select **Live**. A bare server URL is
+not accepted because it does not identify an isolated MCP session.
+
 ## Sharing
 
 Share creates an encrypted V2 envelope containing the project and PlayerPackage.
