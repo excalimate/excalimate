@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Capture-state and Create-transition controls remain visible on responsive layouts and explain missing prerequisites before transition creation.
 - Project, template, share, player, export, and MCP paths maintain schema, animation, camera, file, and managed-action parity across surfaces.
 - Smart Transition and Sequence customization no longer silently overwrite detached, customized, or unmanaged animation work.
+- MCP live setup now requires the printed session pairing URL instead of attempting an unpaired server connection.
 
 ### Security
 
