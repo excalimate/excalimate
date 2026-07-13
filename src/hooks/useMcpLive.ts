@@ -6,20 +6,36 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useAnimationStore } from '../stores/animationStore';
+import { PROJECT_LIMITS } from '@excalimate/project-schema';
 import { usePlaybackStore } from '../stores/playbackStore';
-import { useProjectStore } from '../stores/projectStore';
 import { useUIStore } from '../stores/uiStore';
-import { extractTargets } from '../components/Canvas/extractTargets';
 import { computeFrameAtTime } from '../core/engine/playbackSingleton';
 import { trackMcpAction } from '../services/analytics/posthog';
 import { readPreference, storePreference } from '../services/analytics/consent';
 import { OPTIONAL_STORAGE_KEYS } from '../services/privacy/dataInventory';
+import {
+  captureProjectDocument,
+  loadProjectDocumentIntoStores,
+} from '../services/ProjectDocumentService';
+import {
+  classifyMcpDelta,
+  createMcpStateSyncQueue,
+  mergeMcpStateDelta,
+  parseMcpDelta,
+  parseMcpSnapshot,
+  projectFromMcpSnapshot,
+} from './mcpLiveState';
+import type { McpStateCursor } from './mcpLiveState';
+import type { McpStateSyncQueue } from './mcpLiveState';
+import { createMcpConnectionGeneration } from './mcpConnectionGeneration';
 
 const STORAGE_KEY = OPTIONAL_STORAGE_KEYS.mcpUrl;
 
 /** Decompress a gzip+base64 encoded string using the browser's DecompressionStream API. */
 async function decompressGzBase64(b64: string): Promise<string> {
+  if (b64.length > PROJECT_LIMITS.maxInputBytes * 2) {
+    throw new Error('Compressed MCP payload exceeds the transfer limit');
+  }
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -31,9 +47,15 @@ async function decompressGzBase64(b64: string): Promise<string> {
 
   const reader = ds.readable.getReader();
   const chunks: Uint8Array[] = [];
+  let decompressedBytes = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
+    decompressedBytes += value.byteLength;
+    if (decompressedBytes > PROJECT_LIMITS.maxInputBytes) {
+      await reader.cancel();
+      throw new Error('MCP payload exceeds the transfer limit');
+    }
     chunks.push(value);
   }
 
@@ -79,6 +101,9 @@ export function useMcpLive() {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const intentionalDisconnectRef = useRef(false);
+  const cursorRef = useRef<McpStateCursor | null>(null);
+  const syncQueueRef = useRef<McpStateSyncQueue | null>(null);
+  const connectionGenerationRef = useRef(createMcpConnectionGeneration());
 
   const setLiveUrl = useCallback((url: string) => {
     setLiveUrlState(url);
@@ -89,33 +114,119 @@ export function useMcpLive() {
     setLastError(null);
   }, []);
 
-  /** Fetch full state from the server and apply it. */
-  async function syncState(url: string): Promise<void> {
-    // Cancel any in-flight fetch from a previous sync
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+  const applyProjectState = useCallback(
+    (project: Parameters<typeof loadProjectDocumentIntoStores>[0]): void => {
+      loadProjectDocumentIntoStores(project, {
+        activateAnimationMode: true,
+        pushUndo: false,
+        trackWorkspaceChange: false,
+      });
+      queueMicrotask(() => {
+        computeFrameAtTime(usePlaybackStore.getState().currentTime);
+      });
+    },
+    [],
+  );
 
-    const timeoutId = setTimeout(() => controller.abort(), STATE_FETCH_TIMEOUT_MS);
-    try {
-      const res = await fetch(`${url}/state`, { signal: controller.signal });
-      if (!res.ok) {
-        console.error('[MCP Live] Failed to fetch state:', res.statusText);
-        return;
+  const syncState = useCallback(
+    async (url: string): Promise<void> => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      const timeoutId = setTimeout(() => controller.abort(), STATE_FETCH_TIMEOUT_MS);
+      try {
+        const res = await fetch(`${url}/state`, {
+          signal: controller.signal,
+          credentials: 'omit',
+          referrerPolicy: 'no-referrer',
+        });
+        if (!res.ok) {
+          throw new Error(`MCP state request failed with status ${res.status}`);
+        }
+        const declaredLength = Number(res.headers.get('content-length'));
+        if (Number.isFinite(declaredLength) && declaredLength > PROJECT_LIMITS.maxInputBytes) {
+          throw new Error('MCP state snapshot exceeds the transfer limit');
+        }
+        const json = await res.text();
+        if (new TextEncoder().encode(json).byteLength > PROJECT_LIMITS.maxInputBytes) {
+          throw new Error('MCP state snapshot exceeds the transfer limit');
+        }
+        const snapshot = parseMcpSnapshot(JSON.parse(json));
+        applyProjectState(projectFromMcpSnapshot(snapshot));
+        cursorRef.current = {
+          revision: snapshot.revision,
+          sequence: snapshot.sequence,
+        };
+        setLastError(null);
+      } catch (e) {
+        if ((e as Error).name !== 'AbortError') {
+          console.error('[MCP Live] State synchronization failed');
+          setLastError('invalid_state');
+        }
+      } finally {
+        clearTimeout(timeoutId);
       }
-      const state = await res.json();
-      if (state?.scene?.elements) {
-        applyState(state);
+    },
+    [applyProjectState],
+  );
+
+  const requestStateSync = useCallback(
+    (url: string): Promise<void> => {
+      if (!syncQueueRef.current) {
+        syncQueueRef.current = createMcpStateSyncQueue(syncState);
       }
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') {
-        console.error('[MCP Live] Failed to fetch state:', e);
-        setLastError('connection_failed');
+      return syncQueueRef.current.request(url);
+    },
+    [syncState],
+  );
+
+  const applyDelta = useCallback(
+    (input: unknown, url: string): void => {
+      try {
+        const delta = parseMcpDelta(input);
+        if (syncQueueRef.current?.syncing) {
+          void requestStateSync(url);
+          return;
+        }
+        const disposition = classifyMcpDelta(cursorRef.current, delta);
+        if (disposition === 'stale') return;
+        if (disposition === 'resync') {
+          void requestStateSync(url);
+          return;
+        }
+        const current = captureProjectDocument({ touchUpdatedAt: false });
+        if (!current) {
+          void requestStateSync(url);
+          return;
+        }
+        applyProjectState(mergeMcpStateDelta(current, delta));
+        cursorRef.current = {
+          revision: delta.revision,
+          sequence: delta.sequence,
+        };
+        setLastError(null);
+      } catch {
+        console.error('[MCP Live] Rejected an invalid state delta');
+        setLastError('invalid_state');
+        void requestStateSync(url);
       }
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
+    },
+    [applyProjectState, requestStateSync],
+  );
+
+  const handleLiveMessage = useCallback(
+    (input: unknown, url: string): void => {
+      if (!input || typeof input !== 'object') {
+        throw new Error('Invalid MCP live message');
+      }
+      const message = input as Record<string, unknown>;
+      if (message['type'] === 'state') {
+        applyDelta(message['state'], url);
+      }
+    },
+    [applyDelta],
+  );
 
   /** Compute reconnect delay with exponential backoff + jitter. */
   function getReconnectDelay(): number {
@@ -131,7 +242,9 @@ export function useMcpLive() {
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
       abortRef.current?.abort();
+      syncQueueRef.current?.reset();
       eventSourceRef.current?.close();
+      cursorRef.current = null;
       intentionalDisconnectRef.current = false;
       reconnectAttemptRef.current = 0;
       setLastError(null);
@@ -139,11 +252,15 @@ export function useMcpLive() {
       function openConnection(isReconnect = false) {
         setStatus(isReconnect ? 'reconnecting' : 'connecting');
 
+        const generation = connectionGenerationRef.current.next();
         const es = new EventSource(`${url}/live`);
         eventSourceRef.current = es;
         let hasConnected = false;
-
+        const isCurrentConnection = () =>
+          connectionGenerationRef.current.isCurrent(generation) && eventSourceRef.current === es;
         es.onopen = () => {
+          if (!isCurrentConnection()) return;
+          if (!isCurrentConnection()) return;
           if (import.meta.env.DEV) console.log('[MCP Live] Connected to', url);
           hasConnected = true;
           reconnectAttemptRef.current = 0;
@@ -152,36 +269,50 @@ export function useMcpLive() {
           trackMcpAction('connect');
 
           // Re-sync full state on every (re)connect to recover from missed SSE messages
-          syncState(url);
+          void requestStateSync(url);
         };
 
         es.onmessage = (event) => {
+          if (!isCurrentConnection()) return;
           try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'state' && data.state) {
-              applyState(data.state);
-            } else if (data.type === 'gz' && data.data) {
+            const data: unknown = JSON.parse(event.data);
+            if (
+              data &&
+              typeof data === 'object' &&
+              (data as Record<string, unknown>)['type'] === 'gz' &&
+              typeof (data as Record<string, unknown>)['data'] === 'string'
+            ) {
               // Decompress gzipped SSE payload
-              decompressGzBase64(data.data).then(
+              decompressGzBase64((data as Record<string, string>)['data']).then(
                 (json) => {
+                  if (!isCurrentConnection()) return;
                   try {
-                    const parsed = JSON.parse(json);
-                    if (parsed.type === 'state' && parsed.state) {
-                      applyState(parsed.state);
-                    }
-                  } catch (e) {
-                    console.error('[MCP Live] Parse error after decompress:', e);
+                    handleLiveMessage(JSON.parse(json), url);
+                  } catch {
+                    console.error('[MCP Live] Rejected an invalid compressed message');
+                    setLastError('invalid_state');
+                    void requestStateSync(url);
                   }
                 },
-                (err) => console.error('[MCP Live] Decompress error:', err),
+                () => {
+                  if (!isCurrentConnection()) return;
+                  console.error('[MCP Live] Rejected an invalid compressed payload');
+                  setLastError('invalid_state');
+                  void requestStateSync(url);
+                },
               );
+            } else {
+              handleLiveMessage(data, url);
             }
-          } catch (e) {
-            console.error('[MCP Live] Parse error:', e);
+          } catch {
+            console.error('[MCP Live] Rejected an invalid live message');
+            setLastError('invalid_state');
+            void requestStateSync(url);
           }
         };
 
         es.onerror = () => {
+          if (!isCurrentConnection()) return;
           es.close();
           eventSourceRef.current = null;
 
@@ -211,16 +342,19 @@ export function useMcpLive() {
       openConnection();
       setLiveUrl(url);
     },
-    [setLiveUrl],
+    [handleLiveMessage, requestStateSync, setLiveUrl],
   );
 
   const disconnect = useCallback(() => {
     intentionalDisconnectRef.current = true;
+    connectionGenerationRef.current.invalidate();
     if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
     reconnectTimerRef.current = null;
     abortRef.current?.abort();
+    syncQueueRef.current?.reset();
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
+    cursorRef.current = null;
     reconnectAttemptRef.current = 0;
     useUIStore.getState().setLiveMode(false);
     setStatus('disconnected');
@@ -230,10 +364,13 @@ export function useMcpLive() {
 
   // Cleanup on unmount
   useEffect(() => {
+    const connectionGeneration = connectionGenerationRef.current;
     return () => {
       intentionalDisconnectRef.current = true;
+      connectionGeneration.invalidate();
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       abortRef.current?.abort();
+      syncQueueRef.current?.reset();
       eventSourceRef.current?.close();
     };
   }, []);
@@ -242,168 +379,4 @@ export function useMcpLive() {
   const connected = status === 'connected';
 
   return { connected, status, connect, disconnect, liveUrl, setLiveUrl, lastError, clearError };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyState(state: any) {
-  // ── Batch all store mutations ──────────────────────────────────
-  // Supports both full-state messages (from /state endpoint on reconnect)
-  // and delta messages (from SSE with upsert/removed fields).
-
-  // 1. Scene
-  if (state.scene) {
-    const projectStore = useProjectStore.getState();
-    const currentProject = projectStore.project;
-
-    // Detect delta format (has upsert/removed) vs full format (has elements array)
-    if (Array.isArray(state.scene.upsert) || Array.isArray(state.scene.removed)) {
-      // ── Delta scene update ──
-      if (currentProject?.scene) {
-        const currentElements = [...(currentProject.scene.elements ?? [])];
-
-        // Remove deleted elements
-        const removedSet = new Set<string>(state.scene.removed ?? []);
-        let elements =
-          removedSet.size > 0
-            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              currentElements.filter((el: any) => !removedSet.has(el.id))
-            : currentElements;
-
-        // Upsert (add or replace) elements
-        if (state.scene.upsert?.length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const upsertMap = new Map(state.scene.upsert.map((el: any) => [el.id, el]));
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          elements = elements.map((el: any) => upsertMap.get(el.id) ?? el);
-          // Add truly new elements (not in existing array)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const existingIds = new Set(elements.map((el: any) => el.id));
-          for (const el of state.scene.upsert) {
-            if (!existingIds.has(el.id)) elements.push(el);
-          }
-        }
-
-        // Elements from the server normalizer already have opacity: 100.
-        // No additional mapping needed for the delta path.
-
-        const currentAppState = currentProject.scene.appState ?? {};
-        projectStore.updateScene({
-          elements,
-          appState: currentAppState,
-          files: currentProject.scene.files ?? {},
-        });
-
-        // Only re-extract targets if element IDs changed (add/remove), not just property updates
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const prevIdSet = new Set(currentElements.map((e: any) => e.id));
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (removedSet.size > 0 || state.scene.upsert?.some((el: any) => !prevIdSet.has(el.id))) {
-          const targets = extractTargets(elements);
-          projectStore.setTargets(targets);
-        }
-      }
-    } else if (state.scene.elements) {
-      // ── Full scene replacement (reconnect / initial sync) ──
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const elements = state.scene.elements.map((el: any) => ({ ...el, opacity: 100 }));
-
-      if (!currentProject) {
-        projectStore.createNewProject('MCP Live', {
-          elements,
-          appState: state.scene.appState ?? {},
-          files: state.scene.files ?? {},
-        });
-      } else {
-        const currentAppState = currentProject.scene?.appState ?? {};
-        const scene = {
-          elements,
-          appState: { ...currentAppState, ...(state.scene.appState ?? {}) },
-          files: { ...(currentProject.scene?.files ?? {}), ...(state.scene.files ?? {}) },
-        };
-        projectStore.updateScene(scene);
-      }
-
-      const targets = extractTargets(elements);
-      projectStore.setTargets(targets);
-    }
-  }
-
-  // 2. Animation store
-  if (state.timeline) {
-    const animStore = useAnimationStore.getState();
-
-    // Detect delta format (has upsertedTracks/removedTrackIds) vs full format (has tracks array)
-    if (
-      Array.isArray(state.timeline.upsertedTracks) ||
-      Array.isArray(state.timeline.removedTrackIds)
-    ) {
-      // ── Delta timeline update ──
-      const currentTimeline = animStore.timeline;
-      let tracks = [...currentTimeline.tracks];
-
-      // Remove deleted tracks
-      if (state.timeline.removedTrackIds?.length > 0) {
-        const removedSet = new Set<string>(state.timeline.removedTrackIds);
-        tracks = tracks.filter((t) => !removedSet.has(t.id));
-      }
-
-      // Upsert tracks
-      if (state.timeline.upsertedTracks?.length > 0) {
-        const upsertMap = new Map<string, (typeof tracks)[number]>(
-          state.timeline.upsertedTracks.map((track: (typeof tracks)[number]) => [track.id, track]),
-        );
-        tracks = tracks.map((track) => upsertMap.get(track.id) ?? track);
-        const existingIds = new Set(tracks.map((t) => t.id));
-        for (const t of state.timeline.upsertedTracks) {
-          if (!existingIds.has(t.id)) tracks.push(t);
-        }
-      }
-
-      // Update metadata if present
-      const duration = state.timeline.meta?.duration ?? currentTimeline.duration;
-      const fps = state.timeline.meta?.fps ?? currentTimeline.fps;
-
-      const updates: Record<string, unknown> = {
-        timeline: { ...currentTimeline, tracks, duration, fps },
-      };
-
-      // Switch to animate mode when tracks appear
-      if (tracks.length > 0 && useUIStore.getState().mode !== 'animate') {
-        useUIStore.getState().setMode('animate');
-      }
-
-      useAnimationStore.setState(updates);
-    } else if (state.timeline.tracks) {
-      // ── Full timeline replacement ──
-      const updates: Record<string, unknown> = { timeline: state.timeline };
-
-      if (state.timeline.tracks.length > 0 && useUIStore.getState().mode !== 'animate') {
-        useUIStore.getState().setMode('animate');
-      }
-
-      useAnimationStore.setState(updates);
-    }
-  }
-
-  // Clip range (unchanged — always small payload)
-  if (state.clipStart !== undefined && state.clipEnd !== undefined) {
-    useAnimationStore.setState({
-      clipStart: Math.max(0, state.clipStart),
-      clipEnd: Math.max(state.clipStart + 100, state.clipEnd),
-    });
-  }
-
-  // 3. Camera frame
-  if (state.cameraFrame) {
-    useProjectStore.getState().setCameraFrame(state.cameraFrame);
-  }
-
-  // 4. Recompute animation frame AFTER all stores are updated — but only
-  // when scene or timeline actually changed (not for clip-only or camera-only updates).
-  if (state.scene || state.timeline) {
-    queueMicrotask(() => {
-      const currentTime = usePlaybackStore.getState().currentTime;
-      computeFrameAtTime(currentTime);
-    });
-  }
 }

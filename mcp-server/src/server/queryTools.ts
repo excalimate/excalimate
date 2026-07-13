@@ -22,7 +22,7 @@ export function registerQueryTools(
   ctx: StateContext,
   geometry: Geometry,
 ): void {
-  server.tool(
+  ctx.tool(
     'are_items_in_line',
     'Check if the given items are aligned horizontally or vertically (within a tolerance).',
     {
@@ -48,7 +48,7 @@ export function registerQueryTools(
     },
   );
 
-  server.tool(
+  ctx.tool(
     'is_camera_centered',
     'Check if the camera is centered on the scene content (horizontally, vertically, or both).',
     {
@@ -74,7 +74,7 @@ export function registerQueryTools(
     },
   );
 
-  server.tool(
+  ctx.tool(
     'items_visible_in_camera',
     'Check what percentage of items are visible in the camera frame at a given time.',
     {
@@ -101,7 +101,7 @@ export function registerQueryTools(
     },
   );
 
-  server.tool(
+  ctx.tool(
     'animations_of_item',
     'Returns a timeline description of all animations an item goes through.',
     {

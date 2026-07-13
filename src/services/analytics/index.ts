@@ -3,9 +3,12 @@ export {
   enableCapture,
   disableCapture,
   initializeAnalyticsFromConsent,
+  trackCreatorEvent,
+  sanitizeCreatorAnalyticsPayload,
   trackExport,
   trackShare,
 } from './posthog';
+export type { CreatorAnalyticsEventMap } from './posthog';
 export {
   CONSENT_KEY,
   CONSENT_VERSION,

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import type { ServerState } from './types.js';
+import { parseServerState, serializeServerState } from './state.js';
 
 const MAX_CHECKPOINT_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_CHECKPOINTS = 100;
@@ -32,8 +33,8 @@ export class FileCheckpointStore implements CheckpointStore {
 
   async save(id: string, data: ServerState): Promise<void> {
     validateId(id);
-    const serialized = JSON.stringify(data);
-    if (serialized.length > MAX_CHECKPOINT_BYTES) {
+    const serialized = serializeServerState(data);
+    if (Buffer.byteLength(serialized, 'utf8') > MAX_CHECKPOINT_BYTES) {
       throw new Error(`Checkpoint exceeds ${MAX_CHECKPOINT_BYTES} byte limit`);
     }
     const filePath = path.join(this.dir, `${id}.json`);
@@ -52,9 +53,10 @@ export class FileCheckpointStore implements CheckpointStore {
     }
     try {
       const raw = await fs.promises.readFile(filePath, 'utf-8');
-      return JSON.parse(raw);
-    } catch {
-      return null;
+      return parseServerState(JSON.parse(raw));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw error;
     }
   }
 
@@ -62,8 +64,9 @@ export class FileCheckpointStore implements CheckpointStore {
     try {
       const entries = await fs.promises.readdir(this.dir);
       return entries.filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''));
-    } catch {
-      return [];
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw error;
     }
   }
 
@@ -92,12 +95,12 @@ export class FileCheckpointStore implements CheckpointStore {
           const code = (err as NodeJS.ErrnoException).code;
           // ENOENT is expected (concurrent delete) — log anything else
           if (code !== 'ENOENT') {
-            console.warn(`[checkpoint] Failed to prune ${f.name}:`, err);
+            console.warn(`[checkpoint] Failed to prune ${f.name}`);
           }
         }
       }));
-    } catch (err) {
-      console.warn('[checkpoint] Prune scan failed:', err);
+    } catch {
+      console.warn('[checkpoint] Prune scan failed');
     } finally {
       this._pruning = false;
     }
@@ -109,8 +112,10 @@ export class MemoryCheckpointStore implements CheckpointStore {
 
   async save(id: string, data: ServerState): Promise<void> {
     validateId(id);
-    const serialized = JSON.stringify(data);
-    if (serialized.length > MAX_CHECKPOINT_BYTES) throw new Error('Checkpoint too large');
+    const serialized = serializeServerState(data);
+    if (Buffer.byteLength(serialized, 'utf8') > MAX_CHECKPOINT_BYTES) {
+      throw new Error('Checkpoint too large');
+    }
     this.store.set(id, serialized);
     if (this.store.size > MAX_CHECKPOINTS) {
       const oldest = this.store.keys().next().value;
@@ -122,7 +127,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
     validateId(id);
     const raw = this.store.get(id);
     if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
+    return parseServerState(JSON.parse(raw));
   }
 
   async list(): Promise<string[]> {

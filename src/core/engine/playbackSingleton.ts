@@ -16,6 +16,8 @@ let _controller: PlaybackController | null = null;
 const _engine = new AnimationEngine();
 let _cachedTargets: AnimatableTarget[] | null = null;
 let _cachedHierarchy: ReturnType<typeof buildGroupHierarchy> = {};
+let _hierarchyRevision = 0;
+let _transactionDepth = 0;
 
 /** Get or rebuild group hierarchy (cached by targets reference). */
 function getHierarchy(): ReturnType<typeof buildGroupHierarchy> {
@@ -23,14 +25,17 @@ function getHierarchy(): ReturnType<typeof buildGroupHierarchy> {
   if (targets !== _cachedTargets) {
     _cachedTargets = targets;
     _cachedHierarchy = buildGroupHierarchy(targets);
+    _hierarchyRevision += 1;
   }
   return _cachedHierarchy;
 }
 
 function recomputeFrameState(time: number): void {
-  _engine.invalidateCache();
-  const timeline = useAnimationStore.getState().timeline;
-  const frameState = _engine.computeFrame(timeline, time, getHierarchy());
+  const { timeline, timelineRevision } = useAnimationStore.getState();
+  const frameState = _engine.computeFrame(timeline, time, getHierarchy(), {
+    timelineRevision,
+    hierarchyRevision: _hierarchyRevision,
+  });
   usePlaybackStore.getState().setFrameState(frameState);
 }
 
@@ -42,7 +47,10 @@ export function getPlaybackController(): PlaybackController {
     _controller.onFrame((time: number) => {
       usePlaybackStore.getState().setCurrentTime(time);
       const timeline = useAnimationStore.getState().timeline;
-      const frameState = _engine.computeFrame(timeline, time, getHierarchy());
+      const frameState = _engine.computeFrame(timeline, time, getHierarchy(), {
+        timelineRevision: useAnimationStore.getState().timelineRevision,
+        hierarchyRevision: _hierarchyRevision,
+      });
       usePlaybackStore.getState().setFrameState(frameState);
     });
 
@@ -53,7 +61,11 @@ export function getPlaybackController(): PlaybackController {
     // Recompute frame state whenever timeline changes (tracks added/removed/modified, or undo/redo)
     useAnimationStore.subscribe((s, prev) => {
       _controller?.setDuration(s.timeline.duration);
-      if (s.timeline !== prev.timeline) {
+      if (
+        _transactionDepth === 0 &&
+        (s.timeline !== prev.timeline ||
+          s.timelineRevision !== prev.timelineRevision)
+      ) {
         recomputeFrameState(usePlaybackStore.getState().currentTime);
       }
     });
@@ -63,6 +75,21 @@ export function getPlaybackController(): PlaybackController {
 
 export function getAnimationEngine(): AnimationEngine {
   return _engine;
+}
+
+export function runAnimationStoreTransaction(
+  transaction: () => void,
+): void {
+  _transactionDepth += 1;
+  try {
+    transaction();
+  } finally {
+    _transactionDepth -= 1;
+  }
+}
+
+export function invalidatePlaybackCache(): void {
+  _engine.invalidateCache();
 }
 
 /**

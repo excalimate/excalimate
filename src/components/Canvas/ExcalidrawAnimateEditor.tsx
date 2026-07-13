@@ -20,7 +20,7 @@ import type React from 'react';
 import { Excalidraw, getNonDeletedElements } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
-import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { ExcalidrawSceneData } from '../../types/excalidraw';
 import type { FrameState } from '../../types/animation';
 import type { AnimatableTarget } from '../../types/excalidraw';
@@ -29,7 +29,14 @@ import { CAMERA_FRAME_TARGET_ID, useProjectStore, getFrameHeight } from '../../s
 import { useUndoRedoStore } from '../../stores/undoRedoStore';
 import { useUIStore } from '../../stores/uiStore';
 import { usePlaybackStore } from '../../stores/playbackStore';
-import { applyAnimationToElements } from '../../core/engine/renderUtils';
+import { useAnimationStore } from '../../stores/animationStore';
+import {
+  applyAnimationToElements,
+  collectAbsoluteOpacityTargetIds,
+  collectOpacityTrackTargetIds,
+  getRenderableAnimationElements,
+  mergeNormalizedElementsIntoSource,
+} from '../../core/engine/renderUtils';
 import { getCanvasViewport } from './canvasViewport';
 import { CameraFrameOverlay } from './CameraFrameOverlay';
 import { computeCameraOverlayPosition } from './cameraOverlayMath';
@@ -58,7 +65,9 @@ export interface AnimateEditorRefs {
   apiRef: React.RefObject<ExcalidrawImperativeAPI | null>;
   programmaticVersionRef: React.MutableRefObject<number>;
   lastProcessedVersionRef: React.MutableRefObject<number>;
-  lastAnimatedRef: React.MutableRefObject<Map<string, { x: number; y: number; width: number; height: number; angle: number }>>;
+  lastAnimatedRef: React.MutableRefObject<
+    Map<string, { x: number; y: number; width: number; height: number; angle: number }>
+  >;
   lastElementOrderRef: React.MutableRefObject<string>;
   initialRenderDoneRef: React.MutableRefObject<boolean>;
   sceneRef: React.MutableRefObject<ExcalidrawSceneData | null>;
@@ -92,7 +101,9 @@ export function ExcalidrawAnimateEditor({
   // Date.now()+100ms timestamp window which was a race condition.
   const programmaticVersionRef = useRef(0);
   const lastProcessedVersionRef = useRef(0);
-  const lastAnimatedRef = useRef<Map<string, { x: number; y: number; width: number; height: number; angle: number }>>(new Map());
+  const lastAnimatedRef = useRef<
+    Map<string, { x: number; y: number; width: number; height: number; angle: number }>
+  >(new Map());
   const lastElementOrderRef = useRef<string>('');
   const viewportRef = useRef(
     (() => {
@@ -110,6 +121,24 @@ export function ExcalidrawAnimateEditor({
   // Track whether we've done the initial render (skip first updateScene since
   // initialData already rendered elements correctly on the canvas).
   const initialRenderDoneRef = useRef(false);
+  const timeline = useAnimationStore((state) => state.timeline);
+  const opacityTrackTargetIds = useMemo(() => collectOpacityTrackTargetIds(timeline), [timeline]);
+  const revivedTombstoneIds = useMemo(
+    () =>
+      new Set(
+        scene?.elements
+          .filter(
+            (element: { id: string; isDeleted?: boolean }) =>
+              opacityTrackTargetIds.has(element.id) && element.isDeleted === true,
+          )
+          .map((element: { id: string }) => element.id) ?? [],
+      ),
+    [opacityTrackTargetIds, scene?.elements],
+  );
+  const absoluteOpacityTargetIds = useMemo(
+    () => collectAbsoluteOpacityTargetIds(scene?.elements ?? [], opacityTrackTargetIds),
+    [opacityTrackTargetIds, scene?.elements],
+  );
 
   // Compute a key from the set of element IDs.  When elements are
   // added/removed (MCP structural change), the key changes and the inner
@@ -119,7 +148,10 @@ export function ExcalidrawAnimateEditor({
   // stays the same so api.updateScene() handles property changes cheaply.
   const sceneKey = scene
     ? scene.elements
-        .filter((el: { isDeleted?: boolean }) => !el.isDeleted)
+        .filter(
+          (el: { id: string; isDeleted?: boolean }) =>
+            !el.isDeleted || revivedTombstoneIds.has(el.id),
+        )
         .map((el: { id: string }) => el.id)
         .join(',')
     : 'empty';
@@ -152,67 +184,91 @@ export function ExcalidrawAnimateEditor({
   const onDragRef = useRef(onDragElement);
   const onResizeRef = useRef(onResizeElement);
   const onRotateRef = useRef(onRotateElement);
-  useEffect(() => { onSelectRef.current = onSelectElements; }, [onSelectElements]);
-  useEffect(() => { onDragRef.current = onDragElement; }, [onDragElement]);
-  useEffect(() => { onResizeRef.current = onResizeElement; }, [onResizeElement]);
-  useEffect(() => { onRotateRef.current = onRotateElement; }, [onRotateElement]);
+  useEffect(() => {
+    onSelectRef.current = onSelectElements;
+  }, [onSelectElements]);
+  useEffect(() => {
+    onDragRef.current = onDragElement;
+  }, [onDragElement]);
+  useEffect(() => {
+    onResizeRef.current = onResizeElement;
+  }, [onResizeElement]);
+  useEffect(() => {
+    onRotateRef.current = onRotateElement;
+  }, [onRotateElement]);
 
   // Stable refs for animation data
   const sceneRef = useRef(scene);
   const targetsRef = useRef(targets);
   const frameStateRef = useRef(frameState);
-  useEffect(() => { sceneRef.current = scene; }, [scene]);
-  useEffect(() => { targetsRef.current = targets; }, [targets]);
-  useEffect(() => { frameStateRef.current = frameState; }, [frameState]);
+  useEffect(() => {
+    sceneRef.current = scene;
+  }, [scene]);
+  useEffect(() => {
+    targetsRef.current = targets;
+  }, [targets]);
+  useEffect(() => {
+    frameStateRef.current = frameState;
+  }, [frameState]);
 
-  const refs = useMemo<AnimateEditorRefs>(() => ({
-    apiRef,
-    programmaticVersionRef,
-    lastProcessedVersionRef,
-    lastAnimatedRef,
-    lastElementOrderRef,
-    initialRenderDoneRef,
-    sceneRef,
-    targetsRef,
-    frameStateRef,
-    onSelectRef,
-    onDragRef,
-    onResizeRef,
-    onRotateRef,
-    isDraggingRef,
-  }), []);
+  const refs = useMemo<AnimateEditorRefs>(
+    () => ({
+      apiRef,
+      programmaticVersionRef,
+      lastProcessedVersionRef,
+      lastAnimatedRef,
+      lastElementOrderRef,
+      initialRenderDoneRef,
+      sceneRef,
+      targetsRef,
+      frameStateRef,
+      onSelectRef,
+      onDragRef,
+      onResizeRef,
+      onRotateRef,
+      isDraggingRef,
+    }),
+    [],
+  );
 
   // ── API Ready ──────────────────────────────────────────────────
 
-  const handleApiReady = useCallback((api: ExcalidrawImperativeAPI) => {
-    apiRef.current = api;
+  const handleApiReady = useCallback(
+    (api: ExcalidrawImperativeAPI) => {
+      apiRef.current = api;
 
-    // After Excalidraw mounts and processes initialData, read back the
-    // normalized elements. Excalidraw adds internal properties (index,
-    // frameId, etc.) that are required for api.updateScene() to work
-    // correctly for canvas rendering. Without this, elements from
-    // external sources (e.g. MCP server) that lack these properties
-    // will be accepted by updateScene() but not painted on the canvas.
-    const normalizedElements = api.getSceneElements();
-    if (normalizedElements.length > 0) {
-      const currentScene = sceneRef.current;
-      if (currentScene) {
-        useProjectStore.getState().updateScene({
-          ...currentScene,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          elements: [...normalizedElements] as any,
-        });
+      // After Excalidraw mounts and processes initialData, read back the
+      // normalized elements. Excalidraw adds internal properties (index,
+      // frameId, etc.) that are required for api.updateScene() to work
+      // correctly for canvas rendering. Without this, elements from
+      // external sources (e.g. MCP server) that lack these properties
+      // will be accepted by updateScene() but not painted on the canvas.
+      const normalizedElements = api.getSceneElements();
+      if (normalizedElements.length > 0) {
+        const currentScene = sceneRef.current;
+        if (currentScene) {
+          useProjectStore.getState().updateScene({
+            ...currentScene,
+            elements: mergeNormalizedElementsIntoSource(
+              currentScene.elements as ExcalidrawElement[],
+              normalizedElements,
+            ),
+          });
+        }
       }
-    }
 
-    setReadyForKey(sceneKey);
-  }, [sceneKey]);
+      setReadyForKey(sceneKey);
+    },
+    [sceneKey],
+  );
 
   useExcalidrawAnimationSync({
     ready,
     scene,
     frameState,
     targets,
+    revivedTombstoneIds,
+    absoluteOpacityTargetIds,
     selectedElementIds,
     refs,
   });
@@ -221,15 +277,18 @@ export function ExcalidrawAnimateEditor({
   const [, setViewportTick] = useState(0);
   const rafRef = useRef(0);
 
-  const setViewportRef = useCallback((vp: { scrollX: number; scrollY: number; zoom: number; width: number; height: number }) => {
-    viewportRef.current = vp;
-    if (!rafRef.current) {
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = 0;
-        setViewportTick((t) => t + 1);
-      });
-    }
-  }, []);
+  const setViewportRef = useCallback(
+    (vp: { scrollX: number; scrollY: number; zoom: number; width: number; height: number }) => {
+      viewportRef.current = vp;
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = 0;
+          setViewportTick((t) => t + 1);
+        });
+      }
+    },
+    [],
+  );
 
   const handleChange = useExcalidrawChangeBridge({
     refs,
@@ -239,17 +298,24 @@ export function ExcalidrawAnimateEditor({
   // ── Camera frame drag/resize ──────────────────────────────────
 
   const camDragRef = useRef<{ startX: number; startY: number; handle?: string } | null>(null);
-  const [camDragOffset, setCamDragOffset] = useState<{ dx: number; dy: number; dScale: number } | null>(null);
+  const [camDragOffset, setCamDragOffset] = useState<{
+    dx: number;
+    dy: number;
+    dScale: number;
+  } | null>(null);
 
-  const handleCameraMouseDown = useCallback((e: React.MouseEvent, handle?: string) => {
-    e.stopPropagation();
-    useUndoRedoStore.getState().beginBatch();
-    useUndoRedoStore.getState().pushState();
-    camDragRef.current = { startX: e.clientX, startY: e.clientY, handle };
-    if (!selectedElementIds.includes(CAMERA_FRAME_TARGET_ID)) {
-      onSelectRef.current([CAMERA_FRAME_TARGET_ID]);
-    }
-  }, [selectedElementIds]);
+  const handleCameraMouseDown = useCallback(
+    (e: React.MouseEvent, handle?: string) => {
+      e.stopPropagation();
+      useUndoRedoStore.getState().beginBatch();
+      useUndoRedoStore.getState().pushState();
+      camDragRef.current = { startX: e.clientX, startY: e.clientY, handle };
+      if (!selectedElementIds.includes(CAMERA_FRAME_TARGET_ID)) {
+        onSelectRef.current([CAMERA_FRAME_TARGET_ID]);
+      }
+    },
+    [selectedElementIds],
+  );
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -327,7 +393,10 @@ export function ExcalidrawAnimateEditor({
     if (elements.length === 0) return null;
 
     // Bounding box of all elements
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const el of elements) {
       minX = Math.min(minX, el.x);
       minY = Math.min(minY, el.y);
@@ -374,19 +443,27 @@ export function ExcalidrawAnimateEditor({
   const initialData = useMemo(() => {
     if (!scene) return undefined;
 
-    const rawElements = getNonDeletedElements(scene.elements as ExcalidrawElement[]) as NonDeletedExcalidrawElement[];
+    const rawElements = getRenderableAnimationElements(
+      scene.elements as ExcalidrawElement[],
+      revivedTombstoneIds,
+    );
     // Apply current animation state so the canvas is correct from the first frame
     const latestFrame = usePlaybackStore.getState().frameState;
     const latestTargets = useProjectStore.getState().targets;
-    let elements = applyAnimationToElements(rawElements, latestFrame, latestTargets);
+    let elements = applyAnimationToElements(
+      rawElements,
+      latestFrame,
+      latestTargets,
+      absoluteOpacityTargetIds,
+    );
 
     // Ghost mode: make hidden elements more visible for authoring
     const ghostMode = useUIStore.getState().ghostMode;
     if (ghostMode) {
-      elements = elements.map(el => {
+      elements = elements.map((el) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const opacity = (el as any).opacity ?? 100;
-        return opacity < 15 ? { ...el, opacity: 15 } as typeof el : el;
+        return opacity < 15 ? ({ ...el, opacity: 15 } as typeof el) : el;
       });
     }
 
@@ -394,13 +471,15 @@ export function ExcalidrawAnimateEditor({
       elements,
       appState: {
         ...scene.appState,
-        ...(initialViewport ? {
-          scrollX: initialViewport.scrollX,
-          scrollY: initialViewport.scrollY,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          zoom: { value: initialViewport.zoom } as any,
-        } : {}),
-        selectedElementIds: Object.fromEntries(selectedElementIds.map(id => [id, true as const])),
+        ...(initialViewport
+          ? {
+              scrollX: initialViewport.scrollX,
+              scrollY: initialViewport.scrollY,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              zoom: { value: initialViewport.zoom } as any,
+            }
+          : {}),
+        selectedElementIds: Object.fromEntries(selectedElementIds.map((id) => [id, true as const])),
       },
       files: scene.files,
     };
@@ -433,17 +512,24 @@ export function ExcalidrawAnimateEditor({
 
   if (!scene) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500">
-        No scene loaded
-      </div>
+      <div className="flex items-center justify-center h-full text-gray-500">No scene loaded</div>
     );
   }
 
-  const overlayPosition = computeCameraOverlayPosition(cameraFrame, frameState, camDragOffset, viewportRef.current);
+  const overlayPosition = computeCameraOverlayPosition(
+    cameraFrame,
+    frameState,
+    camDragOffset,
+    viewportRef.current,
+  );
   const isFrameSelected = selectedElementIds.includes(CAMERA_FRAME_TARGET_ID);
 
   return (
-    <div ref={containerRef} className="excalidraw-wrapper excalidraw-animate-mode" style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div
+      ref={containerRef}
+      className="excalidraw-wrapper excalidraw-animate-mode"
+      style={{ width: '100%', height: '100%', position: 'relative' }}
+    >
       <Excalidraw
         key={sceneKey}
         excalidrawAPI={handleApiReady}

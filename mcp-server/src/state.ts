@@ -1,27 +1,104 @@
-/**
- * Server state management — in-memory state for the current MCP session.
- */
-
+import {
+  addKeyframeToTrack,
+  createKeyframeWithId,
+  detachAction,
+  generatedContentHash,
+  sortKeyframes,
+} from '@excalimate/animation-core';
+import {
+  CAMERA_FRAME_TARGET_ID,
+  PROJECT_VERSION,
+  encodeProjectDocument,
+  parseProjectContent,
+  parseProjectDocument,
+} from '@excalimate/project-schema';
 import { nanoid } from 'nanoid';
-import type { ServerState, AnimationTrack, Keyframe, AnimatableProperty, EasingType } from './types.js';
+import type {
+  AnimatableProperty,
+  AnimationTrack,
+  EasingType,
+  Keyframe,
+  ProjectAuthoring,
+  ServerState,
+} from './types.js';
 
-export function createDefaultState(): ServerState {
+function createAuthoring(): ProjectAuthoring {
   return {
-    scene: { elements: [], files: {} },
-    timeline: {
-      id: nanoid(),
-      name: 'Timeline 1',
-      duration: 30000,
-      fps: 30,
-      tracks: [],
-    },
-    clipStart: 0,
-    clipEnd: 10000,
-    cameraFrame: { aspectRatio: '16:9', width: 1200, x: 0, y: 0 },
+    version: 1,
+    documentRevision: 0,
+    timelineRevision: 0,
+    actions: [],
   };
 }
 
-// ── Track/Keyframe helpers ────────────────────────────────────
+export function createDefaultState(): ServerState {
+  const now = new Date().toISOString();
+  return parseProjectDocument({
+    version: PROJECT_VERSION,
+    metadata: {
+      id: nanoid(),
+      name: 'MCP Project',
+      createdAt: now,
+      updatedAt: now,
+    },
+    scene: { elements: [], appState: {}, files: {} },
+    timeline: {
+      id: nanoid(),
+      name: 'Timeline 1',
+      duration: 30_000,
+      fps: 30,
+      tracks: [],
+    },
+    playback: {
+      clipStart: 0,
+      clipEnd: 10_000,
+      cameraFrame: {
+        aspectRatio: '16:9',
+        width: 1_200,
+        x: 0,
+        y: 0,
+      },
+    },
+    authoring: createAuthoring(),
+    preferredWorkspace: 'magic',
+  });
+}
+
+export function parseServerState(input: unknown): ServerState {
+  if (
+    typeof input === 'object' &&
+    input !== null &&
+    Reflect.get(input, 'version') !== undefined
+  ) {
+    const parsed = parseProjectDocument(input);
+    return parsed.authoring
+      ? parsed
+      : parseProjectDocument({ ...parsed, authoring: createAuthoring() });
+  }
+
+  const content = parseProjectContent(input);
+  const now = new Date().toISOString();
+  return parseProjectDocument({
+    version: PROJECT_VERSION,
+    metadata: {
+      id: nanoid(),
+      name: content.name ?? 'Imported MCP checkpoint',
+      createdAt: now,
+      updatedAt: now,
+    },
+    scene: content.scene,
+    timeline: content.timeline,
+    playback: content.playback,
+    authoring: content.authoring ?? createAuthoring(),
+    ...(content.preferredWorkspace
+      ? { preferredWorkspace: content.preferredWorkspace }
+      : {}),
+  });
+}
+
+export function serializeServerState(state: ServerState): string {
+  return encodeProjectDocument(state);
+}
 
 export function createTrack(
   targetId: string,
@@ -38,17 +115,12 @@ export function createTrack(
   };
 }
 
-export function createKeyframe(time: number, value: number, easing: EasingType = 'linear'): Keyframe {
-  return { id: nanoid(), time, value, easing };
-}
-
-export function addKeyframeToTrack(track: AnimationTrack, kf: Keyframe): AnimationTrack {
-  const keyframes = [...track.keyframes, kf].sort((a, b) => a.time - b.time);
-  return { ...track, keyframes };
-}
-
-export function removeKeyframeFromTrack(track: AnimationTrack, keyframeId: string): AnimationTrack {
-  return { ...track, keyframes: track.keyframes.filter(kf => kf.id !== keyframeId) };
+export function createKeyframe(
+  time: number,
+  value: number,
+  easing: EasingType = 'linear',
+): Keyframe {
+  return createKeyframeWithId(nanoid(), time, value, easing);
 }
 
 export function ensureTrack(
@@ -57,11 +129,15 @@ export function ensureTrack(
   property: AnimatableProperty,
 ): { state: ServerState; track: AnimationTrack } {
   let track = state.timeline.tracks.find(
-    t => t.targetId === targetId && t.property === property,
+    (candidate) =>
+      candidate.targetId === targetId && candidate.property === property,
   );
   if (!track) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const targetType = state.scene.elements.some((e: any) => e.id === targetId) ? 'element' as const : 'group' as const;
+    const targetType =
+      targetId === CAMERA_FRAME_TARGET_ID ||
+      state.scene.elements.some((element) => element.id === targetId)
+        ? 'element'
+        : 'group';
     track = createTrack(targetId, targetType, property);
     state = {
       ...state,
@@ -82,75 +158,81 @@ export function addKeyframeToState(
   value: number,
   easing: EasingType = 'linear',
 ): ServerState {
-  const { state: s, track } = ensureTrack(state, targetId, property);
-  const kf = createKeyframe(time, value, easing);
-  const updatedTrack = addKeyframeToTrack(track, kf);
+  const { state: withTrack, track } = ensureTrack(state, targetId, property);
+  const updatedTrack = addKeyframeToTrack(
+    track,
+    createKeyframe(time, value, easing),
+  );
   return {
-    ...s,
+    ...withTrack,
     timeline: {
-      ...s.timeline,
-      tracks: s.timeline.tracks.map(t => t.id === updatedTrack.id ? updatedTrack : t),
+      ...withTrack.timeline,
+      tracks: withTrack.timeline.tracks.map((candidate) =>
+        candidate.id === updatedTrack.id ? updatedTrack : candidate,
+      ),
     },
   };
 }
 
-/**
- * Batch-add many keyframes in a single pass, avoiding per-keyframe state cloning.
- *
- * Groups keyframes by (targetId, property), creates/finds tracks once per group,
- * appends all keyframes at once, sorts each track once at the end.
- * Returns the final state in one shot.
- */
 export function addKeyframesBatchToState(
   state: ServerState,
-  keyframes: { targetId: string; property: AnimatableProperty; time: number; value: number; easing?: EasingType }[],
+  keyframes: {
+    targetId: string;
+    property: AnimatableProperty;
+    time: number;
+    value: number;
+    easing?: EasingType;
+  }[],
 ): ServerState {
   if (keyframes.length === 0) return state;
 
-  // Build a mutable copy of tracks array (shallow — track objects reused until modified)
   const tracks = [...state.timeline.tracks];
-  // Index for O(1) track lookup: "targetId|property" → index in tracks[]
   const trackIndex = new Map<string, number>();
-  for (let i = 0; i < tracks.length; i++) {
-    trackIndex.set(`${tracks[i].targetId}|${tracks[i].property}`, i);
+  for (let index = 0; index < tracks.length; index += 1) {
+    const track = tracks[index];
+    trackIndex.set(`${track.targetId}|${track.property}`, index);
   }
 
-  // Determine target type once per targetId
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const elementIdSet = new Set(state.scene.elements.map((e: any) => e.id as string));
-  const targetTypeCache = new Map<string, 'element' | 'group'>();
-  // Track which indices were cloned and need a final sort
+  const elementIds = new Set(state.scene.elements.map((element) => element.id));
   const modifiedIndices = new Set<number>();
 
-  for (const kf of keyframes) {
-    const key = `${kf.targetId}|${kf.property}`;
-    let idx = trackIndex.get(key);
-
-    if (idx === undefined) {
-      let targetType = targetTypeCache.get(kf.targetId);
-      if (targetType === undefined) {
-        targetType = elementIdSet.has(kf.targetId) ? 'element' : 'group';
-        targetTypeCache.set(kf.targetId, targetType);
-      }
-      const newTrack = createTrack(kf.targetId, targetType, kf.property);
-      idx = tracks.length;
-      tracks.push(newTrack);
-      trackIndex.set(key, idx);
+  for (const keyframe of keyframes) {
+    const key = `${keyframe.targetId}|${keyframe.property}`;
+    let index = trackIndex.get(key);
+    if (index === undefined) {
+      const targetType =
+        keyframe.targetId === CAMERA_FRAME_TARGET_ID ||
+        elementIds.has(keyframe.targetId)
+          ? 'element'
+          : 'group';
+      index = tracks.length;
+      tracks.push(
+        createTrack(keyframe.targetId, targetType, keyframe.property),
+      );
+      trackIndex.set(key, index);
     }
 
-    // Clone track on first modification (copy-on-write)
-    if (!modifiedIndices.has(idx)) {
-      tracks[idx] = { ...tracks[idx], keyframes: [...tracks[idx].keyframes] };
-      modifiedIndices.add(idx);
+    if (!modifiedIndices.has(index)) {
+      tracks[index] = {
+        ...tracks[index],
+        keyframes: [...tracks[index].keyframes],
+      };
+      modifiedIndices.add(index);
     }
-
-    // Append keyframe (defer sorting until the end)
-    tracks[idx].keyframes.push(createKeyframe(kf.time, kf.value, kf.easing ?? 'linear'));
+    tracks[index].keyframes.push(
+      createKeyframe(
+        keyframe.time,
+        keyframe.value,
+        keyframe.easing ?? 'linear',
+      ),
+    );
   }
 
-  // Sort keyframes once per modified track
-  for (const idx of modifiedIndices) {
-    tracks[idx].keyframes.sort((a, b) => a.time - b.time);
+  for (const index of modifiedIndices) {
+    tracks[index] = {
+      ...tracks[index],
+      keyframes: sortKeyframes(tracks[index].keyframes),
+    };
   }
 
   return {
@@ -160,4 +242,46 @@ export function addKeyframesBatchToState(
       tracks,
     },
   };
+}
+
+export function reconcileManagedActionMutations(
+  state: ServerState,
+): ServerState {
+  if (!state.authoring) return state;
+  const tracksById = new Map(
+    state.timeline.tracks.map((track) => [track.id, track]),
+  );
+  let changed = false;
+  const actions = state.authoring.actions.map((action) => {
+    if (action.status !== 'managed' && action.status !== 'customized') {
+      return action;
+    }
+    const ownedTracks = action.ownership.map((ownership) =>
+      tracksById.get(ownership.trackId),
+    );
+    const hasMissingContent = action.ownership.some((ownership, index) => {
+      const track = ownedTracks[index];
+      if (!track) return true;
+      const keyframeIds = new Set(
+        track.keyframes.map((keyframe) => keyframe.id),
+      );
+      return ownership.keyframeIds.some(
+        (keyframeId) => !keyframeIds.has(keyframeId),
+      );
+    });
+    if (hasMissingContent) {
+      changed = true;
+      return detachAction(action);
+    }
+    if (action.status === 'customized') return action;
+    if (generatedContentHash(ownedTracks) !== action.generatedHash) {
+      changed = true;
+      return { ...action, status: 'customized' as const };
+    }
+    return action;
+  });
+
+  return changed
+    ? { ...state, authoring: { ...state.authoring, actions } }
+    : state;
 }

@@ -13,6 +13,7 @@ import { ALL_SCENES, type SceneSize } from './fixtures/scenes.js';
 import { runIndividualTools } from './scenarios/individual-tools.bench.js';
 import { runBatchTools } from './scenarios/batch-tools.bench.js';
 import { runCompositeTool } from './scenarios/composite-tool.bench.js';
+import { runActionGeneration } from './scenarios/action-generation.bench.js';
 import { runBandwidthComparison, formatBandwidthReport } from './scenarios/sse-bandwidth.bench.js';
 import { formatTable, formatMarkdownReport, type BenchmarkResult } from './harness/metrics.js';
 
@@ -35,6 +36,7 @@ const scenarios: Record<string, (scene: typeof ALL_SCENES[SceneSize], size: stri
   individual: runIndividualTools,
   batch: runBatchTools,
   composite: runCompositeTool,
+  actions: runActionGeneration,
 };
 
 async function main() {

@@ -112,6 +112,168 @@ export const ANALYTICS_EVENT_DEFINITIONS = {
       action: 'One of: connect, disconnect, set_url.',
     },
   },
+  creator_workspace_changed: {
+    label: 'Creator workspace changed',
+    purpose: 'Understand use of the progressive Magic, Sequence, and Studio workspaces.',
+    properties: {
+      workspace: 'One of: magic, sequence, studio.',
+      source: 'One of: switcher, escalation, project-load, query.',
+    },
+  },
+  creator_project_started: {
+    label: 'Creator project started',
+    purpose: 'Improve the paths used to begin a project.',
+    properties: {
+      path: 'One of: draw, import-excalidraw, open-project, mcp, template.',
+    },
+  },
+  creator_template_gallery: {
+    label: 'Template gallery action',
+    purpose: 'Improve template discovery without recording search text.',
+    properties: {
+      action: 'One of: open, search, category.',
+      category: 'A fixed public template category or all.',
+    },
+  },
+  creator_template_used: {
+    label: 'Template used',
+    purpose: 'Understand which public template categories and formats are useful.',
+    properties: {
+      category: 'A fixed public template category.',
+      aspect_ratio: 'One of: 16:9, 4:3, 1:1, 3:2.',
+    },
+  },
+  creator_scene_state_captured: {
+    label: 'Scene state captured',
+    purpose: 'Improve Smart Transition setup for different diagram sizes.',
+    properties: {
+      element_count_bucket: 'One of: 0, 1-10, 11-100, 101-1000, 1001+.',
+    },
+  },
+  creator_smart_transition_previewed: {
+    label: 'Smart Transition previewed',
+    purpose: 'Improve local transition matching and preview guidance.',
+    properties: {
+      change_count_bucket: 'One of: 0, 1-10, 11-100, 101-1000, 1001+.',
+      ambiguous_mapping_count_bucket: 'One of: 0, 1, 2-5, 6+.',
+      camera_included: 'Whether the preview included a camera transition.',
+    },
+  },
+  creator_smart_transition_decided: {
+    label: 'Smart Transition decision',
+    purpose: 'Measure whether local transition suggestions are useful.',
+    properties: {
+      decision: 'One of: accepted, rejected.',
+      ambiguous_mapping_count_bucket: 'One of: 0, 1, 2-5, 6+.',
+    },
+  },
+  creator_smart_transition_escalated: {
+    label: 'Smart Transition escalated',
+    purpose: 'Understand when creators need more transition control.',
+    properties: {
+      action: 'One of: customized, open-studio.',
+    },
+  },
+  creator_auto_animate_previewed: {
+    label: 'Auto Animate previewed',
+    purpose: 'Improve deterministic local animation suggestions.',
+    properties: {
+      scope: 'One of: selection, diagram.',
+      strategy: 'A fixed local Auto Animate strategy.',
+      confidence_band: 'A bounded confidence category.',
+      target_count: 'The number of animation targets.',
+    },
+  },
+  creator_auto_animate_applied: {
+    label: 'Auto Animate applied',
+    purpose: 'Measure whether deterministic local animation suggestions are useful.',
+    properties: {
+      scope: 'One of: selection, diagram.',
+      strategy: 'A fixed local Auto Animate strategy.',
+      confidence_band: 'A bounded confidence category.',
+      recipe_count: 'The number of generated animation recipes.',
+    },
+  },
+  creator_auto_animate_rejected: {
+    label: 'Auto Animate rejected',
+    purpose: 'Improve deterministic local animation suggestions.',
+    properties: {
+      scope: 'One of: selection, diagram.',
+      strategy: 'A fixed local Auto Animate strategy.',
+      confidence_band: 'A bounded confidence category.',
+    },
+  },
+  creator_preset_applied: {
+    label: 'Animation preset applied',
+    purpose: 'Understand which local animation presets and controls are useful.',
+    properties: {
+      preset: 'One of: fade, slide, draw, pop.',
+      direction: 'For directional presets only; one of: left, right, up, down.',
+      selection_size: 'The number of selected targets.',
+      speed_band: 'One of: slow, normal, fast.',
+    },
+  },
+  creator_first_preview: {
+    label: 'First creator preview',
+    purpose: 'Improve the path from editing to the first animation preview.',
+    properties: {
+      workspace: 'One of: magic, sequence, studio.',
+      reduced_motion: 'Whether reduced-motion preference was active.',
+    },
+  },
+  creator_escalated: {
+    label: 'Creator controls escalated',
+    purpose: 'Understand when creators move to more advanced controls.',
+    properties: {
+      destination: 'One of: sequence, studio.',
+    },
+  },
+  creator_sequence_opened: {
+    label: 'Sequence workspace opened',
+    purpose: 'Improve animation-order and timing workflows.',
+    properties: {
+      action_count: 'The number of sequence actions.',
+      custom_count: 'The number of customized sequence actions.',
+    },
+  },
+  creator_sequence_action_reordered: {
+    label: 'Sequence action reordered',
+    purpose: 'Improve accessible animation-order controls.',
+    properties: {
+      source: 'One of: drag, keyboard.',
+    },
+  },
+  creator_sequence_timing_changed: {
+    label: 'Sequence timing changed',
+    purpose: 'Improve sequence timing controls.',
+    properties: {
+      scope: 'One of: single, bulk.',
+      start_mode: 'One of: absolute, afterPrevious, withPrevious.',
+      speed_band: 'One of: fast, normal, slow, custom.',
+    },
+  },
+  creator_sequence_actions_grouped: {
+    label: 'Sequence actions grouped',
+    purpose: 'Improve simultaneous animation workflows.',
+    properties: {
+      action_count: 'The number of grouped sequence actions.',
+    },
+  },
+  creator_sequence_customized_opened_in_studio: {
+    label: 'Customized sequence opened in Studio',
+    purpose: 'Improve handoff from Sequence to advanced timeline editing.',
+    properties: {
+      status: 'One of: customized, detached, unmanaged.',
+    },
+  },
+  creator_sequence_bulk_action: {
+    label: 'Sequence bulk action',
+    purpose: 'Improve multi-action sequence editing.',
+    properties: {
+      action: 'One of: enable, disable, delete, timing.',
+      action_count: 'The number of affected sequence actions.',
+    },
+  },
   landing_page_viewed: {
     label: 'Landing page viewed',
     purpose: 'Understand which public documentation sections are useful.',

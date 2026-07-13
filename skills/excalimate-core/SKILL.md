@@ -15,14 +15,14 @@ description: >
 1. **Call `read_me`** to get element format guidance (optional if this skill is loaded).
 2. **Call `clear_scene`** to reset the canvas.
 3. **Call `create_scene`** with an array of Excalidraw element JSON objects.
-4. **Verify** the scene:
+4. **Add managed animation actions first** with `auto_animate`, `apply_animation_preset`, `upsert_action_sequence`, or `create_camera_move`.
+5. **Verify** the scene:
    - `get_scene` — inspect current elements
    - `are_items_in_line` — check alignment
    - `is_camera_centered` — confirm viewport
    - `items_visible_in_camera` — ensure nothing is off-screen
-5. **Call `set_clip_range`** to define the export region.
-6. **Call `save_checkpoint`** to persist the scene state.
-7. **Call `share_project`** to get an E2E encrypted URL you can share with others.
+6. **Call `validate_project`** and `set_clip_range`.
+7. **Call `save_checkpoint`** to persist the V2 project, then import and share from the authenticated browser UI if needed.
 
 ---
 
@@ -177,11 +177,12 @@ Place text inside a shape by binding them together.
 
 ## Key Rules
 
-- Use **`add_keyframes_batch`** for animations — one call, many keyframes.
+- Prefer managed action tools; use **`add_keyframes_batch`** only for effects the action model cannot express.
 - Use **`add_scale_animation`** when you need anchored scaling from an edge/corner/center.
 - **NEVER** set `opacity` on elements — always use keyframes for visibility.
 - Use **`delete_items`** to remove elements **and** their animations.
 - Call **`set_clip_range`** before saving.
+- `share_project` is deprecated and does not upload; use checkpoint/import/browser sharing.
 - Verify layout with **`are_items_in_line`**, **`is_camera_centered`**, and **`items_visible_in_camera`**.
 - Keep element `id` values short and descriptive (e.g., `"box1"`, `"arrow_a_b"`, `"title"`).
 

@@ -8,10 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- N/A
+- Six structured V2 tools: `auto_animate`, `apply_animation_preset`, `upsert_action_sequence`, `get_action_sequence`, `create_camera_move`, and `validate_project`.
+- Deterministic local topology analysis and managed-action compilation from `@excalimate/animation-core`.
+- Authoring/action content in revisioned state deltas and action-generation benchmarks.
 
 ### Changed
-- N/A
+- MCP session state, snapshots, and checkpoints now use the shared `@excalimate/project-schema` V2 codec while legacy MCP checkpoints remain importable.
+- All 29 legacy tools and both HTTP/stdio transports remain registered.
+- Nested arrays are now the preferred scene/keyframe input; JSON-encoded arrays remain deprecated compatibility wrappers.
+- Low-level edits customize or detach affected managed actions rather than silently replacing generated content.
+- Shared schema/core packages are published with provenance before the MCP package without bundling browser/player/export UI code.
+
+### Security
+- HTTP defaults to loopback and requires explicit authentication for remote bindings.
+- Strict Host, Origin, Fetch Metadata, body/session/SSE/resource, pairing, cleanup, request timeout, and sanitized request-ID error controls from the hardened transport are preserved.
+
+### Deprecated
+- `share_project` no longer attempts originless Worker uploads. It returns an actionable checkpoint/import/authenticated-browser-share path until a documented server-to-server authentication contract exists.
 
 ### Fixed
 - N/A

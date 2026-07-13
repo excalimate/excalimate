@@ -1,7 +1,14 @@
 import { create } from 'zustand';
-import type { AppMode, PanelSizes, TimelineViewport } from '../types/ui';
+import type {
+  AppMode,
+  CanvasMode,
+  PanelSizes,
+  TimelineViewport,
+  WorkspaceMode,
+} from '../types/ui';
 import { computeFrameAtTime } from '../core/engine/playbackSingleton';
 import { usePlaybackStore } from './playbackStore';
+import { useProjectStore } from './projectStore';
 import { readPreference, storePreference } from '../services/analytics/consent';
 import { OPTIONAL_STORAGE_KEYS } from '../services/privacy/dataInventory';
 
@@ -16,23 +23,28 @@ function getInitialTheme(): Theme {
 interface UIState {
   // State
   mode: AppMode;
+  workspace: WorkspaceMode;
+  canvasMode: CanvasMode;
   theme: Theme;
   selectedElementIds: string[];
   panelSizes: PanelSizes;
   timelineViewport: TimelineViewport;
   ghostMode: boolean;
-  sequenceRevealOpen: boolean;
   layersPanelOpen: boolean;
   timelinePanelOpen: boolean;
   liveMode: boolean;
   /** True when a shape/draw tool is active in Excalidraw (not selection/hand). */
   drawToolActive: boolean;
+  startSurfaceDismissed: boolean;
   /** The currently displayed page. null = main app. */
   activePage: string | null;
 
   // Actions
   setMode: (mode: AppMode) => void;
   toggleMode: () => void;
+  setWorkspace: (workspace: WorkspaceMode) => void;
+  hydrateWorkspace: (workspace: WorkspaceMode) => void;
+  setCanvasMode: (mode: CanvasMode) => void;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
   setSelectedElements: (ids: string[]) => void;
@@ -43,24 +55,26 @@ interface UIState {
   toggleSnap: () => void;
   setSnapInterval: (interval: number) => void;
   toggleGhostMode: () => void;
-  toggleSequenceReveal: () => void;
   toggleLayersPanel: () => void;
   toggleTimelinePanel: () => void;
   setLiveMode: (live: boolean) => void;
   setDrawToolActive: (active: boolean) => void;
+  setStartSurfaceDismissed: (dismissed: boolean) => void;
   setActivePage: (page: string | null) => void;
 }
 
 export const useUIStore = create<UIState>()((set, get) => ({
   mode: 'edit',
+  workspace: 'magic',
+  canvasMode: 'design',
   theme: getInitialTheme(),
   selectedElementIds: [],
   ghostMode: false,
-  sequenceRevealOpen: false,
   layersPanelOpen: true,
   timelinePanelOpen: true,
   liveMode: false,
   drawToolActive: false,
+  startSurfaceDismissed: false,
   activePage: null,
   panelSizes: {
     leftPanel: 48,
@@ -76,7 +90,12 @@ export const useUIStore = create<UIState>()((set, get) => ({
   },
 
   setMode: (mode: AppMode): void => {
-    set({ mode });
+    set((state) => ({
+      mode,
+      ...(state.workspace === 'magic'
+        ? { canvasMode: mode === 'edit' ? 'design' : 'preview' }
+        : {}),
+    }));
     // Ensure the animation frame is computed when entering animate mode,
     // so the canvas immediately shows the correct animated state.
     if (mode === 'animate') {
@@ -87,6 +106,48 @@ export const useUIStore = create<UIState>()((set, get) => ({
   toggleMode: (): void => {
     const next = get().mode === 'edit' ? 'animate' : 'edit';
     get().setMode(next);
+  },
+
+  setWorkspace: (workspace: WorkspaceMode): void => {
+    const canvasMode = get().canvasMode;
+    set({
+      workspace,
+      mode:
+        workspace === 'magic'
+          ? canvasMode === 'design'
+            ? 'edit'
+            : 'animate'
+          : 'animate',
+    });
+    useProjectStore.getState().setPreferredWorkspace(workspace);
+    if (workspace !== 'magic' || canvasMode === 'preview') {
+      computeFrameAtTime(usePlaybackStore.getState().currentTime);
+    }
+  },
+
+  hydrateWorkspace: (workspace: WorkspaceMode): void => {
+    const canvasMode: CanvasMode = 'design';
+    set({
+      workspace,
+      canvasMode,
+      mode: workspace === 'magic' ? 'edit' : 'animate',
+      startSurfaceDismissed: false,
+    });
+    if (workspace !== 'magic') {
+      computeFrameAtTime(usePlaybackStore.getState().currentTime);
+    }
+  },
+
+  setCanvasMode: (canvasMode: CanvasMode): void => {
+    set((state) => ({
+      canvasMode,
+      ...(state.workspace === 'magic'
+        ? { mode: canvasMode === 'design' ? 'edit' : 'animate' }
+        : {}),
+    }));
+    if (canvasMode === 'preview') {
+      computeFrameAtTime(usePlaybackStore.getState().currentTime);
+    }
   },
 
   setTheme: (theme: Theme): void => {
@@ -146,9 +207,6 @@ export const useUIStore = create<UIState>()((set, get) => ({
   toggleGhostMode: (): void => {
     set((state) => ({ ghostMode: !state.ghostMode }));
   },
-  toggleSequenceReveal: (): void => {
-    set((state) => ({ sequenceRevealOpen: !state.sequenceRevealOpen }));
-  },
   toggleLayersPanel: (): void => {
     set((state) => ({ layersPanelOpen: !state.layersPanelOpen }));
   },
@@ -161,6 +219,10 @@ export const useUIStore = create<UIState>()((set, get) => ({
 
   setDrawToolActive: (active: boolean): void => {
     set({ drawToolActive: active });
+  },
+
+  setStartSurfaceDismissed: (dismissed: boolean): void => {
+    set({ startSurfaceDismissed: dismissed });
   },
 
   setActivePage: (page: string | null): void => {

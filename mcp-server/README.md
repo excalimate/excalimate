@@ -12,15 +12,13 @@ The fastest way to use Excalimate with AI is to combine the deployed web app wit
 
 ```bash
 npx @excalimate/mcp-server
-# → Listening on http://localhost:3001/mcp
-# → Live preview SSE at http://localhost:3001/live
+# -> MCP server listening on http://127.0.0.1:3001/mcp
 
 # Custom port:
 npx @excalimate/mcp-server --port 4000
 ```
 
-Port priority: CLI arg (`--port` / `-p`) > `PORT` env var > default `3001`.
-Also supports `--port=4000` syntax.
+HTTP mode binds to `127.0.0.1` by default. Port priority is CLI (`--port` / `-p`), then `PORT`, then `3001`. `--port=4000` is also supported.
 
 Or install globally:
 
@@ -29,26 +27,31 @@ npm install -g @excalimate/mcp-server
 excalimate-mcp
 ```
 
-### Step 2: Open the web app
+### Step 2: Connect your AI
 
-Go to [app.excalimate.com](https://app.excalimate.com) in your browser and click **📡 Live** in the toolbar. The app connects to `localhost:3001` automatically.
+Point your AI tool to `http://127.0.0.1:3001/mcp`. When the MCP session initializes, the server prints a unique pairing URL:
 
-You can configure the MCP server URL in **File → Preferences**. The app persists this setting in localStorage, shows connection progress (progress bar + notifications), provides smart error dialogs, and warns about HTTPS→HTTP mixed-content connections.
+```text
+[excalimate] Preview paired for session ...:
+http://127.0.0.1:3001/p/UNGUESSABLE_PREVIEW_ID
+```
 
-### Step 3: Connect your AI
+Each MCP transport has isolated project state and its own unguessable preview ID.
 
-Point your AI tool to `http://localhost:3001/mcp` as an MCP server. Then ask it to create a diagram and animate it — you'll see elements appear and animate in your browser in real-time.
+### Step 3: Open the web app
 
-**That's it.** The AI draws and animates, you see it live, and you can edit alongside it.
+Go to [app.excalimate.com](https://app.excalimate.com), open **File → Preferences**, and use the printed pairing URL as the MCP server URL. Click **Live** in the toolbar. The app appends `/live` and `/state` to that base URL, so it follows only the paired MCP session.
 
 ## Features
 
-- **23 tools** for scene creation, animation, camera control, export, checkpointing, and sharing
+- **35 tools**: all 29 legacy tools plus six structured V2 action tools
+- **Shared V2 model**: checkpoints and snapshots use `@excalimate/project-schema`; managed recipes use `@excalimate/animation-core`
+- **Deterministic action authoring**: explicit local scopes/styles, no hosted model and no scene-content upload
 - **Dual transport**: stdio (Claude Desktop) + Streamable HTTP (cloud deployment)
-- **Live preview**: Real-time updates in [app.excalimate.com](https://app.excalimate.com) via SSE
+- **Paired live preview**: Per-session real-time updates via an unguessable preview URL
 - **Sequence reveal**: Staggered element reveal animations in one tool call
 - **Camera animation**: Pan/zoom keyframes for cinematic effects
-- **Checkpoint persistence**: Save/load complete scene + animation state
+- **Session-scoped checkpoints**: Save/load complete state without crossing HTTP transport boundaries
 - **Runtime versioning**: Server version is read from `package.json`
 
 ## Installation & Usage
@@ -57,13 +60,47 @@ Point your AI tool to `http://localhost:3001/mcp` as an MCP server. Then ask it 
 
 ```bash
 npx @excalimate/mcp-server
-# → http://localhost:3001/mcp
+# -> http://127.0.0.1:3001/mcp
 
 # Custom port:
 npx @excalimate/mcp-server -p 4000
 ```
 
-Open [app.excalimate.com](https://app.excalimate.com) and click **📡 Live**, then configure your AI tool below.
+Configure your AI tool below. After it initializes an MCP session, copy the printed preview pairing URL into the web app's MCP server URL preference and click **Live**.
+
+### HTTP security and configuration
+
+The default loopback binding rejects DNS-rebinding-style Host values and browser requests from origins outside the allowlist. Origin, Host, authentication, and Fetch Metadata checks are applied consistently to `/mcp`, `/live`, and `/state`.
+
+```bash
+# Network exposure requires an explicit token.
+excalimate-mcp \
+  --host 192.168.1.20 \
+  --auth-token "replace-with-at-least-16-characters" \
+  --allowed-hosts 192.168.1.20 \
+  --allowed-origins https://app.excalimate.com
+
+# Wildcard binds also require concrete allowed Host values.
+excalimate-mcp \
+  --host 0.0.0.0 \
+  --auth-token "replace-with-at-least-16-characters" \
+  --allowed-hosts 192.168.1.20,my-machine.local
+```
+
+Use `Authorization: Bearer TOKEN` for `/mcp`. Authenticated servers print a preview URL containing a session-scoped derived access key, so the web app does not need the MCP bearer token.
+
+| Setting | Default | Environment |
+|---|---:|---|
+| Bind host | `127.0.0.1` | `EXCALIMATE_HOST` |
+| Allowed browser origins | local Vite + Excalimate domains | `EXCALIMATE_ALLOWED_ORIGINS` (`CORS_ORIGIN` compatible) |
+| Allowed Host values | loopback names, or the explicit bind host | `EXCALIMATE_ALLOWED_HOSTS` |
+| JSON body limit | 1 MiB | `EXCALIMATE_BODY_LIMIT_BYTES` |
+| Request timeout | 30 seconds | `EXCALIMATE_REQUEST_TIMEOUT_MS` |
+| Concurrent MCP sessions | 16 | `EXCALIMATE_MAX_SESSIONS` |
+| Preview SSE clients | 32 | `EXCALIMATE_MAX_SSE_CLIENTS` |
+| Session idle TTL | 30 minutes | `EXCALIMATE_SESSION_TTL_MS` |
+
+Run `excalimate-mcp --help` for CLI options. Project resource limits also bound elements, tracks, keyframes, strings, nesting, animation times, total state size, and per-session mutation rate.
 
 ### Configure your AI tool
 
@@ -79,13 +116,13 @@ Add to your VS Code MCP config (`.vscode/mcp.json` or user-level `mcp.json`):
   "servers": {
     "excalimate": {
       "type": "http",
-      "url": "http://localhost:3001/mcp"
+      "url": "http://127.0.0.1:3001/mcp"
     }
   }
 }
 ```
 
-Start the MCP server first (`npx @excalimate/mcp-server`), open [app.excalimate.com](https://app.excalimate.com), click **📡 Live**, then ask Copilot to create a diagram. You'll see it appear in real-time.
+Start the MCP server, let Copilot initialize it, then copy the printed preview pairing URL into the web app before clicking **Live**.
 
 **stdio mode (no live preview):**
 
@@ -130,10 +167,10 @@ Claude Code supports HTTP MCP servers. Start the server first, then add it:
 
 ```bash
 npx @excalimate/mcp-server &
-claude mcp add excalimate http://localhost:3001/mcp
+claude mcp add excalimate http://127.0.0.1:3001/mcp
 ```
 
-Open [app.excalimate.com](https://app.excalimate.com) and click **📡 Live** — you'll see the AI's changes in real-time.
+Copy the pairing URL printed after Claude initializes the MCP session into the web app, then click **Live**.
 
 </details>
 
@@ -144,9 +181,9 @@ In Cursor settings, go to **MCP Servers** and add:
 
 - **Name:** `excalimate`
 - **Type:** `http`
-- **URL:** `http://localhost:3001/mcp`
+- **URL:** `http://127.0.0.1:3001/mcp`
 
-Start the MCP server (`npx @excalimate/mcp-server`), open [app.excalimate.com](https://app.excalimate.com), click **📡 Live**, then use Cursor's agent to create diagrams with live preview.
+Start the server and Cursor, then use the printed preview pairing URL in the web app.
 
 </details>
 
@@ -159,13 +196,13 @@ Add to your Windsurf MCP config:
 {
   "mcpServers": {
     "excalimate": {
-      "serverUrl": "http://localhost:3001/mcp"
+      "serverUrl": "http://127.0.0.1:3001/mcp"
     }
   }
 }
 ```
 
-Start the MCP server, open [app.excalimate.com](https://app.excalimate.com), click **📡 Live**, and use Cascade to create animated diagrams in real-time.
+Start the server and Cascade, then use the printed preview pairing URL in the web app.
 
 </details>
 
@@ -175,10 +212,10 @@ Start the MCP server, open [app.excalimate.com](https://app.excalimate.com), cli
 Point your MCP client to:
 
 ```
-http://localhost:3001/mcp
+http://127.0.0.1:3001/mcp
 ```
 
-Start the server with `npx @excalimate/mcp-server`, open [app.excalimate.com](https://app.excalimate.com), and click **📡 Live**. Any tool that supports Streamable HTTP MCP transport will work with live preview.
+Start the server and initialize the MCP client, then use the printed preview pairing URL in the web app.
 
 </details>
 
@@ -187,15 +224,41 @@ Start the server with `npx @excalimate/mcp-server`, open [app.excalimate.com](ht
 ### From source (for development)
 
 ```bash
-cd mcp-server
+git clone https://github.com/excalimate/excalimate.git
+cd excalimate
 npm install
-npm run build
+npm run build --workspace @excalimate/project-schema
+npm run build --workspace @excalimate/animation-core
+npm run build --workspace @excalimate/mcp-server
+cd mcp-server
 node dist/index.js          # HTTP mode
 node dist/index.js --port 4000
 node dist/index.js --stdio  # stdio mode
 ```
 
 ## Tools
+
+### Action-first workflow
+
+Create scene elements first, then prefer structured actions over raw keyframes:
+
+1. `auto_animate` for a deterministic topology-based recipe with explicit `scope` and `style`.
+2. `apply_animation_preset` for fade, draw, pop, or directional slide recipes.
+3. `upsert_action_sequence` for explicit typed action choreography.
+4. `create_camera_move` for managed camera movement.
+5. `get_action_sequence` and `validate_project` before checkpointing.
+
+Natural-language interpretation belongs to the connected MCP client. The server runs only local deterministic analysis/compilation and never sends scene content to an AI service. Managed actions refuse to overwrite customized or unmanaged keyframes. Low-level edits of managed tracks mark actions `customized`; deletion of generated content marks them `detached`.
+
+### V2 Action Tools
+| Tool | Description |
+|------|-------------|
+| `auto_animate` | Analyze an explicit local scope/style and compile the shared deterministic recipe |
+| `apply_animation_preset` | Apply a bounded structured preset |
+| `upsert_action_sequence` | Add or update typed managed actions |
+| `get_action_sequence` | Return actions and authoring revisions |
+| `create_camera_move` | Create a managed V2 camera action |
+| `validate_project` | Validate current/supplied content with the shared V2 codec |
 
 ### Scene Tools
 | Tool | Description |
@@ -228,6 +291,26 @@ node dist/index.js --stdio  # stdio mode
 | `add_camera_keyframe` | Animate camera pan/zoom |
 | `add_camera_keyframes_batch` | Bulk camera keyframes |
 
+Scene arrays, `add_keyframes_batch`, `add_scale_animation`, `add_camera_keyframes_batch`, and all arrays in `create_animated_scene` accept nested arrays directly. JSON-encoded strings remain compatibility wrappers on the same tool names and return deprecation metadata/messages. They will not be removed without a documented minor-version deprecation window.
+
+```json
+{
+  "keyframes": [
+    {
+      "targetId": "box1",
+      "property": "opacity",
+      "time": 500,
+      "value": 1,
+      "easing": "easeOut"
+    }
+  ]
+}
+```
+
+Snapshots contain a V2 project document plus transport `revision` and `sequence` and compatibility playback fields. Deltas include `baseRevision`, `revision`, and `sequence`; clients that detect a gap fetch the paired `/state` endpoint. Deltas fingerprint and include actual scene, timeline, playback, metadata, and authoring/action content rather than collection counts.
+
+The current browser live bridge safely ignores additive `authoring` and `project` delta fields. Creator-stack UI integration must consume those fields when managed actions become editable in the creator.
+
 ### Inspection Tools
 | Tool | Description |
 |------|-------------|
@@ -239,9 +322,9 @@ node dist/index.js --stdio  # stdio mode
 ### Sharing Tools
 | Tool | Description |
 |------|-------------|
-| `share_project` | Create E2E encrypted share URL for the current project |
+| `share_project` | Deprecated; returns a safe checkpoint/import/browser-share path without uploading |
 
-`share_project` accepts `{ baseUrl?: string }` and defaults to `https://app.excalimate.com`, returning URLs like `https://app.excalimate.com/#share=ID,KEY`.
+The sharing Worker intentionally rejects originless writes, and there is no authenticated MCP server-to-server sharing contract. `share_project` therefore returns `isError: true`, does not read or upload project content, and directs clients to `save_checkpoint`, V2 import, and the authenticated browser sharing flow. The MCP server does not spoof a browser `Origin`.
 
 ### Checkpoint Tools
 | Tool | Description |
@@ -253,16 +336,18 @@ node dist/index.js --stdio  # stdio mode
 ## Example Workflow
 
 ```
-1. read_me                     → Get element format reference
-2. create_scene {elements}     → Create a diagram
-3. create_sequence {           → Animate elements revealing one by one
-     elementIds: ["box1", "arrow1", "box2"],
-     property: "opacity",
-     startTime: 0,
-     delay: 500,
-     duration: 800
+1. read_me
+2. create_scene { elements: [...] }
+3. auto_animate {
+     scope: { elementIds: ["box1", "arrow1", "box2"] },
+     style: { intensity: "balanced" }
    }
-4. set_clip_range {0, 5000}    → Set 5-second export window
-5. save_checkpoint {id: "demo"} → Save for web app preview
-   or share_project {baseUrl: "https://app.excalimate.com"} → Generate E2E encrypted share URL
+4. get_action_sequence
+5. validate_project
+6. set_clip_range { start: 0, end: 5000 }
+7. save_checkpoint { id: "demo" }
 ```
+
+## Versioning and deprecation
+
+`@excalimate/mcp-server` remains a `0.x` package, so it is not presented as stable GA. Releases follow SemVer within that constraint: additive tools ship in minor releases, fixes in patches, and incompatible changes require a minor release plus migration notes. Existing tool names and transport modes remain compatible. Deprecated compatibility inputs emit explicit messages and remain supported for at least one subsequent minor release unless a security issue requires faster removal.

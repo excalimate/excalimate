@@ -8,10 +8,14 @@ on:
     branches: [main]
     paths:
       - 'mcp-server/**'
+      - 'packages/project-schema/**'
+      - 'packages/animation-core/**'
   pull_request:
     branches: [main]
     paths:
       - 'mcp-server/**'
+      - 'packages/project-schema/**'
+      - 'packages/animation-core/**'
 
 jobs:
   benchmark:
@@ -25,15 +29,13 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: mcp-server/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: mcp-server
         run: npm ci
 
-      - name: Build
-        working-directory: mcp-server
-        run: npx tsc
+      - name: Build shared runtimes and MCP
+        run: npm run build --workspace @excalimate/project-schema && npm run build --workspace @excalimate/animation-core && npm run build --workspace @excalimate/mcp-server
 
       - name: Run benchmarks
         working-directory: mcp-server

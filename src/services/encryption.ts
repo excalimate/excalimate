@@ -17,6 +17,11 @@
  *   Load:  extractKey(URL) → download(encrypted) → decrypt(encrypted, key) → decompress → data
  */
 
+import {
+  PROJECT_LIMITS,
+  assertInputByteLimit,
+} from '@excalimate/project-schema';
+
 /**
  * Generate a random AES-GCM 256-bit encryption key.
  */
@@ -56,19 +61,27 @@ async function compress(data: Uint8Array): Promise<Uint8Array> {
 /**
  * Decompress gzip data via the Compression Streams API.
  */
-async function decompress(data: Uint8Array): Promise<Uint8Array> {
+async function decompress(
+  data: Uint8Array,
+  maxOutputBytes: number,
+): Promise<Uint8Array> {
   const ds = new DecompressionStream('gzip');
   const writer = ds.writable.getWriter();
   writer.write(data as unknown as BufferSource);
   writer.close();
   const reader = ds.readable.getReader();
   const chunks: Uint8Array[] = [];
+  let total = 0;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    total += value.length;
+    if (total > maxOutputBytes) {
+      await reader.cancel();
+      throw new Error('Decompressed share payload exceeds the safety limit');
+    }
     chunks.push(value);
   }
-  const total = chunks.reduce((n, c) => n + c.length, 0);
   const result = new Uint8Array(total);
   let offset = 0;
   for (const chunk of chunks) {
@@ -88,6 +101,11 @@ const COMPRESSED_MAGIC = 0x1F; // gzip magic byte — naturally present
  */
 export async function encryptData(data: unknown, key: CryptoKey): Promise<ArrayBuffer> {
   const plaintext = new TextEncoder().encode(JSON.stringify(data));
+  assertInputByteLimit(
+    plaintext.byteLength,
+    PROJECT_LIMITS.maxDecompressedBytes,
+    'Share payload',
+  );
   const compressed = await compress(plaintext);
 
   // Generate a random IV for each encryption (12 bytes for AES-GCM)
@@ -101,6 +119,11 @@ export async function encryptData(data: unknown, key: CryptoKey): Promise<ArrayB
   const result = new Uint8Array(iv.byteLength + encrypted.byteLength);
   result.set(iv, 0);
   result.set(new Uint8Array(encrypted), iv.byteLength);
+  assertInputByteLimit(
+    result.byteLength,
+    PROJECT_LIMITS.maxInputBytes,
+    'Encrypted share',
+  );
   return result.buffer;
 }
 
@@ -109,7 +132,18 @@ export async function encryptData(data: unknown, key: CryptoKey): Promise<ArrayB
  * Expects the IV prepended to the ciphertext (as produced by encryptData).
  * Handles both compressed (new) and uncompressed (legacy) payloads.
  */
-export async function decryptData<T = unknown>(encrypted: ArrayBuffer, key: CryptoKey): Promise<T> {
+export async function decryptData(
+  encrypted: ArrayBuffer,
+  key: CryptoKey,
+): Promise<unknown> {
+  assertInputByteLimit(
+    encrypted.byteLength,
+    PROJECT_LIMITS.maxInputBytes,
+    'Encrypted share',
+  );
+  if (encrypted.byteLength <= 12) {
+    throw new Error('Encrypted share payload is truncated');
+  }
   const data = new Uint8Array(encrypted);
   const iv = data.slice(0, 12);
   const ciphertext = data.slice(12);
@@ -123,9 +157,17 @@ export async function decryptData<T = unknown>(encrypted: ArrayBuffer, key: Cryp
   // Detect gzip magic bytes for backward compatibility with uncompressed payloads
   let plaintext: string;
   if (raw.length >= 2 && raw[0] === COMPRESSED_MAGIC && raw[1] === 0x8B) {
-    const decompressed = await decompress(raw);
+    const decompressed = await decompress(
+      raw,
+      PROJECT_LIMITS.maxDecompressedBytes,
+    );
     plaintext = new TextDecoder().decode(decompressed);
   } else {
+    assertInputByteLimit(
+      raw.byteLength,
+      PROJECT_LIMITS.maxDecompressedBytes,
+      'Decrypted share',
+    );
     plaintext = new TextDecoder().decode(raw);
   }
 
@@ -155,6 +197,9 @@ export async function importKeyFromString(keyStr: string): Promise<CryptoKey> {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
+  if (bytes.length !== 16 && bytes.length !== 32) {
+    throw new Error('Invalid encryption key length');
+  }
   const keyLength = bytes.length === 16 ? 128 : 256;
 
   return window.crypto.subtle.importKey(
