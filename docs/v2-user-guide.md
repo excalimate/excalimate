@@ -12,7 +12,7 @@ Magic is the compact mobile-first surface. Sequence is optimized for tablet and
 desktop review. Studio exposes the full desktop timeline; its disclosure
 explains the extra complexity before switching. Workspace choice is saved in
 the V2 project and can be overridden with the rollout query parameters in
-[the RC guide](v2-release-candidate.md).
+[the V2 release guide](v2-release.md).
 
 ## Managed actions
 

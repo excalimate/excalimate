@@ -178,9 +178,9 @@ function McpUrlInput({
 
   return (
     <TextInput
-      label="Server URL"
-      description="URL of your Excalimate MCP server"
-      placeholder="http://localhost:3001"
+      label="Preview pairing URL"
+      description="Paste the pairing URL printed after your MCP client connects"
+      placeholder="http://127.0.0.1:3001/p/preview-id"
       value={liveUrl}
       onChange={(e) => handleChange(e.currentTarget.value)}
       leftSection={<IconServer size={14} />}

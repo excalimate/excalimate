@@ -28,6 +28,7 @@ import {
 import type { McpStateCursor } from './mcpLiveState';
 import type { McpStateSyncQueue } from './mcpLiveState';
 import { createMcpConnectionGeneration } from './mcpConnectionGeneration';
+import { normalizeMcpPreviewUrl } from './mcpPreviewUrl';
 
 const STORAGE_KEY = OPTIONAL_STORAGE_KEYS.mcpUrl;
 
@@ -71,9 +72,7 @@ async function decompressGzBase64(b64: string): Promise<string> {
 }
 
 function getPersistedMcpUrl(): string {
-  return (
-    readPreference(STORAGE_KEY) || import.meta.env.VITE_MCP_SERVER_URL || 'http://localhost:3001'
-  );
+  return readPreference(STORAGE_KEY) || import.meta.env.VITE_MCP_SERVER_URL || '';
 }
 
 function persistMcpUrl(url: string): void {
@@ -237,7 +236,9 @@ export function useMcpLive() {
   }
 
   const connect = useCallback(
-    (url: string = getMcpUrl()) => {
+    (input: string = getMcpUrl()) => {
+      const url = normalizeMcpPreviewUrl(input);
+
       // Clean up any existing connection/timers
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;

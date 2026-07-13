@@ -30,12 +30,14 @@ https://github.com/user-attachments/assets/77e87c62-0ff4-4a56-aee6-50553b94798c
 ## Features
 
 - **Full Excalidraw editor** — draw, edit, resize, connect arrows, add text
+- **Progressive V2 creator** — Magic Canvas, plain-language Sequence, and Advanced Studio
+- **Local animation tools** — deterministic Auto Animate, presets, templates, and Smart Transitions
 - **Keyframe animation** — opacity, position, scale, rotation, draw progress
-- **Timeline** — collapsible per-element tracks with interpolation lines, clip markers, scrubbing
-- **Sequence reveal** — stagger-reveal multiple elements with one click
+- **Advanced timeline** — collapsible per-element tracks with interpolation lines, clip markers, scrubbing
 - **Camera animation** — pan/zoom keyframes with aspect ratio control
-- **Export** — MP4 (H.264), WebM (VP9), GIF, animated SVG
-- **E2E encrypted sharing** — AES-256-GCM, key stays in the URL hash fragment
+- **Unified export** — MP4, WebM, GIF, animated SVG, Lottie, and dotLottie
+- **Hosted player and embeds** — compact playback runtime with responsive controls
+- **E2E encrypted sharing** — expiry and revocation with the AES-256-GCM key kept in the URL hash
 - **MCP server** — 35 tools, including all 29 legacy tools and six structured V2 action tools
 - **Live mode** — watch AI changes appear in the editor in real-time via SSE
 
@@ -47,7 +49,9 @@ https://github.com/user-attachments/assets/77e87c62-0ff4-4a56-aee6-50553b94798c
 npx @excalimate/mcp-server
 ```
 
-Open [app.excalimate.com](https://app.excalimate.com), click the **Live** button, and point your AI tool to `http://localhost:3001/mcp`.
+Point your AI tool to `http://127.0.0.1:3001/mcp`. After it connects, copy the
+printed preview pairing URL into **File → Preferences** in
+[app.excalimate.com](https://app.excalimate.com), then click **Live**.
 
 ### Local development
 
@@ -147,18 +151,13 @@ Copy the `skills/` directory into your project, or point your agent's skill/cont
 
 ## Usage
 
-### Edit Mode
+### V2 creator workflow
 
-Draw your diagram using the Excalidraw editor. All standard tools work — rectangles, ellipses, arrows, text, groups, etc.
-
-### Animate Mode
-
-Switch to Animate mode (`Ctrl+E`) to:
-
-1. Select elements and modify properties — keyframes are created automatically
-2. Scrub the timeline, move keyframes, and set the clip range
-3. Use **Sequence Reveal** for staggered element animations
-4. Export to MP4, WebM, GIF, or animated SVG
+1. Draw with the full Excalidraw editor or start from an animated template.
+2. Use **Magic** to preview local Auto Animate, apply a preset, or create a Smart Transition between captured scene states.
+3. Use **Sequence** to reorder actions and adjust plain-language timing such as after or with the previous action.
+4. Open **Studio** for the preserved advanced timeline, custom keyframes, clip range, camera, and per-track controls.
+5. Export a video, image, animated SVG, Lottie, or dotLottie, or create an encrypted expiring share link for hosted playback.
 
 ### Sharing
 
@@ -178,16 +177,18 @@ excalimate/
 │   └── src/server/             # Modular tool registrations
 ├── packages/
 │   ├── project-schema/         # Shared V2 project codec and validation
-│   └── animation-core/         # Shared deterministic action compiler/runtime
+│   ├── animation-core/         # Shared deterministic action compiler/runtime
+│   ├── player-runtime/         # Hosted player package, sanitizer, playback
+│   └── export-runtime/         # Unified export sampling and workers
 ├── skills/                     # AI skill definitions (16 skills)
 └── docs/                       # Design guidelines, plans
 ```
 
 The web app is a **static SPA** — all rendering, animation, and editing happens in the browser. The MCP server is optional, used only for AI integration and live preview.
 
-## V2 release-candidate documentation
+## Excalimate V2 documentation
 
-- [Migration, architecture, limits, rollout, and rollback](docs/v2-release-candidate.md)
+- [Migration, architecture, limits, rollout, and rollback](docs/v2-release.md)
 - [Magic, Sequence, Studio, templates, and transitions](docs/v2-user-guide.md)
 - [Hosted player and embedding](docs/hosted-player.md)
 - [MCP V2 and deprecations](docs/mcp-v2.md)

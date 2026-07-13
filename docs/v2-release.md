@@ -1,8 +1,8 @@
-# Excalimate V2 release candidate
+# Excalimate V2 release
 
-This branch is a release candidate, not a general-availability release. It uses
-application/package version `0.5.0-rc.1`, project schema `2.0.0`, PlayerPackage
-`1.0.0`, and player runtime `1.0.0`. Protocol versions change only when their
+Excalimate V2 is the stable `0.5.0` application and package release. It uses
+project schema `2.0.0`, PlayerPackage `1.0.0`, and player runtime `1.0.0`.
+Protocol versions change only when their
 wire contracts become incompatible; the optional PlayerPackage preview and
 opacity metadata remain backward compatible.
 
@@ -36,15 +36,15 @@ format exporters dynamic and workers dedicated.
 Reference package benchmarks on 2026-07-12 (Windows x64, AMD Ryzen 5 2600X,
 12 logical CPUs, Node 22.17.1):
 
-| Workload                                      | Result                              |
-| --------------------------------------------- | ----------------------------------: |
-| Playback, 200 elements / 1,000 keyframes      |                      0.155 ms/frame |
-| Playback, 1,000 elements / 5,000 keyframes    |                      0.321 ms/frame |
-| Auto-animate, 49 / 199 / 999 elements         | 3,116 / 1,187 / 179 analyses/second |
-| Scene diff, 1,000 / 10,000 elements           |                  2.44 ms / 18.63 ms |
-| Sequence, derive 1,000 action rows            |                           0.590 ms |
-| Sequence, move action / calculate window      |               0.0086 ms / 0.0001 ms |
-| Share Worker dry-run bundle                   |            40.14 KiB / 10.08 KiB gzip |
+| Workload                                   |                              Result |
+| ------------------------------------------ | ----------------------------------: |
+| Playback, 200 elements / 1,000 keyframes   |                      0.155 ms/frame |
+| Playback, 1,000 elements / 5,000 keyframes |                      0.321 ms/frame |
+| Auto-animate, 49 / 199 / 999 elements      | 3,116 / 1,187 / 179 analyses/second |
+| Scene diff, 1,000 / 10,000 elements        |                  2.44 ms / 18.63 ms |
+| Sequence, derive 1,000 action rows         |                            0.590 ms |
+| Sequence, move action / calculate window   |               0.0086 ms / 0.0001 ms |
+| Share Worker dry-run bundle                |          40.14 KiB / 10.08 KiB gzip |
 
 Player and export measurements and their explicit pass targets are recorded in
 [hosted player](hosted-player.md) and
@@ -55,9 +55,9 @@ Player and export measurements and their explicit pass targets are recorded in
 1. Provision the share Worker prerequisites in
    [security and sharing](security-and-sharing.md), apply both R2 lifecycle
    rules, and verify `_headers` against the deployed origin.
-2. Deploy the RC to an internal hostname. Exercise new/empty Magic, a migrated
-   animated Studio project, Sequence, share/revoke, player embed, and each
-   export format at mobile, tablet, and desktop widths.
+2. Deploy the release build to an internal hostname. Exercise new/empty Magic,
+   a migrated animated Studio project, Sequence, share/revoke, player embed,
+   and each export format at mobile, tablet, and desktop widths.
 3. Increase traffic in stages while monitoring client errors, share response
    codes, Worker quota pressure, export failures, and bundle sizes. Product
    behavior must not depend on PostHog availability or consent.

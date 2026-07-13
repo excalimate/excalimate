@@ -168,7 +168,7 @@ export function WelcomeOverlay() {
                   finishStart('mcp');
                   notifications.show({
                     title: 'Connecting to MCP',
-                    message: 'The local live connection is starting.',
+                    message: 'The paired live preview connection is starting.',
                     color: 'indigo',
                   });
                 } catch (error) {
@@ -181,7 +181,7 @@ export function WelcomeOverlay() {
                 }
               }}
             >
-              {connected ? 'MCP connected' : 'Connect MCP'}
+              {connected ? 'MCP connected' : 'Connect MCP preview'}
             </Button>
           </SimpleGrid>
 

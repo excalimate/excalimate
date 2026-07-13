@@ -1,6 +1,6 @@
 {
   "name": "@excalimate/animation-core",
-  "version": "0.5.0-rc.1",
+  "version": "0.5.0",
   "license": "MIT",
   "description": "Browser-neutral deterministic animation runtime and managed-action compiler for Excalimate",
   "repository": {
@@ -30,7 +30,7 @@
     "benchmark:scene-diff": "node ./benchmarks/scene-diff.mjs"
   },
   "dependencies": {
-    "@excalimate/project-schema": "^0.5.0-rc.1"
+    "@excalimate/project-schema": "^0.5.0"
   },
   "devDependencies": {
     "typescript": "~5.9.3"

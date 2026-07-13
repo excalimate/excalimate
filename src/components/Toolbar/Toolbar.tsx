@@ -22,9 +22,9 @@ export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
   const ghostMode = useUIStore((s) => s.ghostMode);
   const theme = useUIStore((s) => s.theme);
   const { connected, status, connect, disconnect, setLiveUrl, lastError, clearError } = useMcpLive();
-  const [manualConnectionError, setManualConnectionError] = useState(false);
+  const [manualConnectionError, setManualConnectionError] = useState<string | null>(null);
   const [connectionUrl, setConnectionUrl] = useState(getMcpUrl());
-  const showConnectionError = Boolean(lastError) || manualConnectionError;
+  const showConnectionError = Boolean(lastError) || Boolean(manualConnectionError);
   const isMixedContent = window.location.protocol === 'https:' && connectionUrl.startsWith('http://');
 
   // Track status changes for nprogress + connecting notification
@@ -83,19 +83,23 @@ export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
     setConnectionUrl(getMcpUrl());
     try {
       connect();
-    } catch {
-      setManualConnectionError(true);
+    } catch (error) {
+      setManualConnectionError(
+        error instanceof Error ? error.message : 'The MCP preview pairing URL is invalid.',
+      );
     }
   };
 
   const handleRetryConnection = () => {
     setLiveUrl(connectionUrl);
     clearError();
-    setManualConnectionError(false);
+    setManualConnectionError(null);
     try {
       connect(connectionUrl);
-    } catch {
-      setManualConnectionError(true);
+    } catch (error) {
+      setManualConnectionError(
+        error instanceof Error ? error.message : 'The MCP preview pairing URL is invalid.',
+      );
     }
   };
 
@@ -148,7 +152,7 @@ export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
       <Modal
         opened={showConnectionError}
         onClose={() => {
-          setManualConnectionError(false);
+          setManualConnectionError(null);
           clearError();
         }}
         title="Connection Failed"
@@ -161,7 +165,8 @@ export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
             title="Could not connect to the MCP server"
             icon={<IconAlertTriangle size={18} />}
           >
-            Check that the server is running at <strong>{connectionUrl}</strong> and the URL is correct.
+            {manualConnectionError ??
+              'Check that the paired MCP session is still running and the preview URL is correct.'}
           </Alert>
           {isMixedContent && (
             <Alert variant="light" color="orange" title="Mixed content blocked" icon={<IconAlertTriangle size={18} />}>
@@ -169,14 +174,15 @@ export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
             </Alert>
           )}
           <TextInput
-            label="Server URL"
-            placeholder="http://localhost:3001"
+            label="Preview pairing URL"
+            description="Paste the pairing URL printed after your MCP client connects"
+            placeholder="http://127.0.0.1:3001/p/preview-id"
             value={connectionUrl}
             onChange={(e) => setConnectionUrl(e.currentTarget.value)}
             leftSection={<IconServer size={14} />}
           />
           <Group justify="flex-end">
-            <Button variant="default" onClick={() => { setManualConnectionError(false); clearError(); }}>
+            <Button variant="default" onClick={() => { setManualConnectionError(null); clearError(); }}>
               Cancel
             </Button>
             <Button onClick={handleRetryConnection}>Retry</Button>

@@ -99,7 +99,7 @@ describe('WelcomeOverlay', () => {
     await waitFor(() => expect(mocks.openProject).toHaveBeenCalledWith(projectFile));
 
     act(() => useUIStore.getState().setStartSurfaceDismissed(false));
-    fireEvent.click(screen.getByRole('button', { name: 'Connect MCP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect MCP preview' }));
     expect(mocks.connect).toHaveBeenCalledTimes(1);
   });
 });

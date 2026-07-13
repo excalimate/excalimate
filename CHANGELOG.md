@@ -8,17 +8,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - N/A
 
 ### Changed
+
 - N/A
 
 ### Fixed
+
 - N/A
+
+### Security
+
+- N/A
+
+## [0.5.0] - 2026-07-13
+
+### Added
+
+- Excalimate V2's progressive creator workflow: Magic Canvas for guided animation, Sequence for plain-language ordering and timing, and the preserved Advanced Studio timeline for precise keyframe control.
+- Deterministic, fully local Auto Animate with selection or diagram scope, confidence-aware previews, and fade, slide, draw, and pop presets.
+- A curated animated template gallery and Smart Transitions with scene-state capture, local matching, preview, acceptance, customization, and Studio escalation.
+- A compact hosted player and embeddable PlayerPackage, plus V2 encrypted sharing with client-held keys, expiration, legacy-share reads, and revocation.
+- Shared project schema, animation core, player runtime, and export runtime packages for consistent behavior across the editor, player, exports, templates, and MCP.
+- MCP V2 structured action tools for local animation generation, presets, action sequences, camera moves, and project validation with paired live previews.
+
+### Changed
+
+- Video, GIF, animated SVG, Lottie, dotLottie, and hosted-player packaging now use unified frame sampling, capability checks, bounded resources, dedicated workers, and compact lazy-loaded runtime paths.
+- New and empty projects open in Magic, animated legacy projects open safely in Studio, and V2 project loading uses one validated migration path with last-known-good recovery for interrupted local writes.
+- Creator controls, dialogs, player controls, and transition workflows now provide improved keyboard access, reduced-motion behavior, focus handling, announcements, touch targets, responsive reflow, and narrow-screen layouts.
+- Performance-sensitive animation, scene-diff, player, export, template, and MCP paths now have deterministic benchmarks and bundle/resource guards.
+- Optional analytics now use explicit consent, in-memory identifiers, a declared content-free event catalogue, privacy-safe property filtering, and feature-independent rollback controls.
+- MCP live mode now defaults to secure localhost operation with isolated sessions, revisioned snapshots/deltas, pairing URLs, bounded resources, and explicit authentication for remote bindings.
+
+### Fixed
+
+- Auto Animate preserves and correctly renders bound arrows and their related elements.
+- Animation-order guidance uses plain language instead of ambiguous internal terminology.
+- Capture-state and Create-transition controls remain visible on responsive layouts and explain missing prerequisites before transition creation.
+- Project, template, share, player, export, and MCP paths maintain schema, animation, camera, file, and managed-action parity across surfaces.
+- Smart Transition and Sequence customization no longer silently overwrite detached, customized, or unmanaged animation work.
+
+### Security
+
+- Hardened encrypted-share validation, quotas, expiry, revocation, origin checks, content handling, and storage lifecycle without exposing encryption keys to the service.
+- Hardened the hosted player and export pipeline with strict package validation, sanitization, resource limits, content-security controls, and safer cross-window messaging.
+- Hardened MCP HTTP transport with loopback defaults, Host/Origin/Fetch Metadata checks, required remote authentication, session pairing, timeouts, rate limits, bounded payloads, sanitized errors, and cleanup.
 
 ## [0.4.0] - 2026-03-22
 
 ### Added
+
 - Lottie JSON (`.json`) and dotLottie (`.lottie`) export formats
   - SVG-based shape rendering captures exact Excalidraw visual style (roughjs hand-drawn strokes, arrowheads, fills)
   - Full keyframe animation support (opacity, translate, scale, rotation, draw progress)
@@ -50,10 +92,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All tracking consent-gated and PII-free
 
 ### Changed
+
 - Optimized glyph export fallback path to reuse a single SVG render per text element before PNG raster fallback
 - Updated app-facing URLs in docs/share defaults to `https://app.excalimate.com` while keeping landing and share service domains unchanged
 
 ### Fixed
+
 - Lottie glyph text mode no longer exports invisible text when path glyph extraction is unavailable
   - Falls back to embedded PNG image layers for text to preserve visibility across players
 - Lottie glyph path exports now inject fill paint when SVG glyph paths do not carry inline fill/stroke attributes
@@ -62,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2026-03-22
 
 ### Added
+
 - New Project modal with name and aspect ratio selection
 - Onboarding overlay with hand-drawn Excalidraw-style arrows and hints
 - MCP Setup Guide page accessible from the welcome overlay
@@ -72,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Property panel shows keyframe editors when keyframes are selected without an element
 
 ### Changed
+
 - Default theme is now light mode (persists user preference)
 - Export modal redesigned with Video/Image tabs and shared theme control
 - Animate mode shows correct animation state on initial load (no scrub needed)
@@ -80,6 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `extractTargets()` skipped when only element properties change (not IDs)
 
 ### Fixed
+
 - Undo restoring deleted elements no longer creates false keyframes
 - Group deletion now properly restores animation tracks on undo
 - `toggleMode()` now triggers `computeFrameAtTime` when entering animate mode

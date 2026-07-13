@@ -25,8 +25,8 @@ Release checks:
 
 ## Manual assistive-technology matrix
 
-These manual runs have **not** been performed on this integration branch. They
-are required before promotion beyond release candidate.
+These manual runs were **not** completed for the 0.5.0 release. They remain a
+documented validation limitation and must not be inferred from automated checks.
 
 | Screen reader | Browser/platform                      | Required surfaces                              |
 | ------------- | ------------------------------------- | ---------------------------------------------- |
