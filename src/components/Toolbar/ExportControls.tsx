@@ -1,13 +1,36 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Button, Modal, Progress, Text, Group, Stack, Alert, Tabs, SegmentedControl, Checkbox } from '@mantine/core';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Group,
+  Modal,
+  Progress,
+  SegmentedControl,
+  SimpleGrid,
+  Stack,
+  Tabs,
+  Text,
+  UnstyledButton,
+} from '@mantine/core';
 import { nprogress } from '@mantine/nprogress';
 import { notifications } from '@mantine/notifications';
 import {
   IconMovie, IconVideo, IconPhoto, IconSvg, IconDownload, IconCheck, IconX,
-  IconCamera, IconFileCode, IconPackage,
+  IconAlertTriangle, IconCamera, IconFileCode, IconPackage, IconPlayerStop,
 } from '@tabler/icons-react';
-import { exportAnimation } from '../../services/ExportService';
-import type { ExportFormat, ExportQuality, LottieFontEmbeddingMode } from '../../services/ExportService';
+import {
+  createExportJob,
+  estimateExport,
+} from '../../services/ExportService';
+import type {
+  ExportFormat,
+  ExportJob,
+  ExportPreflightResult,
+  ExportProgress,
+  ExportQuality,
+  LottieFontEmbeddingMode,
+} from '../../services/ExportService';
 import type { NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { useAnimationStore } from '../../stores/animationStore';
 import type { AnimatableTarget } from '../../types/excalidraw';
@@ -53,6 +76,14 @@ const IMAGE_SCALES: { value: string; label: string }[] = [
   { value: '3', label: '3x' },
   { value: '4', label: '4x' },
 ];
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+  }
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GiB`;
+}
 
 type ExportableElement = NonDeletedExcalidrawElement;
 
@@ -271,8 +302,14 @@ export function ExportControls() {
   const [format, setFormat] = useState<ExportFormat>('mp4');
   const [quality, setQuality] = useState<ExportQuality>('high');
   const [lottieFontEmbeddingModes, setLottieFontEmbeddingModes] = useState<LottieFontEmbeddingMode[]>(['inline']);
+  const [svgProfile, setSvgProfile] = useState<'css-keyframes' | 'smil'>('css-keyframes');
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [jobProgress, setJobProgress] = useState<ExportProgress | null>(null);
+  const [preflight, setPreflight] = useState<ExportPreflightResult | null>(null);
+  const [estimating, setEstimating] = useState(false);
+  const activeJobRef = useRef<ExportJob<void> | null>(null);
+  const cancelRequestedRef = useRef(false);
 
   // Image state
   const [imageFormat, setImageFormat] = useState<ImageFormat>('png');
@@ -299,17 +336,24 @@ export function ExportControls() {
     try {
       setExporting(true);
       setProgress(0);
+      setJobProgress(null);
+      cancelRequestedRef.current = false;
       nprogress.start();
-      await exportAnimation({
+      const job = await createExportJob({
         format,
         quality,
         theme: exportTheme,
+        svgProfile,
         lottieFontEmbeddingModes: isLottieFormat ? lottieFontEmbeddingModes : undefined,
         onProgress: (p) => {
           setProgress(p);
           nprogress.set(p * 100);
         },
+        onJobProgress: setJobProgress,
       });
+      activeJobRef.current = job;
+      if (cancelRequestedRef.current) job.cancel();
+      await job.start();
       nprogress.complete();
       notifications.show({
         title: 'Export complete',
@@ -319,12 +363,32 @@ export function ExportControls() {
       });
     } catch (error) {
       nprogress.complete();
+      if (
+        activeJobRef.current?.state.status === 'cancelled' ||
+        (error instanceof Error && error.name === 'ExportCancelledError')
+      ) {
+        notifications.show({
+          title: 'Export cancelled',
+          message: 'Export resources were released.',
+          icon: <IconPlayerStop size={16} />,
+          color: 'gray',
+        });
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Export failed';
       notifications.show({ title: 'Export failed', message, icon: <IconX size={16} />, color: 'red' });
     } finally {
       setExporting(false);
       setProgress(0);
+      setJobProgress(null);
+      activeJobRef.current = null;
+      cancelRequestedRef.current = false;
     }
+  };
+
+  const handleCancelExport = () => {
+    cancelRequestedRef.current = true;
+    activeJobRef.current?.cancel();
   };
 
   const handleImageExport = async () => {
@@ -357,6 +421,8 @@ export function ExportControls() {
   const hasLottieFontEmbeddingMode = lottieFontEmbeddingModes.length > 0;
   const canExportSelected = selectedElementIds.length > 0 && imageSource !== 'camera';
   const canExportTransparent = imageFormat !== 'jpg';
+  const preflightErrors = preflight?.issues.filter((issue) => issue.severity === 'error') ?? [];
+  const preflightWarnings = preflight?.issues.filter((issue) => issue.severity === 'warning') ?? [];
 
   useEffect(() => {
     if (!canExportSelected && imageScope === 'selected') {
@@ -369,6 +435,43 @@ export function ExportControls() {
       setImageBackground('include');
     }
   }, [canExportTransparent, imageBackground]);
+
+  useEffect(() => {
+    if (!showDialog || activeTab !== 'video' || exporting) return;
+    let current = true;
+    setEstimating(true);
+    void estimateExport({
+      format,
+      quality,
+      theme: exportTheme,
+      svgProfile,
+      lottieFontEmbeddingModes: isLottieFormat
+        ? lottieFontEmbeddingModes
+        : undefined,
+    })
+      .then((result) => {
+        if (current) setPreflight(result);
+      })
+      .catch(() => {
+        if (current) setPreflight(null);
+      })
+      .finally(() => {
+        if (current) setEstimating(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [
+    activeTab,
+    exportTheme,
+    exporting,
+    format,
+    isLottieFormat,
+    lottieFontEmbeddingModes,
+    quality,
+    showDialog,
+    svgProfile,
+  ]);
 
   return (
     <>
@@ -403,19 +506,32 @@ export function ExportControls() {
                   </Group>
                   <Progress value={progress * 100} animated size="lg" radius="sm" />
                   <Text size="xs" c="dimmed" ta="center">{Math.round(progress * 100)}%</Text>
+                  {jobProgress && (
+                    <Text size="xs" c="dimmed" ta="center">
+                      {jobProgress.message ?? jobProgress.phase}
+                    </Text>
+                  )}
                   <Alert variant="light" color="blue" radius="sm">
                     <Text size="xs">You can close this dialog — the export will continue in the background.</Text>
                   </Alert>
+                  <Button
+                    variant="light"
+                    color="red"
+                    leftSection={<IconPlayerStop size={16} />}
+                    onClick={handleCancelExport}
+                  >
+                    Cancel export
+                  </Button>
                 </Stack>
               ) : (
                 <>
                   <div>
                     <Text size="xs" fw={500} mb={8}>Format</Text>
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <SimpleGrid cols={2} spacing={6}>
                       {(Object.keys(FORMAT_INFO) as ExportFormat[]).map((f) => {
                         const info = FORMAT_INFO[f];
                         return (
-                          <button
+                          <UnstyledButton
                             key={f}
                             type="button"
                             className={`px-3 py-2 rounded border text-left text-xs transition-colors cursor-pointer ${
@@ -427,20 +543,20 @@ export function ExportControls() {
                           >
                             <div className="font-medium flex items-center gap-1">{info.icon} {info.label}</div>
                             <div className="text-[10px] opacity-70 mt-0.5">{info.desc}</div>
-                          </button>
+                          </UnstyledButton>
                         );
                       })}
-                    </div>
+                    </SimpleGrid>
                   </div>
 
                   {format !== 'svg' && format !== 'lottie' && format !== 'dotlottie' && (
                     <div>
                       <Text size="xs" fw={500} mb={8}>Quality</Text>
-                      <div className="grid grid-cols-4 gap-1">
+                      <SimpleGrid cols={4} spacing={4}>
                         {(Object.keys(QUALITY_INFO) as ExportQuality[]).map((q) => {
                           const info = QUALITY_INFO[q];
                           return (
-                            <button
+                            <UnstyledButton
                               key={q}
                               type="button"
                               className={`px-2 py-1.5 rounded border text-center text-[10px] transition-colors cursor-pointer ${
@@ -451,10 +567,10 @@ export function ExportControls() {
                               onClick={() => setQuality(q)}
                             >
                               <div className="font-medium">{info.label}</div>
-                            </button>
+                            </UnstyledButton>
                           );
                         })}
-                      </div>
+                      </SimpleGrid>
                       <Text size="xs" c="dimmed" mt={4}>{QUALITY_INFO[quality].desc}</Text>
                     </div>
                   )}
@@ -490,11 +606,73 @@ export function ExportControls() {
                     </div>
                   )}
 
+                  {format === 'svg' && (
+                    <div>
+                      <Text size="xs" fw={500} mb={8}>Animation profile</Text>
+                      <SegmentedControl
+                        fullWidth
+                        size="xs"
+                        value={svgProfile}
+                        onChange={(value) =>
+                          setSvgProfile(value as 'css-keyframes' | 'smil')
+                        }
+                        data={[
+                          { value: 'css-keyframes', label: 'CSS keyframes' },
+                          { value: 'smil', label: 'SMIL' },
+                        ]}
+                      />
+                      <Text size="xs" c="dimmed" mt={4}>
+                        CSS targets modern browsers. SMIL is available for hosts that preserve SVG animation elements. Both include a static poster fallback.
+                      </Text>
+                    </div>
+                  )}
+
+                  {preflight && (
+                    <Stack gap={6}>
+                      <Text size="xs" fw={500}>Resource estimate</Text>
+                      <Text size="xs" c="dimmed">
+                        {preflight.estimate.width}×{preflight.estimate.height} ·{' '}
+                        {preflight.estimate.sampleCount.toLocaleString()} samples ·{' '}
+                        {formatBytes(preflight.estimate.estimatedPeakMemoryBytes)} peak memory ·{' '}
+                        ~{formatBytes(preflight.estimate.estimatedOutputBytes)} output
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        Execution: {preflight.capabilities.executionMode === 'worker-assisted'
+                          ? 'worker-assisted sampling with cooperative DOM rasterization'
+                          : 'cooperative main-thread fallback'}
+                      </Text>
+                      {preflightWarnings.map((issue) => (
+                        <Alert
+                          key={issue.code}
+                          variant="light"
+                          color="yellow"
+                          icon={<IconAlertTriangle size={14} />}
+                        >
+                          <Text size="xs">{issue.message}</Text>
+                        </Alert>
+                      ))}
+                      {preflightErrors.map((issue) => (
+                        <Alert
+                          key={issue.code}
+                          variant="light"
+                          color="red"
+                          icon={<IconX size={14} />}
+                        >
+                          <Text size="xs">{issue.message}</Text>
+                        </Alert>
+                      ))}
+                    </Stack>
+                  )}
+
                   <Button
                     fullWidth
                     leftSection={<IconDownload size={16} />}
                     onClick={handleVideoExport}
-                    disabled={isLottieFormat && !hasLottieFontEmbeddingMode}
+                    loading={estimating}
+                    disabled={
+                      (isLottieFormat && !hasLottieFontEmbeddingMode) ||
+                      preflightErrors.length > 0
+                    }
                   >
                     Export {FORMAT_INFO[format].label}
                   </Button>
@@ -510,13 +688,13 @@ export function ExportControls() {
               {isAnimateMode && (
                 <div>
                   <Text size="xs" fw={500} mb={8}>Source</Text>
-                  <div className="grid grid-cols-1 gap-1.5">
+                  <SimpleGrid cols={1} spacing={6}>
                     {([
                       { value: 'raw' as ImageSource, label: 'Complete drawing', desc: 'Original scene without animation', icon: <IconPhoto size={14} /> },
                       { value: 'animated' as ImageSource, label: 'Current animation state', desc: 'Drawing with animation applied at current time', icon: <IconMovie size={14} /> },
                       { value: 'camera' as ImageSource, label: 'Camera frame', desc: 'Cropped to camera frame at current time', icon: <IconCamera size={14} /> },
                     ]).map((s) => (
-                      <button
+                      <UnstyledButton
                         key={s.value}
                         type="button"
                         className={`px-3 py-2 rounded border text-left text-xs transition-colors cursor-pointer ${
@@ -528,9 +706,9 @@ export function ExportControls() {
                       >
                         <div className="font-medium flex items-center gap-1">{s.icon} {s.label}</div>
                         <div className="text-[10px] opacity-70 mt-0.5">{s.desc}</div>
-                      </button>
+                      </UnstyledButton>
                     ))}
-                  </div>
+                  </SimpleGrid>
                 </div>
               )}
 

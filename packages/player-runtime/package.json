@@ -1,0 +1,28 @@
+{
+  "name": "@excalimate/player-runtime",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "benchmark": "node ./benchmarks/player.mjs"
+  },
+  "dependencies": {
+    "@excalimate/animation-core": "*",
+    "@excalimate/project-schema": "*"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

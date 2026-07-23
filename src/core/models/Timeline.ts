@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
+import { AnimationTimelineSchema } from '@excalimate/project-schema';
 import type { AnimationTimeline, AnimationTrack } from '../../types/animation';
-import { validateTrack } from './Track';
 
 export function createTimeline(
   name: string = 'Animation 1',
@@ -50,22 +50,5 @@ export function findTracksForTarget(
 export function validateTimeline(
   timeline: unknown,
 ): timeline is AnimationTimeline {
-  if (typeof timeline !== 'object' || timeline === null) return false;
-
-  const obj = timeline as Record<string, unknown>;
-
-  if (typeof obj.id !== 'string' || obj.id.length === 0) return false;
-  if (typeof obj.name !== 'string') return false;
-  if (
-    typeof obj.duration !== 'number' ||
-    !Number.isFinite(obj.duration) ||
-    obj.duration <= 0
-  )
-    return false;
-  if (typeof obj.fps !== 'number' || !Number.isFinite(obj.fps) || obj.fps <= 0)
-    return false;
-  if (!Array.isArray(obj.tracks)) return false;
-  if (!obj.tracks.every((t: unknown) => validateTrack(t))) return false;
-
-  return true;
+  return AnimationTimelineSchema.safeParse(timeline).success;
 }

@@ -12,6 +12,7 @@ import {
   IconServer,
   IconCheck,
   IconShieldLock,
+  IconTrash,
 } from '@tabler/icons-react';
 import { ImportExcalidrawModal } from './ImportExcalidrawModal';
 import { LoadAnimationModal } from './LoadAnimationModal';
@@ -35,7 +36,7 @@ export function FileControls() {
     handleLoadCheckpointFile,
     handleLoadShareUrl,
   } = useFileOperations();
-  const { loading, handleShare } = useShareOperations();
+  const { canRevoke, handleRevokeShare, loading, handleShare, revoking } = useShareOperations();
 
   const [importOpen, setImportOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
@@ -78,8 +79,20 @@ export function FileControls() {
 
           <Menu.Divider />
 
-          <Menu.Item leftSection={<IconShare size={16} />} onClick={handleShare} disabled={loading}>
+          <Menu.Item
+            leftSection={<IconShare size={16} />}
+            onClick={handleShare}
+            disabled={loading || revoking}
+          >
             Share
+          </Menu.Item>
+          <Menu.Item
+            color="red"
+            leftSection={<IconTrash size={16} />}
+            onClick={handleRevokeShare}
+            disabled={!canRevoke || loading || revoking}
+          >
+            Revoke last share
           </Menu.Item>
 
           <Menu.Divider />
@@ -165,9 +178,9 @@ function McpUrlInput({
 
   return (
     <TextInput
-      label="Server URL"
-      description="URL of your Excalimate MCP server"
-      placeholder="http://localhost:3001"
+      label="Preview pairing URL"
+      description="Paste the pairing URL printed after your MCP client connects"
+      placeholder="http://127.0.0.1:3001/p/preview-id"
       value={liveUrl}
       onChange={(e) => handleChange(e.currentTarget.value)}
       leftSection={<IconServer size={14} />}

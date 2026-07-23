@@ -1,51 +1,50 @@
-import { useEffect, useState } from 'react';
-import { extractTargets } from '../Canvas/extractTargets';
-import { computeFrameAtTime } from '../../core/engine/playbackSingleton';
-import { useAnimationStore } from '../../stores/animationStore';
-import { useProjectStore } from '../../stores/projectStore';
-import { useUIStore } from '../../stores/uiStore';
-import { decryptData, importKeyFromString } from '../../services/encryption';
+import { useEffect, useRef, useState } from 'react';
+import { notifications } from '@mantine/notifications';
+import { loadShareUrl } from '../../services/FileService';
+import { loadProjectDocumentIntoStores } from '../../services/ProjectDocumentService';
 
-export function useShareLoader(): void {
-  const [shareLoaded, setShareLoaded] = useState(false);
+export type ShareLoadState = 'idle' | 'loading' | 'loaded' | 'failed';
+
+export function useShareLoader(): ShareLoadState {
+  const [shareHash] = useState<string | null>(() =>
+    window.location.hash.startsWith('#share=')
+      ? window.location.hash
+      : null,
+  );
+  const [state, setState] = useState<ShareLoadState>(
+    shareHash ? 'loading' : 'idle',
+  );
+  const loadStarted = useRef(false);
 
   useEffect(() => {
-    if (shareLoaded) return;
-    const hash = window.location.hash;
-    if (!hash.startsWith('#share=')) return;
-    setShareLoaded(true);
+    if (!shareHash || loadStarted.current) return;
+    loadStarted.current = true;
 
-    const parts = hash.slice('#share='.length).split(',');
-    if (parts.length < 2) return;
-    const [shareId, keyStr] = parts;
+    void loadShareUrl(shareHash)
+      .then((project) => {
+        loadProjectDocumentIntoStores(project);
+        clearShareHash();
+        setState('loaded');
+      })
+      .catch((error: unknown) => {
+        clearShareHash();
+        setState('failed');
+        notifications.show({
+          title: 'Unable to load shared animation',
+          message:
+            error instanceof Error ? error.message : 'The share is invalid.',
+          color: 'red',
+        });
+      });
+  }, [shareHash]);
 
-    (async () => {
-      try {
-        const shareApiUrl = import.meta.env.VITE_SHARE_API_URL ?? 'https://share.excalimate.com';
-        const response = await fetch(`${shareApiUrl}/share/${shareId}`);
-        if (!response.ok) throw new Error('Share not found');
-        const encrypted = await response.arrayBuffer();
-        const key = await importKeyFromString(keyStr);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data = await decryptData<any>(encrypted, key);
+  return state;
+}
 
-        if (data.scene?.elements) {
-          useProjectStore.getState().createNewProject('Shared Animation', {
-            elements: data.scene.elements,
-            appState: data.scene.appState ?? {},
-            files: data.scene.files ?? {},
-          });
-          const targets = extractTargets(data.scene.elements);
-          useProjectStore.getState().setTargets(targets);
-          if (data.timeline) useAnimationStore.getState().setTimeline(data.timeline);
-          if (data.cameraFrame) useProjectStore.getState().setCameraFrame(data.cameraFrame);
-          if (data.clipStart !== undefined) useAnimationStore.getState().setClipRange(data.clipStart, data.clipEnd);
-          useUIStore.getState().setMode('animate');
-          computeFrameAtTime(0);
-        }
-      } catch (e) {
-        console.error('Failed to load shared animation:', e);
-      }
-    })();
-  }, [shareLoaded]);
+function clearShareHash(): void {
+  window.history.replaceState(
+    window.history.state,
+    '',
+    `${window.location.pathname}${window.location.search}`,
+  );
 }

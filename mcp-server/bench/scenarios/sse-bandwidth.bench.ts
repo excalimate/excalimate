@@ -6,6 +6,7 @@ import type { FixtureScene } from '../fixtures/generator.js';
 import { runIndividualTools } from './individual-tools.bench.js';
 import { runBatchTools } from './batch-tools.bench.js';
 import { runCompositeTool } from './composite-tool.bench.js';
+import { runActionGeneration } from './action-generation.bench.js';
 import type { BenchmarkResult } from '../harness/metrics.js';
 
 export interface BandwidthComparison {
@@ -13,6 +14,7 @@ export interface BandwidthComparison {
   individual: BenchmarkResult;
   batch: BenchmarkResult;
   composite: BenchmarkResult;
+  actions: BenchmarkResult;
 }
 
 export async function runBandwidthComparison(
@@ -22,7 +24,8 @@ export async function runBandwidthComparison(
   const individual = await runIndividualTools(scene, sceneSize);
   const batch = await runBatchTools(scene, sceneSize);
   const composite = await runCompositeTool(scene, sceneSize);
-  return { sceneSize, individual, batch, composite };
+  const actions = await runActionGeneration(scene, sceneSize);
+  return { sceneSize, individual, batch, composite, actions };
 }
 
 export function formatBandwidthReport(comparisons: BandwidthComparison[]): string {
@@ -37,6 +40,7 @@ export function formatBandwidthReport(comparisons: BandwidthComparison[]): strin
       ['Individual', c.individual],
       ['Batch', c.batch],
       ['Composite', c.composite],
+      ['Actions', c.actions],
     ] as const) {
       lines.push(
         `${label.padEnd(14)} ${String(r.toolCalls).padStart(6)} ${String(r.sseMessageCount).padStart(9)} ${(r.sseRawBytes / 1024).toFixed(1).padStart(10)} ${(r.sseGzipBytes / 1024).toFixed(1).padStart(10)} ${r.totalTimeMs.toFixed(1).padStart(10)}`,

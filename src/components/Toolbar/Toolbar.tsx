@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button, Menu, ActionIcon, Tooltip, Modal, TextInput, Group, Stack, Alert } from '@mantine/core';
+import { ActionIcon, Alert, Button, Group, Modal, Stack, TextInput, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { nprogress } from '@mantine/nprogress';
 import {
   IconGhost,
   IconBroadcast,
   IconBroadcastOff,
-  IconListDetails,
-  IconChevronDown,
   IconAlertTriangle,
   IconServer,
 } from '@tabler/icons-react';
@@ -18,15 +16,15 @@ import { ExportControls } from './ExportControls';
 import { InfoLinks } from './InfoLinks';
 import { useUIStore } from '../../stores/uiStore';
 import { useMcpLive, getMcpUrl } from '../../hooks/useMcpLive';
+import { WorkspaceSwitcher } from '../Workspace/WorkspaceSwitcher';
 
-export function Toolbar() {
+export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
   const ghostMode = useUIStore((s) => s.ghostMode);
-  const sequenceRevealOpen = useUIStore((s) => s.sequenceRevealOpen);
   const theme = useUIStore((s) => s.theme);
   const { connected, status, connect, disconnect, setLiveUrl, lastError, clearError } = useMcpLive();
-  const [manualConnectionError, setManualConnectionError] = useState(false);
+  const [manualConnectionError, setManualConnectionError] = useState<string | null>(null);
   const [connectionUrl, setConnectionUrl] = useState(getMcpUrl());
-  const showConnectionError = Boolean(lastError) || manualConnectionError;
+  const showConnectionError = Boolean(lastError) || Boolean(manualConnectionError);
   const isMixedContent = window.location.protocol === 'https:' && connectionUrl.startsWith('http://');
 
   // Track status changes for nprogress + connecting notification
@@ -85,19 +83,23 @@ export function Toolbar() {
     setConnectionUrl(getMcpUrl());
     try {
       connect();
-    } catch {
-      setManualConnectionError(true);
+    } catch (error) {
+      setManualConnectionError(
+        error instanceof Error ? error.message : 'The MCP preview pairing URL is invalid.',
+      );
     }
   };
 
   const handleRetryConnection = () => {
     setLiveUrl(connectionUrl);
     clearError();
-    setManualConnectionError(false);
+    setManualConnectionError(null);
     try {
       connect(connectionUrl);
-    } catch {
-      setManualConnectionError(true);
+    } catch (error) {
+      setManualConnectionError(
+        error instanceof Error ? error.message : 'The MCP preview pairing URL is invalid.',
+      );
     }
   };
 
@@ -107,28 +109,11 @@ export function Toolbar() {
       <div className="flex items-center gap-1 mr-4">
         <img src={theme === 'dark' ? '/excalimate_logo_dark.svg' : '/excalimate_logo.svg'} alt="Excalimate logo" className="w-auto h-5 mr-2" />
         <div data-hint="file"><FileControls /></div>
-        <div data-hint="tools">
-        <Menu shadow="md" width={200} position="bottom-start">
-          <Menu.Target>
-            <Button variant="subtle" color="gray" size="compact-sm" rightSection={<IconChevronDown size={12} />}>
-              Tools
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Item
-              leftSection={<IconListDetails size={16} />}
-              onClick={() => useUIStore.getState().toggleSequenceReveal()}
-              color={sequenceRevealOpen ? 'indigo' : undefined}
-            >
-              Sequence Reveal
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
-        </div>
       </div>
 
       {/* Center section: Mode switcher */}
-      <div className="flex-1 flex justify-center" data-hint="mode">
+      <div className="flex-1 flex justify-center items-center gap-3" data-hint="mode">
+        {!legacyShell && <WorkspaceSwitcher />}
         <ModeSwitcher />
       </div>
 
@@ -167,7 +152,7 @@ export function Toolbar() {
       <Modal
         opened={showConnectionError}
         onClose={() => {
-          setManualConnectionError(false);
+          setManualConnectionError(null);
           clearError();
         }}
         title="Connection Failed"
@@ -180,7 +165,8 @@ export function Toolbar() {
             title="Could not connect to the MCP server"
             icon={<IconAlertTriangle size={18} />}
           >
-            Check that the server is running at <strong>{connectionUrl}</strong> and the URL is correct.
+            {manualConnectionError ??
+              'Check that the paired MCP session is still running and the preview URL is correct.'}
           </Alert>
           {isMixedContent && (
             <Alert variant="light" color="orange" title="Mixed content blocked" icon={<IconAlertTriangle size={18} />}>
@@ -188,14 +174,15 @@ export function Toolbar() {
             </Alert>
           )}
           <TextInput
-            label="Server URL"
-            placeholder="http://localhost:3001"
+            label="Preview pairing URL"
+            description="Paste the pairing URL printed after your MCP client connects"
+            placeholder="http://127.0.0.1:3001/p/preview-id"
             value={connectionUrl}
             onChange={(e) => setConnectionUrl(e.currentTarget.value)}
             leftSection={<IconServer size={14} />}
           />
           <Group justify="flex-end">
-            <Button variant="default" onClick={() => { setManualConnectionError(false); clearError(); }}>
+            <Button variant="default" onClick={() => { setManualConnectionError(null); clearError(); }}>
               Cancel
             </Button>
             <Button onClick={handleRetryConnection}>Retry</Button>

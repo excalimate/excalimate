@@ -25,6 +25,9 @@ export {
 export {
   PROJECT_VERSION,
   createProject,
+  createProjectFromContent,
+  fromProjectDocument,
+  toProjectDocument,
   validateProject,
 } from './Project';
 

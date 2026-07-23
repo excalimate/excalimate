@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
+import type { ProjectDocument } from '@excalimate/project-schema';
 import type { AnimationProject } from '../../core/models/Project';
 import { PROJECT_VERSION, createProject } from '../models/Project';
 import {
@@ -16,7 +17,17 @@ function createTestProject(
     appState: {},
     files: {},
   });
-  return { ...base, id: 'test-id', ...overrides };
+  const project = { ...base, id: 'test-id', ...overrides };
+  return {
+    ...project,
+    metadata: {
+      ...project.metadata,
+      id: project.id,
+      name: project.name,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    },
+  };
 }
 
 describe('serializeProject', () => {
@@ -29,16 +40,18 @@ describe('serializeProject', () => {
   it('includes version info', () => {
     const project = createTestProject();
     const json = serializeProject(project);
-    const parsed = JSON.parse(json) as AnimationProject;
+    const parsed = JSON.parse(json) as ProjectDocument;
     expect(parsed.version).toBe(PROJECT_VERSION);
   });
 
   it('preserves project fields', () => {
     const project = createTestProject({ name: 'My Animation' });
     const json = serializeProject(project);
-    const parsed = JSON.parse(json) as AnimationProject;
-    expect(parsed.name).toBe('My Animation');
-    expect(parsed.id).toBe('test-id');
+    const parsed = JSON.parse(json) as ProjectDocument;
+    expect(parsed.metadata.name).toBe('My Animation');
+    expect(parsed.metadata.id).toBe('test-id');
+    expect(parsed.playback.cameraFrame).toEqual(project.cameraFrame);
+    expect('clipStart' in parsed).toBe(false);
   });
 });
 
@@ -56,23 +69,29 @@ describe('deserializeProject', () => {
 
   it('throws on non-object JSON', () => {
     expect(() => deserializeProject('"just a string"')).toThrow(
-      'expected an object',
+      'Unsupported project version',
     );
   });
 
   it('throws on missing version field', () => {
     const json = JSON.stringify({ id: 'x', name: 'y' });
-    expect(() => deserializeProject(json)).toThrow('missing "version"');
+    expect(() => deserializeProject(json)).toThrow(
+      'Unsupported project version "missing"',
+    );
   });
 
   it('throws on missing id field', () => {
-    const json = JSON.stringify({ version: PROJECT_VERSION, name: 'y' });
-    expect(() => deserializeProject(json)).toThrow('missing "id"');
+    const project = createTestProject();
+    const parsed = JSON.parse(serializeProject(project)) as ProjectDocument;
+    const json = JSON.stringify({ ...parsed, metadata: { ...parsed.metadata, id: undefined } });
+    expect(() => deserializeProject(json)).toThrow('metadata.id');
   });
 
   it('throws on missing name field', () => {
-    const json = JSON.stringify({ version: PROJECT_VERSION, id: 'x' });
-    expect(() => deserializeProject(json)).toThrow('missing "name"');
+    const project = createTestProject();
+    const parsed = JSON.parse(serializeProject(project)) as ProjectDocument;
+    const json = JSON.stringify({ ...parsed, metadata: { ...parsed.metadata, name: 42 } });
+    expect(() => deserializeProject(json)).toThrow('metadata.name');
   });
 
   it('throws on incompatible version', () => {
@@ -81,7 +100,7 @@ describe('deserializeProject', () => {
       id: 'x',
       name: 'y',
     });
-    expect(() => deserializeProject(json)).toThrow('Incompatible');
+    expect(() => deserializeProject(json)).toThrow('Unsupported');
   });
 });
 

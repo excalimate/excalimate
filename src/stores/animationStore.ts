@@ -6,6 +6,8 @@ import type {
   AnimatableProperty,
   EasingType,
 } from '../types/animation';
+import type { AnimationAction, SceneState, SceneTransition } from '@excalimate/project-schema';
+import { customizeActionsForMutation } from '@excalimate/animation-core';
 import { createKeyframe } from '../core/models/Keyframe';
 import {
   createTrack,
@@ -31,6 +33,11 @@ interface AnimationState {
   clipStart: number;
   /** Clip render range — end time in ms */
   clipEnd: number;
+  actions: AnimationAction[];
+  sceneStates: SceneState[];
+  sceneTransitions: SceneTransition[];
+  timelineRevision: number;
+  documentRevision: number;
 
   // Track actions
   addTrack: (
@@ -43,23 +50,14 @@ interface AnimationState {
   selectTrack: (trackId: string | null) => void;
 
   // Keyframe actions
-  addKeyframe: (
-    trackId: string,
-    time: number,
-    value: number,
-    easing?: EasingType,
-  ) => void;
+  addKeyframe: (trackId: string, time: number, value: number, easing?: EasingType) => void;
   removeKeyframe: (trackId: string, keyframeId: string) => void;
   updateKeyframe: (
     trackId: string,
     keyframeId: string,
     updates: Partial<Pick<Keyframe, 'time' | 'value' | 'easing'>>,
   ) => void;
-  moveKeyframe: (
-    trackId: string,
-    keyframeId: string,
-    newTime: number,
-  ) => void;
+  moveKeyframe: (trackId: string, keyframeId: string, newTime: number) => void;
   selectKeyframes: (ids: string[]) => void;
   clearKeyframeSelection: () => void;
 
@@ -79,6 +77,39 @@ interface AnimationState {
   getSelectedTrack: () => AnimationTrack | undefined;
 }
 
+function syncCustomizedTransitions(
+  transitions: readonly SceneTransition[],
+  actions: readonly AnimationAction[],
+): SceneTransition[] {
+  const customizedTransitionIds = new Set(
+    actions
+      .filter(
+        (action) =>
+          action.type === 'smartTransition' &&
+          action.transitionId &&
+          (action.status === 'customized' || action.status === 'detached'),
+      )
+      .map((action) => action.transitionId!),
+  );
+  return transitions.map((transition) =>
+    customizedTransitionIds.has(transition.id) && transition.status === 'accepted'
+      ? { ...transition, status: 'customized' }
+      : transition,
+  );
+}
+
+function customizeForMutation(
+  state: AnimationState,
+  trackId: string,
+  keyframeId?: string,
+): Pick<AnimationState, 'actions' | 'sceneTransitions'> {
+  const actions = customizeActionsForMutation(state.actions, trackId, keyframeId);
+  return {
+    actions,
+    sceneTransitions: syncCustomizedTransitions(state.sceneTransitions, actions),
+  };
+}
+
 export const useAnimationStore = create<AnimationState>()((set, get) => ({
   timeline: createTimeline(),
   selectedTrackId: null,
@@ -86,6 +117,11 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
   clipboardKeyframes: [],
   clipStart: 0,
   clipEnd: 10000, // Default 10s clip
+  actions: [],
+  sceneStates: [],
+  sceneTransitions: [],
+  timelineRevision: 0,
+  documentRevision: 0,
 
   // Track actions
   addTrack: (
@@ -96,15 +132,33 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
     const track = createTrack(targetId, targetType, property);
     set((state) => ({
       timeline: addTrackToTimeline(state.timeline, track),
+      timelineRevision: state.timelineRevision + 1,
+      documentRevision: state.documentRevision + 1,
     }));
   },
 
   removeTrack: (trackId: string): void => {
-    set((state) => ({
-      timeline: removeTrackFromTimeline(state.timeline, trackId),
-      selectedTrackId:
-        state.selectedTrackId === trackId ? null : state.selectedTrackId,
-    }));
+    set((state) => {
+      const actions = state.actions.map((action) =>
+        action.ownership.some((ownership) => ownership.trackId === trackId)
+          ? action.type === 'smartTransition'
+            ? {
+                ...action,
+                status: 'customized' as const,
+                ownership: action.ownership.filter((ownership) => ownership.trackId !== trackId),
+              }
+            : { ...action, status: 'detached' as const, ownership: [] }
+          : action,
+      );
+      return {
+        timeline: removeTrackFromTimeline(state.timeline, trackId),
+        actions,
+        sceneTransitions: syncCustomizedTransitions(state.sceneTransitions, actions),
+        timelineRevision: state.timelineRevision + 1,
+        documentRevision: state.documentRevision + 1,
+        selectedTrackId: state.selectedTrackId === trackId ? null : state.selectedTrackId,
+      };
+    });
   },
 
   toggleTrackEnabled: (trackId: string): void => {
@@ -114,6 +168,9 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
       timeline: updateTrackInTimeline(state.timeline, trackId, {
         enabled: !track.enabled,
       }),
+      ...customizeForMutation(state, trackId),
+      timelineRevision: state.timelineRevision + 1,
+      documentRevision: state.documentRevision + 1,
     }));
   },
 
@@ -122,12 +179,7 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
   },
 
   // Keyframe actions
-  addKeyframe: (
-    trackId: string,
-    time: number,
-    value: number,
-    easing?: EasingType,
-  ): void => {
+  addKeyframe: (trackId: string, time: number, value: number, easing?: EasingType): void => {
     const keyframe = createKeyframe(time, value, easing);
     const track = get().timeline.tracks.find((t) => t.id === trackId);
     if (!track) return;
@@ -136,6 +188,9 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
       timeline: updateTrackInTimeline(state.timeline, trackId, {
         keyframes: updatedTrack.keyframes,
       }),
+      ...customizeForMutation(state, trackId),
+      timelineRevision: state.timelineRevision + 1,
+      documentRevision: state.documentRevision + 1,
     }));
   },
 
@@ -143,14 +198,31 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
     const track = get().timeline.tracks.find((t) => t.id === trackId);
     if (!track) return;
     const updatedTrack = removeKeyframeFromTrack(track, keyframeId);
-    set((state) => ({
-      timeline: updateTrackInTimeline(state.timeline, trackId, {
-        keyframes: updatedTrack.keyframes,
-      }),
-      selectedKeyframeIds: state.selectedKeyframeIds.filter(
-        (id) => id !== keyframeId,
-      ),
-    }));
+    set((state) => {
+      const actions = customizeActionsForMutation(state.actions, trackId, keyframeId).map(
+        (action) => ({
+          ...action,
+          ownership: action.ownership.map((ownership) =>
+            ownership.trackId === trackId
+              ? {
+                  ...ownership,
+                  keyframeIds: ownership.keyframeIds.filter((id) => id !== keyframeId),
+                }
+              : ownership,
+          ),
+        }),
+      );
+      return {
+        timeline: updateTrackInTimeline(state.timeline, trackId, {
+          keyframes: updatedTrack.keyframes,
+        }),
+        actions,
+        sceneTransitions: syncCustomizedTransitions(state.sceneTransitions, actions),
+        timelineRevision: state.timelineRevision + 1,
+        documentRevision: state.documentRevision + 1,
+        selectedKeyframeIds: state.selectedKeyframeIds.filter((id) => id !== keyframeId),
+      };
+    });
   },
 
   updateKeyframe: (
@@ -165,14 +237,13 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
       timeline: updateTrackInTimeline(state.timeline, trackId, {
         keyframes: updatedTrack.keyframes,
       }),
+      ...customizeForMutation(state, trackId, keyframeId),
+      timelineRevision: state.timelineRevision + 1,
+      documentRevision: state.documentRevision + 1,
     }));
   },
 
-  moveKeyframe: (
-    trackId: string,
-    keyframeId: string,
-    newTime: number,
-  ): void => {
+  moveKeyframe: (trackId: string, keyframeId: string, newTime: number): void => {
     const track = get().timeline.tracks.find((t) => t.id === trackId);
     if (!track) return;
     const updatedTrack = updateKeyframeInTrack(track, keyframeId, {
@@ -182,6 +253,9 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
       timeline: updateTrackInTimeline(state.timeline, trackId, {
         keyframes: updatedTrack.keyframes,
       }),
+      ...customizeForMutation(state, trackId, keyframeId),
+      timelineRevision: state.timelineRevision + 1,
+      documentRevision: state.documentRevision + 1,
     }));
   },
 
@@ -217,28 +291,46 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
       timeline: updateTrackInTimeline(state.timeline, trackId, {
         keyframes: updatedTrack.keyframes,
       }),
+      ...customizeForMutation(state, trackId),
+      timelineRevision: state.timelineRevision + 1,
+      documentRevision: state.documentRevision + 1,
     }));
   },
 
   // Bulk
   setTimeline: (timeline: AnimationTimeline): void => {
-    set({ timeline });
+    set((state) => ({
+      timeline,
+      actions: [],
+      sceneStates: [],
+      sceneTransitions: [],
+      timelineRevision: state.timelineRevision + 1,
+      documentRevision: state.documentRevision + 1,
+    }));
   },
 
   setTimelineDuration: (duration: number): void => {
     set((state) => ({
       timeline: { ...state.timeline, duration },
+      timelineRevision: state.timelineRevision + 1,
+      documentRevision: state.documentRevision + 1,
     }));
   },
 
   setTimelineFps: (fps: number): void => {
     set((state) => ({
       timeline: { ...state.timeline, fps },
+      timelineRevision: state.timelineRevision + 1,
+      documentRevision: state.documentRevision + 1,
     }));
   },
 
   setClipRange: (start: number, end: number): void => {
-    set({ clipStart: Math.max(0, start), clipEnd: Math.max(start + 100, end) });
+    set((state) => ({
+      clipStart: Math.max(0, start),
+      clipEnd: Math.max(start + 100, end),
+      documentRevision: state.documentRevision + 1,
+    }));
   },
 
   // Selectors

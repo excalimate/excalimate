@@ -1,0 +1,414 @@
+import { createHash } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { Window } from 'happy-dom';
+import {
+  compileManagedActions,
+  createAnimationAction,
+} from '../packages/animation-core/dist/index.js';
+import { parsePlayerPackage } from '../packages/player-runtime/dist/index.js';
+import { PROJECT_VERSION, parseProjectDocument } from '../packages/project-schema/dist/index.js';
+
+const domWindow = new Window();
+globalThis.DOMParser = domWindow.DOMParser;
+globalThis.XMLSerializer = domWindow.XMLSerializer;
+
+const root = process.cwd();
+const publicRoot = path.join(root, 'public', 'templates', 'v1');
+const generatedManifestPath = path.join(root, 'src', 'templates', 'generatedManifest.ts');
+const generatedAt = '2026-01-01T00:00:00.000Z';
+const templateVersion = '1.0.0';
+const minAppVersion = '0.4.1';
+
+const definitions = [
+  {
+    id: 'api-request-flow',
+    title: 'API Request Flow',
+    description: 'Trace a request from a client through validation, processing, and response.',
+    category: 'software',
+    tags: ['api', 'request', 'architecture'],
+    aspectRatio: '16:9',
+    accent: '#228be6',
+    labels: ['Client', 'Gateway', 'Service', 'Response'],
+  },
+  {
+    id: 'oauth-flow',
+    title: 'OAuth Flow',
+    description: 'Explain a generic authorization code exchange without vendor-specific branding.',
+    category: 'software',
+    tags: ['oauth', 'identity', 'security'],
+    aspectRatio: '16:9',
+    accent: '#7048e8',
+    labels: ['Application', 'Authorize', 'Consent', 'Token'],
+  },
+  {
+    id: 'ci-cd-pipeline',
+    title: 'CI/CD Pipeline',
+    description: 'Present a focused delivery pipeline from source change to deployment.',
+    category: 'software',
+    tags: ['ci-cd', 'delivery', 'pipeline'],
+    aspectRatio: '16:9',
+    accent: '#0ca678',
+    labels: ['Commit', 'Build', 'Test', 'Deploy'],
+  },
+  {
+    id: 'kubernetes-deployment',
+    title: 'Kubernetes Deployment',
+    description: 'Show a generic workload progressing from manifest to healthy replicas.',
+    category: 'infrastructure',
+    tags: ['kubernetes', 'deployment', 'infrastructure'],
+    aspectRatio: '16:9',
+    accent: '#1971c2',
+    labels: ['Manifest', 'Scheduler', 'Replicas', 'Healthy'],
+  },
+  {
+    id: 'database-failover',
+    title: 'Database Failover',
+    description: 'Describe monitoring, failover detection, and replica promotion.',
+    category: 'infrastructure',
+    tags: ['database', 'resilience', 'failover'],
+    aspectRatio: '16:9',
+    accent: '#e8590c',
+    labels: ['Primary', 'Monitor', 'Replica', 'Promote'],
+  },
+  {
+    id: 'data-pipeline',
+    title: 'Data Pipeline',
+    description: 'Animate ingestion, validation, transformation, and warehouse loading.',
+    category: 'data',
+    tags: ['data', 'etl', 'pipeline'],
+    aspectRatio: '16:9',
+    accent: '#1098ad',
+    labels: ['Ingest', 'Validate', 'Transform', 'Warehouse'],
+  },
+  {
+    id: 'business-process',
+    title: 'Business Process',
+    description: 'Map a generic request through review, approval, and completion.',
+    category: 'business',
+    tags: ['process', 'workflow', 'operations'],
+    aspectRatio: '16:9',
+    accent: '#f08c00',
+    labels: ['Request', 'Review', 'Approve', 'Complete'],
+  },
+  {
+    id: 'educational-explainer',
+    title: 'Educational Explainer',
+    description: 'Structure a concise lesson from question through example and recap.',
+    category: 'education',
+    tags: ['education', 'lesson', 'explainer'],
+    aspectRatio: '16:9',
+    accent: '#d6336c',
+    labels: ['Question', 'Concept', 'Example', 'Recap'],
+  },
+];
+
+const manifest = { schemaVersion: 1, templates: [] };
+for (const definition of definitions) {
+  const directory = path.join(publicRoot, definition.id);
+  await mkdir(directory, { recursive: true });
+  const document = createTemplateDocument(definition);
+  const projectBytes = Buffer.from(JSON.stringify(document));
+  const poster = createPoster(definition);
+  const posterBytes = Buffer.from(poster);
+  const playerPackageBytes = Buffer.from(
+    JSON.stringify(createTemplatePlayerPackage(document, poster)),
+  );
+  const projectPath = path.join(directory, 'project.json');
+  const posterPath = path.join(directory, 'poster.svg');
+  const playerPackagePath = path.join(directory, 'player.json');
+  await writeFile(projectPath, projectBytes);
+  await writeFile(posterPath, posterBytes);
+  await writeFile(playerPackagePath, playerPackageBytes);
+  const posterPublicPath = `/templates/v1/${definition.id}/poster.svg`;
+  manifest.templates.push({
+    id: definition.id,
+    version: templateVersion,
+    minAppVersion,
+    title: definition.title,
+    description: definition.description,
+    category: definition.category,
+    tags: definition.tags,
+    aspectRatio: definition.aspectRatio,
+    poster: {
+      path: posterPublicPath,
+      mimeType: 'image/svg+xml',
+      width: 960,
+      height: 540,
+      byteLength: posterBytes.byteLength,
+      contentHash: sha256(posterBytes),
+    },
+    preview: {
+      mode: 'poster',
+      posterPath: posterPublicPath,
+      playerPackage: {
+        path: `/templates/v1/${definition.id}/player.json`,
+        mimeType: 'application/vnd.excalimate.player+json',
+        byteLength: playerPackageBytes.byteLength,
+        contentHash: sha256(playerPackageBytes),
+      },
+    },
+    contentHash: sha256(projectBytes),
+    projectAssetPath: `/templates/v1/${definition.id}/project.json`,
+  });
+}
+
+const manifestJson = `${JSON.stringify(manifest, null, 2)}\n`;
+await writeFile(path.join(publicRoot, 'manifest.json'), manifestJson);
+await writeFile(
+  generatedManifestPath,
+  `// Generated by scripts/generate-templates.mjs.\nexport const GENERATED_TEMPLATE_MANIFEST = ${JSON.stringify(manifest, null, 2)} as const;\n`,
+);
+console.log(`Generated ${manifest.templates.length} curated templates.`);
+
+function createTemplateDocument(definition) {
+  const elements = [];
+  const nodeIds = [];
+  const arrowIds = [];
+  const startX = 90;
+  const nodeY = 225;
+  const nodeWidth = 150;
+  const nodeHeight = 90;
+  const gap = 75;
+  for (const [index, label] of definition.labels.entries()) {
+    const nodeId = `${definition.id}-node-${index + 1}`;
+    const textId = `${definition.id}-label-${index + 1}`;
+    const x = startX + index * (nodeWidth + gap);
+    nodeIds.push(nodeId, textId);
+    elements.push(
+      rectangle(nodeId, x, nodeY, nodeWidth, nodeHeight, definition.accent, textId),
+      text(textId, x + 15, nodeY + 32, nodeWidth - 30, label, nodeId),
+    );
+    if (index > 0) {
+      const previousNodeId = `${definition.id}-node-${index}`;
+      const arrowId = `${definition.id}-arrow-${index}`;
+      arrowIds.push(arrowId);
+      elements.push(arrow(arrowId, x - gap, nodeY + nodeHeight / 2, gap, previousNodeId, nodeId));
+    }
+
+  }
+  const timeline = {
+    id: `${definition.id}-timeline`,
+    name: `${definition.title} animation`,
+    duration: 5_000,
+    fps: 60,
+    tracks: [],
+  };
+  const actions = [
+    createAnimationAction({
+      id: `${definition.id}-reveal`,
+      type: 'fade',
+      preset: 'fade',
+      targetIds: nodeIds,
+      timing: {
+        startMs: 0,
+        durationMs: 420,
+        staggerMs: 90,
+        startMode: 'absolute',
+      },
+      easing: 'easeOut',
+      parameters: {},
+    }),
+    createAnimationAction({
+      id: `${definition.id}-connections`,
+      type: 'draw',
+      preset: 'draw',
+      targetIds: arrowIds,
+      timing: {
+        startMs: 360,
+        durationMs: 520,
+        staggerMs: 150,
+        startMode: 'absolute',
+      },
+      easing: 'easeInOut',
+      parameters: {},
+    }),
+  ];
+  const compiled = compileManagedActions(timeline, [], actions);
+  return parseProjectDocument({
+    version: PROJECT_VERSION,
+    metadata: {
+      id: `template-${definition.id}`,
+      name: definition.title,
+      createdAt: generatedAt,
+      updatedAt: generatedAt,
+    },
+    scene: {
+      elements,
+      appState: { viewBackgroundColor: '#ffffff' },
+      files: {},
+    },
+    timeline: compiled.timeline,
+    playback: {
+      clipStart: 0,
+      clipEnd: 3_500,
+      cameraFrame: {
+        aspectRatio: definition.aspectRatio,
+        width: 960,
+        x: 480,
+        y: 270,
+      },
+    },
+    authoring: {
+      version: 1,
+      documentRevision: 1,
+      timelineRevision: 1,
+      actions: compiled.actions,
+    },
+    preferredWorkspace: 'magic',
+  });
+}
+
+function createTemplatePlayerPackage(document, poster) {
+  const frame = document.playback.cameraFrame;
+  const aspect = 16 / 9;
+  return parsePlayerPackage({
+    version: '1.0.0',
+    runtimeVersion: '1.0.0',
+    schemaVersion: document.version,
+    scene: { svg: poster },
+    animation: { timeline: document.timeline, hierarchy: {} },
+    playback: {
+      clipStart: document.playback.clipStart,
+      clipEnd: document.playback.clipEnd,
+      camera: {
+        ...frame,
+        height: frame.width / aspect,
+        sceneOffsetX: 0,
+        sceneOffsetY: 0,
+      },
+    },
+    dimensions: {
+      width: 960,
+      height: 540,
+      aspectRatio: document.playback.cameraFrame.aspectRatio,
+    },
+    poster: {
+      kind: 'frame',
+      timeMs: document.playback.clipStart,
+    },
+    title: document.metadata.name,
+    attribution: {
+      label: 'Made with Excalimate',
+      url: 'https://excalimate.com',
+    },
+  });
+}
+
+function baseElement(id, type, x, y, width, height) {
+  return {
+    id,
+    type,
+    x,
+    y,
+    width,
+    height,
+    angle: 0,
+    strokeColor: '#1e1e1e',
+    backgroundColor: 'transparent',
+    fillStyle: 'solid',
+    strokeWidth: 2,
+    strokeStyle: 'solid',
+    roughness: 1,
+    opacity: 100,
+    groupIds: [],
+    frameId: null,
+    index: null,
+    roundness: null,
+    seed: hashNumber(id),
+    version: 1,
+    versionNonce: hashNumber(`${id}-version`),
+    isDeleted: false,
+    boundElements: null,
+    updated: 1,
+    link: null,
+    locked: false,
+  };
+}
+
+function rectangle(id, x, y, width, height, accent, textId) {
+  return {
+    ...baseElement(id, 'rectangle', x, y, width, height),
+    strokeColor: accent,
+    backgroundColor: `${accent}22`,
+    roundness: { type: 3 },
+    boundElements: [{ id: textId, type: 'text' }],
+  };
+}
+
+function text(id, x, y, width, value, containerId) {
+  return {
+    ...baseElement(id, 'text', x, y, width, 25),
+    strokeColor: '#1e1e1e',
+    text: value,
+    fontSize: 20,
+    fontFamily: 5,
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    containerId,
+    originalText: value,
+    autoResize: true,
+    lineHeight: 1.25,
+  };
+}
+
+function arrow(id, x, y, width, startId, endId) {
+  return {
+    ...baseElement(id, 'arrow', x, y, width, 0),
+    points: [
+      [0, 0],
+      [width, 0],
+    ],
+    startBinding: {
+      elementId: startId,
+      focus: 0,
+      gap: 1,
+      fixedPoint: [1, 0.5],
+    },
+    endBinding: {
+      elementId: endId,
+      focus: 0,
+      gap: 1,
+      fixedPoint: [0, 0.5],
+    },
+    startArrowhead: null,
+    endArrowhead: 'arrow',
+    lastCommittedPoint: null,
+    elbowed: false,
+  };
+}
+
+function createPoster(definition) {
+  const cards = definition.labels
+    .map((label, index) => {
+      const x = 55 + index * 225;
+      const nodeId = `${definition.id}-node-${index + 1}`;
+      const labelId = `${definition.id}-label-${index + 1}`;
+      const node = `<g data-excalimate-id="${nodeId}" data-excalimate-origin="${x} 225" data-excalimate-center="${x + 87.5} 270"><rect x="${x}" y="225" width="175" height="90" rx="18" fill="#ffffff" stroke="${definition.accent}" stroke-width="4"/></g>`;
+      const text = `<g data-excalimate-id="${labelId}" data-excalimate-bound-to="${nodeId}" data-excalimate-origin="${x} 225" data-excalimate-center="${x + 87.5} 270"><text x="${x + 87.5}" y="278" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="650" fill="#1f2937">${escapeXml(label)}</text></g>`;
+      const connection =
+        index < definition.labels.length - 1
+          ? `<g data-excalimate-id="${definition.id}-arrow-${index + 1}" data-excalimate-origin="${x + 175} 270" data-excalimate-center="${x + 195} 270"><path d="M ${x + 175} 270 H ${x + 215}" stroke="${definition.accent}" stroke-width="5"/><path d="m ${x + 207} 262 10 8-10 8" fill="none" stroke="${definition.accent}" stroke-width="5"/></g>`
+          : '';
+      return `${node}${text}${connection}`;
+    })
+    .join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title desc"><title id="title">${escapeXml(definition.title)}</title><desc id="desc">${escapeXml(definition.description)}</desc><g data-excalimate-scene="true"><rect width="960" height="540" fill="#f8f9fa"/><circle cx="870" cy="70" r="120" fill="${definition.accent}" opacity=".08"/><text x="55" y="90" font-family="system-ui,sans-serif" font-size="18" font-weight="700" letter-spacing="2" fill="${definition.accent}">EXCALIMATE TEMPLATE</text><text x="55" y="145" font-family="system-ui,sans-serif" font-size="38" font-weight="750" fill="#111827">${escapeXml(definition.title)}</text>${cards}<text x="55" y="460" font-family="system-ui,sans-serif" font-size="18" fill="#4b5563">Editable diagram and managed timeline actions</text></g></svg>`;
+}
+
+function sha256(value) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function hashNumber(value) {
+  return Number.parseInt(sha256(value).slice(0, 8), 16);
+}
+
+function escapeXml(value) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+}

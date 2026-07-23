@@ -7,6 +7,8 @@ import { usePlaybackStore } from '../stores/playbackStore';
 import { useProjectStore } from '../stores/projectStore';
 import { getPlaybackController, computeFrameAtTime } from '../core/engine/playbackSingleton';
 import { trackGroupAction } from '../services/analytics/posthog';
+import { trackCreatorEvent } from '../services/analytics/posthog';
+import { requestFocusedSequenceMove } from '../components/Sequence/sequenceHotkeys';
 
 const FRAME_DURATION = 1000 / 60;
 
@@ -86,7 +88,11 @@ export function useAppHotkeys() {
 
   useHotkeys([
     // Playback
-    ['Space', () => getPlaybackController().togglePlayPause()],
+    ['Space', () => {
+      const { workspace, canvasMode } = useUIStore.getState();
+      if (workspace === 'magic' && canvasMode === 'design') return;
+      getPlaybackController().togglePlayPause();
+    }],
     ['Home', () => computeFrameAtTime(0)],
     ['End', () => {
       const dur = useAnimationStore.getState().timeline.duration;
@@ -131,8 +137,26 @@ export function useAppHotkeys() {
       }
     }],
 
-    // Mode toggle
-    ['mod+E', () => useUIStore.getState().toggleMode()],
+    // Mode toggle remains compatible with Studio and maps to canvas mode in Magic.
+    ['mod+E', () => {
+      const state = useUIStore.getState();
+      if (state.workspace === 'magic') {
+        state.setCanvasMode(
+          state.canvasMode === 'design' ? 'preview' : 'design',
+        );
+      } else {
+        state.toggleMode();
+      }
+    }],
+
+    // Progressive workspace navigation.
+    ['mod+1', () => switchWorkspace('magic')],
+    ['mod+2', () => switchWorkspace('sequence')],
+    ['mod+3', () => switchWorkspace('studio')],
+    ['alt+ArrowUp', () => requestFocusedSequenceMove('up')],
+    ['alt+ArrowDown', () => requestFocusedSequenceMove('down')],
+    ['alt+Home', () => requestFocusedSequenceMove('top')],
+    ['alt+End', () => requestFocusedSequenceMove('bottom')],
 
     // Close property panel / deselect
     ['Escape', () => {
@@ -144,4 +168,12 @@ export function useAppHotkeys() {
       }
     }],
   ]);
+}
+
+function switchWorkspace(workspace: 'magic' | 'sequence' | 'studio') {
+  useUIStore.getState().setWorkspace(workspace);
+  trackCreatorEvent('creator_workspace_changed', {
+    workspace,
+    source: 'switcher',
+  });
 }

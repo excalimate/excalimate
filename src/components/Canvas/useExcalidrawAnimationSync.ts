@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
-import { getNonDeletedElements } from '@excalidraw/excalidraw';
-import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import { applyAnimationToElements } from '../../core/engine/renderUtils';
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import {
+  applyAnimationToElements,
+  getRenderableAnimationElements,
+} from '../../core/engine/renderUtils';
 import { usePlaybackStore } from '../../stores/playbackStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -15,10 +17,21 @@ export function useExcalidrawAnimationSync(params: {
   scene: ExcalidrawSceneData | null;
   frameState: FrameState;
   targets: AnimatableTarget[];
+  revivedTombstoneIds: ReadonlySet<string>;
+  absoluteOpacityTargetIds: ReadonlySet<string>;
   selectedElementIds: string[];
   refs: AnimateEditorRefs;
 }): void {
-  const { ready, scene, frameState, targets, selectedElementIds, refs } = params;
+  const {
+    ready,
+    scene,
+    frameState,
+    targets,
+    revivedTombstoneIds,
+    absoluteOpacityTargetIds,
+    selectedElementIds,
+    refs,
+  } = params;
   const {
     apiRef,
     initialRenderDoneRef,
@@ -34,9 +47,10 @@ export function useExcalidrawAnimationSync(params: {
     if (!ready || !apiRef.current || !scene) return;
 
     const api = apiRef.current;
-    const elements = getNonDeletedElements(
+    const elements = getRenderableAnimationElements(
       scene.elements as ExcalidrawElement[],
-    ) as NonDeletedExcalidrawElement[];
+      revivedTombstoneIds,
+    );
 
     if (elements.length === 0) return;
 
@@ -49,25 +63,44 @@ export function useExcalidrawAnimationSync(params: {
       initialRenderDoneRef.current = true;
       const latestFrame = usePlaybackStore.getState().frameState;
       const latestTgts = useProjectStore.getState().targets;
-      const animated = applyAnimationToElements(elements, latestFrame, latestTgts);
-      const posMap = new Map<string, { x: number; y: number; width: number; height: number; angle: number }>();
+      const animated = applyAnimationToElements(
+        elements,
+        latestFrame,
+        latestTgts,
+        absoluteOpacityTargetIds,
+      );
+      const posMap = new Map<
+        string,
+        { x: number; y: number; width: number; height: number; angle: number }
+      >();
       for (const el of animated) {
-        posMap.set(el.id, { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle ?? 0 });
+        posMap.set(el.id, {
+          x: el.x,
+          y: el.y,
+          width: el.width,
+          height: el.height,
+          angle: el.angle ?? 0,
+        });
       }
       lastAnimatedRef.current = posMap;
-      lastElementOrderRef.current = elements.map(el => el.id).join(',');
+      lastElementOrderRef.current = elements.map((el) => el.id).join(',');
       return;
     }
 
     const latestFrameState = usePlaybackStore.getState().frameState;
     const latestTargets = useProjectStore.getState().targets;
 
-    let animated = applyAnimationToElements(elements, latestFrameState, latestTargets);
+    let animated = applyAnimationToElements(
+      elements,
+      latestFrameState,
+      latestTargets,
+      absoluteOpacityTargetIds,
+    );
 
     // Ghost mode: make hidden elements more visible for authoring
     const ghostMode = useUIStore.getState().ghostMode;
     if (ghostMode) {
-      animated = animated.map(el => {
+      animated = animated.map((el) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const opacity = (el as any).opacity ?? 100;
         if (opacity < 15) {
@@ -77,19 +110,40 @@ export function useExcalidrawAnimationSync(params: {
       });
     }
 
-    const posMap = new Map<string, { x: number; y: number; width: number; height: number; angle: number }>();
+    const posMap = new Map<
+      string,
+      { x: number; y: number; width: number; height: number; angle: number }
+    >();
     for (const el of animated) {
-      posMap.set(el.id, { x: el.x, y: el.y, width: el.width, height: el.height, angle: el.angle ?? 0 });
+      posMap.set(el.id, {
+        x: el.x,
+        y: el.y,
+        width: el.width,
+        height: el.height,
+        angle: el.angle ?? 0,
+      });
     }
     lastAnimatedRef.current = posMap;
-    lastElementOrderRef.current = elements.map(el => el.id).join(',');
+    lastElementOrderRef.current = elements.map((el) => el.id).join(',');
 
     programmaticVersionRef.current++;
     api.updateScene({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       elements: animated as any,
     });
-  }, [ready, scene, frameState, targets, apiRef, initialRenderDoneRef, lastAnimatedRef, lastElementOrderRef, programmaticVersionRef]);
+  }, [
+    ready,
+    scene,
+    frameState,
+    targets,
+    revivedTombstoneIds,
+    absoluteOpacityTargetIds,
+    apiRef,
+    initialRenderDoneRef,
+    lastAnimatedRef,
+    lastElementOrderRef,
+    programmaticVersionRef,
+  ]);
 
   // Re-apply when ghost mode toggles
   useEffect(() => {
@@ -97,13 +151,21 @@ export function useExcalidrawAnimationSync(params: {
       if (s.ghostMode !== prev.ghostMode && apiRef.current && sceneRef.current) {
         const api = apiRef.current;
         const sc = sceneRef.current;
-        const elements = getNonDeletedElements(sc.elements as ExcalidrawElement[]) as NonDeletedExcalidrawElement[];
-        let animated = applyAnimationToElements(elements, frameStateRef.current, targetsRef.current);
+        const elements = getRenderableAnimationElements(
+          sc.elements as ExcalidrawElement[],
+          revivedTombstoneIds,
+        );
+        let animated = applyAnimationToElements(
+          elements,
+          frameStateRef.current,
+          targetsRef.current,
+          absoluteOpacityTargetIds,
+        );
         if (s.ghostMode) {
-          animated = animated.map(el => {
+          animated = animated.map((el) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const opacity = (el as any).opacity ?? 100;
-            return opacity < 15 ? { ...el, opacity: 15 } as typeof el : el;
+            return opacity < 15 ? ({ ...el, opacity: 15 } as typeof el) : el;
           });
         }
         programmaticVersionRef.current++;
@@ -111,7 +173,15 @@ export function useExcalidrawAnimationSync(params: {
         api.updateScene({ elements: animated as any });
       }
     });
-  }, [apiRef, frameStateRef, programmaticVersionRef, sceneRef, targetsRef]);
+  }, [
+    revivedTombstoneIds,
+    absoluteOpacityTargetIds,
+    apiRef,
+    frameStateRef,
+    programmaticVersionRef,
+    sceneRef,
+    targetsRef,
+  ]);
 
   // ── Sync selection TO Excalidraw ───────────────────────────────
   useEffect(() => {
@@ -141,7 +211,7 @@ export function useExcalidrawAnimationSync(params: {
     const appState = api.getAppState();
     const currentSelected = new Set(
       Object.keys(appState.selectedElementIds || {}).filter(
-        id => (appState.selectedElementIds as Record<string, boolean>)[id],
+        (id) => (appState.selectedElementIds as Record<string, boolean>)[id],
       ),
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -153,11 +223,21 @@ export function useExcalidrawAnimationSync(params: {
     // Only update if different (avoid infinite loop)
     let sameElements = resolvedSet.size === currentSelected.size;
     if (sameElements) {
-      for (const id of resolvedSet) { if (!currentSelected.has(id)) { sameElements = false; break; } }
+      for (const id of resolvedSet) {
+        if (!currentSelected.has(id)) {
+          sameElements = false;
+          break;
+        }
+      }
     }
     let sameGroups = groupIdSet.size === currentGroups.size;
     if (sameGroups) {
-      for (const id of groupIdSet) { if (!currentGroups.has(id)) { sameGroups = false; break; } }
+      for (const id of groupIdSet) {
+        if (!currentGroups.has(id)) {
+          sameGroups = false;
+          break;
+        }
+      }
     }
 
     if (!sameElements || !sameGroups) {
@@ -173,4 +253,3 @@ export function useExcalidrawAnimationSync(params: {
     }
   }, [ready, selectedElementIds, targets, apiRef, programmaticVersionRef]);
 }
-

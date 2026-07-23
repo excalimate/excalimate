@@ -12,6 +12,17 @@ description: >
 
 Core animation recipes for the Excalimate MCP server. Apply these patterns to any Excalidraw diagram to create professional animated reveals, flows, and presentations.
 
+## Prefer managed V2 actions
+
+Start with `auto_animate` for an explicit scope/style, `apply_animation_preset` for a known recipe, or `upsert_action_sequence` for choreography. These compile deterministic managed actions and preserve ownership. Use the raw keyframe recipes below only when the structured action model cannot express the effect.
+
+```json
+{
+  "scope": {"elementIds":["source","arrow1","target"]},
+  "style": {"intensity":"balanced"}
+}
+```
+
 ## Animatable Properties
 
 | Property | Range | Default | Use |
@@ -203,7 +214,8 @@ Complete timing recipes for common diagram types: [timing-recipes.md](references
 
 ## Key Rules
 
-- **Use `add_keyframes_batch`** — one call for many keyframes is much faster than individual calls
+- **Prefer managed action tools**; use `add_keyframes_batch` only for custom effects
+- **Never silently overwrite managed content** — inspect `get_action_sequence`; low-level edits intentionally customize or detach an action
 - **Set opacity 0 at time 0** for all elements that should appear later in the animation
 - **Bound text inherits container animation** — labels inside shapes move with the shape; never animate labels separately
 - **`drawProgress` only works on arrows and lines** — using it on other elements has no effect
