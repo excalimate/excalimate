@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { notifications } from '@mantine/notifications';
+import { interpolate } from '@excalimate/animation-core';
 import { computeFrameAtTime } from '../../core/engine/playbackSingleton';
 import { useAnimationStore } from '../../stores/animationStore';
 import { CAMERA_FRAME_TARGET_ID, useProjectStore } from '../../stores/projectStore';
@@ -203,7 +204,7 @@ export function useKeyframeActions(): {
       if (!track) return;
 
       const existing = track.keyframes.find((kf) => Math.abs(kf.time - time) < 1);
-      const currentValue = existing?.value ?? 0;
+      const currentValue = interpolate(track.keyframes, time, property);
       if (existing) {
         store.updateKeyframe(track.id, existing.id, { value: currentValue + value });
       } else {
@@ -268,7 +269,7 @@ export function useKeyframeActions(): {
       }
       if (!track) return;
       const existing = track.keyframes.find((kf) => Math.abs(kf.time - time) < 1);
-      const currentValue = existing?.value ?? 1;
+      const currentValue = interpolate(track.keyframes, time, property);
       const newValue = Math.max(0.1, currentValue + delta);
       if (existing) {
         useAnimationStore.getState().updateKeyframe(track.id, existing.id, { value: newValue });
@@ -309,7 +310,7 @@ export function useKeyframeActions(): {
     // Convert radians delta to degrees (Excalidraw uses radians, our animation uses degrees)
     const deltaDeg = angleDelta * (180 / Math.PI);
     const existing = track.keyframes.find((kf) => Math.abs(kf.time - time) < 1);
-    const currentValue = existing?.value ?? 0;
+    const currentValue = interpolate(track.keyframes, time, 'rotation');
     if (existing) {
       store.updateKeyframe(track.id, existing.id, { value: currentValue + deltaDeg });
     } else {
