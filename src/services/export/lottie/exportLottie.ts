@@ -31,23 +31,34 @@ export async function exportDotLottie(
   const lottie = await generateLottieDocument(context, options);
   task.throwIfCancelled();
   task.report('render', 1, 'dotLottie layers mapped');
-  task.report('encode', 0.2, 'Loading dotLottie packager');
-  const { DotLottie } = await import('@dotlottie/dotlottie-js');
-  task.throwIfCancelled();
-  const dotLottie = new DotLottie();
-  type DotLottieAnimation = Parameters<typeof dotLottie.addAnimation>[0]['data'];
-  dotLottie.addAnimation({
-    id: 'animation',
-    // dotlottie-js narrows assets to images even though Lottie also permits precomps.
-    data: lottie as unknown as DotLottieAnimation,
-  });
+  task.report('encode', 0.2, 'Loading dotLottie compressor');
   task.report('encode', 0.7, 'Compressing dotLottie package');
-  const buffer = await dotLottie.toArrayBuffer();
+  const archive = await createDotLottieArchive(lottie);
   task.throwIfCancelled();
   task.report('encode', 1, 'dotLottie package encoded');
   task.report('package', 1, 'dotLottie package ready');
   task.report('download', 0.5, 'Starting dotLottie download');
-  downloadBlob(new Blob([buffer], { type: 'application/zip' }), `${context.projectName}.lottie`);
+  downloadBlob(
+    new Blob([Uint8Array.from(archive).buffer], { type: 'application/zip' }),
+    `${context.projectName}.lottie`,
+  );
+}
+
+export async function createDotLottieArchive(lottie: unknown): Promise<Uint8Array> {
+  const { strToU8, zipSync } = await import('fflate');
+  const manifest = {
+    version: '2',
+    generator: 'Excalimate',
+    animations: [{ id: 'animation' }],
+  };
+
+  return zipSync(
+    {
+      'manifest.json': strToU8(JSON.stringify(manifest)),
+      'a/animation.json': strToU8(JSON.stringify(lottie)),
+    },
+    { level: 9 },
+  );
 }
 
 async function generateLottieDocument(context: PreparedExportContext, options: ExportOptions) {
