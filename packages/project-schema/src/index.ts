@@ -7,6 +7,7 @@ export const CAMERA_FRAME_TARGET_ID = '__camera_frame__' as const;
 export const PROJECT_LIMITS = Object.freeze({
   maxInputBytes: 20 * 1024 * 1024,
   maxDecompressedBytes: 64 * 1024 * 1024,
+  maxAudioBytes: 10 * 1024 * 1024,
   maxSceneElements: 10_000,
   maxSceneFiles: 2_000,
   maxTracks: 10_000,
@@ -514,6 +515,39 @@ export const ProjectMetadataSchema = z
   })
   .strict();
 
+export const AudioAttachmentSchema = z
+  .object({
+    fileName: nameSchema.min(1),
+    mimeType: z.string().regex(/^audio\/[a-z0-9.+-]+$/i).max(128),
+    sizeBytes: z.number().int().positive().max(PROJECT_LIMITS.maxAudioBytes),
+    durationMs: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs),
+    dataUrl: z
+      .string()
+      .max(Math.ceil((PROJECT_LIMITS.maxAudioBytes * 4) / 3) + 256)
+      .regex(/^data:audio\/[a-z0-9.+-]+;base64,[a-z0-9+/]*={0,2}$/i),
+  })
+  .strict()
+  .superRefine((audio, context) => {
+    const separator = audio.dataUrl.indexOf(',');
+    const encoded = audio.dataUrl.slice(separator + 1);
+    const padding = encoded.endsWith('==') ? 2 : encoded.endsWith('=') ? 1 : 0;
+    const decodedSize = Math.floor((encoded.length * 3) / 4) - padding;
+    if (decodedSize !== audio.sizeBytes) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['sizeBytes'],
+        message: 'sizeBytes does not match the embedded audio data',
+      });
+    }
+    if (!audio.dataUrl.startsWith(`data:${audio.mimeType};base64,`)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['mimeType'],
+        message: 'mimeType does not match the embedded audio data',
+      });
+    }
+  });
+
 export const ProjectDocumentSchema = z
   .object({
     version: z.literal(PROJECT_VERSION),
@@ -521,6 +555,7 @@ export const ProjectDocumentSchema = z
     scene: ProjectSceneSchema,
     timeline: AnimationTimelineSchema,
     playback: PlaybackSchema,
+    audio: AudioAttachmentSchema.optional(),
     authoring: ProjectAuthoringSchema.optional(),
     preferredWorkspace: z.enum(PREFERRED_WORKSPACES).optional(),
   })
@@ -670,6 +705,7 @@ const legacyTransferSchema = z
     clipEnd: finiteNumberSchema.positive().max(PROJECT_LIMITS.maxTimelineDurationMs).optional(),
     cameraFrame: CameraFrameSchema.nullish(),
     playback: PlaybackSchema.optional(),
+    audio: AudioAttachmentSchema.optional(),
     authoring: ProjectAuthoringSchema.optional(),
     preferredWorkspace: z.enum(PREFERRED_WORKSPACES).optional(),
   })
@@ -702,6 +738,7 @@ export type CameraFrame = z.infer<typeof CameraFrameSchema>;
 export type Playback = z.infer<typeof PlaybackSchema>;
 export type ProjectScene = z.infer<typeof ProjectSceneSchema>;
 export type ProjectMetadata = z.infer<typeof ProjectMetadataSchema>;
+export type AudioAttachment = z.infer<typeof AudioAttachmentSchema>;
 export type ProjectDocument = z.infer<typeof ProjectDocumentSchema>;
 export type V1ProjectDocument = z.infer<typeof V1ProjectDocumentSchema>;
 export type McpStateDelta = z.infer<typeof McpStateDeltaSchema>;
@@ -712,6 +749,7 @@ export interface ProjectContent {
   scene: ProjectScene;
   timeline: AnimationTimeline;
   playback: Playback;
+  audio?: AudioAttachment;
   authoring?: ProjectAuthoring;
   preferredWorkspace?: PreferredWorkspace;
 }
@@ -856,6 +894,7 @@ export function parseProjectContent(input: unknown): ProjectContent {
       scene: project.scene,
       timeline: project.timeline,
       playback: project.playback,
+      audio: project.audio,
       authoring: project.authoring,
       preferredWorkspace: project.preferredWorkspace,
     };
@@ -875,6 +914,7 @@ export function parseProjectContent(input: unknown): ProjectContent {
     scene: transfer.scene,
     timeline,
     playback,
+    audio: transfer.audio,
     authoring: transfer.authoring,
     preferredWorkspace: transfer.preferredWorkspace,
   };

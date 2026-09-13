@@ -3,6 +3,7 @@ import type { PreparedExportContext } from './context';
 import { downloadBlob } from './download';
 import { renderRasterFrames } from './rasterFrames';
 import { QUALITY_SETTINGS, type ExportOptions } from './types';
+import { encodeAudioTrack, prepareAudioTrack } from './audioExport';
 
 export async function exportMP4(
   context: PreparedExportContext,
@@ -18,6 +19,12 @@ export async function exportMP4(
   task.throwIfCancelled();
   const bitrate = QUALITY_SETTINGS[options.quality ?? 'high'].bitrate;
   const frameDurationUs = Math.round(1_000_000 / context.fps);
+  const audioTrack = await prepareAudioTrack(
+    context.project.audio,
+    context.project.playback.clipStart,
+    context.project.playback.clipEnd,
+    'aac',
+  );
   const muxerTarget = new ArrayBufferTarget();
   const muxer = new Muxer({
     target: muxerTarget,
@@ -27,6 +34,15 @@ export async function exportMP4(
       height: context.height,
       frameRate: context.fps,
     },
+    ...(audioTrack
+      ? {
+          audio: {
+            codec: 'aac' as const,
+            numberOfChannels: audioTrack.channels.length,
+            sampleRate: audioTrack.sampleRate,
+          },
+        }
+      : {}),
     fastStart: 'in-memory',
   });
   let encoderError: Error | null = null;
@@ -68,6 +84,15 @@ export async function exportMP4(
   await encoder.flush();
   if (encoderError) throw encoderError;
   encoder.close();
+  if (audioTrack) {
+    task.report('encode', 0.8, 'Encoding attached AAC audio');
+    await encodeAudioTrack(
+      audioTrack,
+      'aac',
+      (chunk, metadata) => muxer.addAudioChunk(chunk, metadata),
+      task,
+    );
+  }
   task.report('encode', 1, 'H.264 encoding complete');
   task.report('package', 0.4, 'Finalizing MP4 container');
   muxer.finalize();
