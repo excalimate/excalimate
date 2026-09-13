@@ -255,6 +255,7 @@ function StudioShell({ legacyShell }: { legacyShell: boolean }) {
             <TimelinePanelWrapper
               tracks={timeline.tracks}
               duration={timeline.duration}
+              fps={timeline.fps}
               selectedTrackId={selectedTrackId}
               rawSelectedKeyframeIds={selectedKeyframeIds}
               clipStart={clipStart}

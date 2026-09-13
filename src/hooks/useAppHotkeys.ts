@@ -9,8 +9,7 @@ import { getPlaybackController, computeFrameAtTime } from '../core/engine/playba
 import { trackGroupAction } from '../services/analytics/posthog';
 import { trackCreatorEvent } from '../services/analytics/posthog';
 import { requestFocusedSequenceMove } from '../components/Sequence/sequenceHotkeys';
-
-const FRAME_DURATION = 1000 / 60;
+import { stepTimeByFrames } from '../components/Timeline/timelineTime';
 
 function deleteSelectedKeyframes() {
   const { selectedKeyframeIds, timeline } = useAnimationStore.getState();
@@ -100,12 +99,13 @@ export function useAppHotkeys() {
     }],
     ['ArrowLeft', () => {
       const time = usePlaybackStore.getState().currentTime;
-      computeFrameAtTime(Math.max(0, time - FRAME_DURATION));
+      const { fps, duration } = useAnimationStore.getState().timeline;
+      computeFrameAtTime(stepTimeByFrames(time, -1, fps, duration));
     }],
     ['ArrowRight', () => {
       const time = usePlaybackStore.getState().currentTime;
-      const duration = useAnimationStore.getState().timeline.duration;
-      computeFrameAtTime(Math.min(duration, time + FRAME_DURATION));
+      const { fps, duration } = useAnimationStore.getState().timeline;
+      computeFrameAtTime(stepTimeByFrames(time, 1, fps, duration));
     }],
 
     // Undo/Redo in animate mode is handled by the capture-phase interceptor above.
