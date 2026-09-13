@@ -9,6 +9,7 @@ import { usePlaybackStore } from '../../stores/playbackStore';
 import { PROPERTY_DEFAULTS } from '../../types/animation';
 import type { AnimatableProperty, Keyframe } from '../../types/animation';
 import { trackKeyframeAction, trackTrackAction } from '../../services/analytics/posthog';
+import { snapTimeToFrame } from '../Timeline/timelineTime';
 import { calculateKeyframeGroupMove } from '../../core/models/KeyframeInteraction';
 
 const LIVE_MODE_MSG_ID = 'live-mode-readonly';
@@ -25,6 +26,11 @@ function guardLiveMode(): boolean {
     return true;
   }
   return false;
+}
+
+function snapEditTime(time: number): number {
+  const { duration, fps } = useAnimationStore.getState().timeline;
+  return snapTimeToFrame(time, fps, 0, duration);
 }
 
 export function useKeyframeActions(): {
@@ -72,7 +78,7 @@ export function useKeyframeActions(): {
   const handleAddKeyframe = useCallback((trackId: string, time: number, value: number) => {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
-    useAnimationStore.getState().addKeyframe(trackId, time, value);
+    useAnimationStore.getState().addKeyframe(trackId, snapEditTime(time), value);
     trackKeyframeAction('add');
   }, []);
 
@@ -128,7 +134,11 @@ export function useKeyframeActions(): {
   const handleUpdateKeyframe = useCallback((...args: [string, string, Partial<Pick<Keyframe, 'time' | 'value' | 'easing'>>]) => {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
-    useAnimationStore.getState().updateKeyframe(...args);
+    const [trackId, keyframeId, updates] = args;
+    useAnimationStore.getState().updateKeyframe(trackId, keyframeId, {
+      ...updates,
+      ...(updates.time === undefined ? {} : { time: snapEditTime(updates.time) }),
+    });
   }, []);
 
   const handleSelectTarget = useCallback((targetId: string) => {
@@ -146,13 +156,13 @@ export function useKeyframeActions(): {
     const track = store.timeline.tracks.find((t) => t.id === trackId);
     if (!track) return;
 
-    const roundedTime = Math.round(time);
-    const existing = track.keyframes.find((kf) => Math.abs(kf.time - roundedTime) < 1);
+    const snappedTime = snapEditTime(time);
+    const existing = track.keyframes.find((kf) => Math.abs(kf.time - snappedTime) < 1);
 
     if (existing) {
       store.updateKeyframe(trackId, existing.id, { value });
     } else {
-      store.addKeyframe(trackId, roundedTime, value);
+      store.addKeyframe(trackId, snappedTime, value);
     }
 
     if (track.targetId === CAMERA_FRAME_TARGET_ID &&
@@ -162,11 +172,11 @@ export function useKeyframeActions(): {
         (t) => t.targetId === CAMERA_FRAME_TARGET_ID && t.property === otherProp,
       );
       if (otherTrack) {
-        const otherExisting = otherTrack.keyframes.find((kf) => Math.abs(kf.time - roundedTime) < 1);
+        const otherExisting = otherTrack.keyframes.find((kf) => Math.abs(kf.time - snappedTime) < 1);
         if (otherExisting) {
           useAnimationStore.getState().updateKeyframe(otherTrack.id, otherExisting.id, { value });
         } else {
-          useAnimationStore.getState().addKeyframe(otherTrack.id, roundedTime, value);
+          useAnimationStore.getState().addKeyframe(otherTrack.id, snappedTime, value);
         }
       }
     }
@@ -176,7 +186,7 @@ export function useKeyframeActions(): {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     const store = useAnimationStore.getState();
-    const time = Math.round(usePlaybackStore.getState().currentTime);
+    const time = snapEditTime(usePlaybackStore.getState().currentTime);
     const target = useProjectStore.getState().targets.find((t) => t.id === targetId);
     const targetType = target?.type ?? 'element';
 
@@ -209,7 +219,7 @@ export function useKeyframeActions(): {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     const store = useAnimationStore.getState();
-    const time = Math.round(usePlaybackStore.getState().currentTime);
+    const time = snapEditTime(usePlaybackStore.getState().currentTime);
 
     if (targetId === CAMERA_FRAME_TARGET_ID && (property === 'scaleX' || property === 'scaleY')) {
       for (const prop of ['scaleX', 'scaleY'] as const) {
@@ -242,7 +252,7 @@ export function useKeyframeActions(): {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     const store = useAnimationStore.getState();
-    const time = Math.round(usePlaybackStore.getState().currentTime);
+    const time = snapEditTime(usePlaybackStore.getState().currentTime);
     const target = useProjectStore.getState().targets.find((t) => t.id === targetId);
     const targetType = target?.type ?? 'element';
 
@@ -281,7 +291,7 @@ export function useKeyframeActions(): {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     const store = useAnimationStore.getState();
-    const time = Math.round(usePlaybackStore.getState().currentTime);
+    const time = snapEditTime(usePlaybackStore.getState().currentTime);
     const target = useProjectStore.getState().targets.find((t) => t.id === targetId);
     const targetType = target?.type ?? 'element';
 

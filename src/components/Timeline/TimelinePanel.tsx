@@ -5,7 +5,8 @@ import type { AnimationTrack, Keyframe } from '../../types/animation';
 import { KeyframeDiamond } from './KeyframeDiamond';
 import { PlaybackControls } from '../Toolbar/PlaybackControls';
 import { TimeRuler } from './TimeRuler';
-import { timeToPixel } from './timelineMath';
+import { computeTicks, timeToPixel } from './timelineMath';
+import { snapTimeToFrame } from './timelineTime';
 import {
   buildTargetGroups,
   buildTrackSegments,
@@ -24,6 +25,7 @@ import { resolveKeyframeSelection } from '../../core/models/KeyframeInteraction'
 export interface TimelinePanelProps {
   tracks: AnimationTrack[];
   duration: number;
+  fps: number;
   currentTime: number;
   selectedTrackId: string | null;
   selectedKeyframeIds: string[];
@@ -81,6 +83,7 @@ function flattenRows(groups: TargetGroup[], expandedTargets: Set<string>, indent
 export function TimelinePanel({
   tracks,
   duration,
+  fps,
   currentTime,
   selectedTrackId,
   selectedKeyframeIds,
@@ -195,6 +198,7 @@ export function TimelinePanel({
       rows: interactionRows,
       tracks,
       duration,
+      fps,
       currentTime,
       zoom,
       setZoom,
@@ -212,6 +216,10 @@ export function TimelinePanel({
       onClipRangeChange,
     });
 
+  const gridTicks = useMemo(
+    () => computeTicks(duration, fps, zoom, scrollX, rulerWidth),
+    [duration, fps, rulerWidth, scrollX, zoom],
+  );
   const beginKeyframeDrag = (
     keyframeId: string,
     startX: number,
@@ -244,7 +252,7 @@ export function TimelinePanel({
           <PlaybackControls />
         </div>
         <div className="flex-1 overflow-hidden" ref={keyframeAreaRef} onMouseDown={handleScrubberMouseDown} aria-label="Timeline scrubber">
-          <TimeRuler duration={duration} zoom={zoom} scrollX={scrollX} width={rulerWidth} />
+          <TimeRuler duration={duration} fps={fps} zoom={zoom} scrollX={scrollX} width={rulerWidth} />
         </div>
         {onCollapse && (
           <div className="shrink-0 flex items-center px-1 border-b border-l border-border bg-surface-alt">
@@ -302,7 +310,8 @@ export function TimelinePanel({
                     size="xs"
                     onClick={(e: MouseEvent) => {
                       e.stopPropagation();
-                      allTracks.forEach((t) => onAddKeyframe(t.id, Math.round(currentTime), 0));
+                      const time = snapTimeToFrame(currentTime, fps, 0, duration);
+                      allTracks.forEach((t) => onAddKeyframe(t.id, time, 0));
                     }}
                     title="Add keyframe for all properties"
                   >
@@ -343,7 +352,8 @@ export function TimelinePanel({
                   size="xs"
                   onClick={(e: MouseEvent) => {
                     e.stopPropagation();
-                    vt.tracks.forEach((t) => onAddKeyframe(t.id, Math.round(currentTime), 0));
+                    const time = snapTimeToFrame(currentTime, fps, 0, duration);
+                    vt.tracks.forEach((t) => onAddKeyframe(t.id, time, 0));
                   }}
                   title="Add keyframe"
                 >
@@ -392,6 +402,18 @@ export function TimelinePanel({
           onScroll={() => syncScroll('right')}
           onMouseDown={handleMarqueeStart}
         >
+          {gridTicks.map(({ frame, x, major }) => (
+            <div
+              key={`grid-${frame}`}
+              className={`absolute top-0 pointer-events-none ${major ? 'bg-border/60' : 'bg-border/25'}`}
+              style={{
+                left: `${x}px`,
+                width: '1px',
+                height: `max(100%, ${rows.length * TRACK_HEIGHT}px)`,
+                zIndex: 0,
+              }}
+            />
+          ))}
           {clipStartX > 0 && (
             <div
               className="absolute top-0 pointer-events-none"

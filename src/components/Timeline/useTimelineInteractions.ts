@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type MouseEven
 import type { AnimationTrack } from '../../types/animation';
 import { MAX_ZOOM, MIN_ZOOM, TRACK_HEIGHT } from './timelineModel';
 import { pixelToTime, timeToPixel } from './timelineMath';
+import { snapKeyframeDragDelta, snapTimeToFrame } from './timelineTime';
 import { calculateKeyframeGroupMove } from '../../core/models/KeyframeInteraction';
 
 export type TimelineRowData =
@@ -15,6 +16,7 @@ export interface UseTimelineInteractionsParams {
   rows: TimelineRowData[];
   tracks: AnimationTrack[];
   duration: number;
+  fps: number;
   currentTime: number;
   zoom: number;
   setZoom: Dispatch<SetStateAction<number>>;
@@ -39,6 +41,7 @@ export function useTimelineInteractions({
   rows,
   tracks,
   duration,
+  fps,
   currentTime: _currentTime,
   zoom,
   setZoom,
@@ -124,10 +127,10 @@ export function useTimelineInteractions({
       if (!keyframeAreaRef.current) return;
       const rect = keyframeAreaRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left + scrollX;
-      const time = Math.round(pixelToTime(x, zoom));
+      const time = snapTimeToFrame(pixelToTime(x, zoom), fps, 0, duration);
       onAddKeyframe(trackId, time, 0);
     },
-    [keyframeAreaRef, onAddKeyframe, scrollX, zoom],
+    [duration, fps, keyframeAreaRef, onAddKeyframe, scrollX, zoom],
   );
 
   const handleScrubberMouseDown = useCallback(
@@ -148,16 +151,21 @@ export function useTimelineInteractions({
 
       const updateTime = (clientX: number) => {
         const x = clientX - rect.left + scrollX;
-        let time = Math.max(0, pixelToTime(x, zoom));
+        let time = Math.max(0, Math.min(duration, pixelToTime(x, zoom)));
+        let snappedToExistingTime = false;
 
         for (const snapTime of snapTimes) {
           const snapPx = Math.abs(timeToPixel(snapTime, zoom) - timeToPixel(time, zoom));
           if (snapPx < SNAP_PX) {
             time = snapTime;
+            snappedToExistingTime = true;
             break;
           }
         }
 
+        if (!snappedToExistingTime) {
+          time = snapTimeToFrame(time, fps, 0, duration);
+        }
         onScrub(time);
       };
 
@@ -172,7 +180,7 @@ export function useTimelineInteractions({
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
-    [duration, keyframeAreaRef, onScrub, scrollX, tracks, zoom],
+    [duration, fps, keyframeAreaRef, onScrub, scrollX, tracks, zoom],
   );
 
   const handleKeyframeDragStart = useCallback(
@@ -183,6 +191,9 @@ export function useTimelineInteractions({
       handleClick: () => void,
     ) => {
       setDragState({ keyframeId, startClientX });
+      const draggedKeyframe = tracks
+        .flatMap((track) => track.keyframes)
+        .find((keyframe) => keyframe.id === keyframeId);
       let appliedDelta = 0;
       let moved = false;
 
@@ -190,7 +201,15 @@ export function useTimelineInteractions({
         const deltaPx = e.clientX - startClientX;
         if (Math.abs(deltaPx) < 3) return;
 
-        const requestedDelta = Math.round(pixelToTime(deltaPx, zoom));
+        const rawDelta = pixelToTime(deltaPx, zoom);
+        const requestedDelta = draggedKeyframe
+          ? snapKeyframeDragDelta(
+              draggedKeyframe.time,
+              rawDelta,
+              fps,
+              duration,
+            )
+          : rawDelta;
         const movement = calculateKeyframeGroupMove(
           tracks,
           keyframeIds,
@@ -214,7 +233,7 @@ export function useTimelineInteractions({
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
-    [duration, onEndKeyframeDrag, onMoveKeyframes, tracks, zoom],
+    [duration, fps, onEndKeyframeDrag, onMoveKeyframes, tracks, zoom],
   );
 
   const handleMarqueeStart = useCallback(

@@ -257,6 +257,10 @@ describe('formatTime', () => {
   it('formats negative values with minutes', () => {
     expect(formatTime(-61000)).toBe('-1:01.000');
   });
+
+  it('carries rounded milliseconds into the next second', () => {
+    expect(formatTime(59_999.6)).toBe('1:00.000');
+  });
 });
 
 describe('parseTime', () => {
