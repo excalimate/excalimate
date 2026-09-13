@@ -263,6 +263,7 @@ describe('playbackStore', () => {
       state: 'stopped',
       speed: 1,
       loopMode: 'none',
+      audioMuted: false,
       frameState: new Map(),
     });
   });
@@ -273,6 +274,7 @@ describe('playbackStore', () => {
     expect(state.state).toBe('stopped');
     expect(state.speed).toBe(1);
     expect(state.loopMode).toBe('none');
+    expect(state.audioMuted).toBe(false);
     expect(state.frameState.size).toBe(0);
   });
 
@@ -290,6 +292,11 @@ describe('playbackStore', () => {
     const state = usePlaybackStore.getState();
     expect(state.speed).toBe(0.5);
     expect(state.loopMode).toBe('loop');
+  });
+
+  it('should mute attached audio independently of animation playback', () => {
+    usePlaybackStore.getState().setAudioMuted(true);
+    expect(usePlaybackStore.getState().audioMuted).toBe(true);
   });
 
   it('should set frame state', () => {

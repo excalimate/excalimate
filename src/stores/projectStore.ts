@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import type {
+  AudioAttachment,
   AspectRatio,
   CameraFrame,
   PreferredWorkspace,
@@ -50,6 +51,7 @@ interface ProjectState {
   loadProject: (project: AnimationProject) => void;
   updateScene: (scene: ExcalidrawSceneData) => void;
   updateProjectName: (name: string) => void;
+  setAudioAttachment: (audio: AudioAttachment | undefined) => void;
   setTargets: (targets: AnimatableTarget[]) => void;
   setPreferredWorkspace: (workspace: PreferredWorkspace) => void;
   markClean: () => void;
@@ -113,6 +115,21 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         name,
         updatedAt,
         metadata: { ...project.metadata, name, updatedAt },
+      },
+      isDirty: true,
+    });
+  },
+
+  setAudioAttachment: (audio: AudioAttachment | undefined): void => {
+    const { project } = get();
+    if (!project) return;
+    const updatedAt = new Date().toISOString();
+    set({
+      project: {
+        ...project,
+        audio,
+        updatedAt,
+        metadata: { ...project.metadata, updatedAt },
       },
       isDirty: true,
     });

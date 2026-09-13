@@ -41,4 +41,66 @@ describe('export context preflight', () => {
       }),
     );
   });
+
+  it('warns when a format cannot carry attached audio', async () => {
+    const project = createSyntheticV2Project();
+    project.audio = {
+      fileName: 'narration.mp3',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      durationMs: 1_000,
+      dataUrl: 'data:audio/mpeg;base64,AQID',
+    };
+    const snapshot: ExportSnapshot = {
+      project,
+      projectName: 'Audio fallback',
+      targets: [],
+      elements: [],
+      files: {},
+      width: 100,
+      height: 100,
+      fps: 30,
+      options: { format: 'gif' },
+    };
+
+    const result = await preflightSnapshot(snapshot);
+
+    expect(result.issues).toContainEqual({
+      code: 'audio-unsupported-format',
+      severity: 'warning',
+      message: 'Attached audio is included only in MP4 and WebM exports.',
+    });
+  });
+
+  it('blocks video export when attached audio cannot be encoded', async () => {
+    const project = createSyntheticV2Project();
+    project.audio = {
+      fileName: 'narration.mp3',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      durationMs: 1_000,
+      dataUrl: 'data:audio/mpeg;base64,AQID',
+    };
+    const snapshot: ExportSnapshot = {
+      project,
+      projectName: 'Audio capability',
+      targets: [],
+      elements: [],
+      files: {},
+      width: 100,
+      height: 100,
+      fps: 30,
+      options: { format: 'mp4' },
+    };
+
+    const result = await preflightSnapshot(snapshot);
+
+    expect(result.supported).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'audio-encoder-unavailable',
+        severity: 'error',
+      }),
+    );
+  });
 });

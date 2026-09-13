@@ -3,6 +3,7 @@ import type { PreparedExportContext } from './context';
 import { downloadBlob } from './download';
 import { renderRasterFrames } from './rasterFrames';
 import { QUALITY_SETTINGS, type ExportOptions } from './types';
+import { encodeAudioTrack, prepareAudioTrack } from './audioExport';
 
 export async function exportWebM(
   context: PreparedExportContext,
@@ -20,6 +21,12 @@ export async function exportWebM(
   const bitrate = QUALITY_SETTINGS[options.quality ?? 'high'].bitrate;
   const frameDurationUs = Math.round(1_000_000 / context.fps);
   const codec = useVp9 ? 'vp09.00.10.08' : 'vp8';
+  const audioTrack = await prepareAudioTrack(
+    context.project.audio,
+    context.project.playback.clipStart,
+    context.project.playback.clipEnd,
+    'opus',
+  );
   const muxerTarget = new ArrayBufferTarget();
   const muxer = new Muxer({
     target: muxerTarget,
@@ -29,6 +36,15 @@ export async function exportWebM(
       height: context.height,
       frameRate: context.fps,
     },
+    ...(audioTrack
+      ? {
+          audio: {
+            codec: 'A_OPUS',
+            numberOfChannels: audioTrack.channels.length,
+            sampleRate: audioTrack.sampleRate,
+          },
+        }
+      : {}),
   });
   let encoderError: Error | null = null;
   const encoder = new VideoEncoder({
@@ -69,6 +85,15 @@ export async function exportWebM(
   await encoder.flush();
   if (encoderError) throw encoderError;
   encoder.close();
+  if (audioTrack) {
+    task.report('encode', 0.8, 'Encoding attached Opus audio');
+    await encodeAudioTrack(
+      audioTrack,
+      'opus',
+      (chunk, metadata) => muxer.addAudioChunk(chunk, metadata),
+      task,
+    );
+  }
   task.report('encode', 1, 'WebM encoding complete');
   task.report('package', 0.4, 'Finalizing WebM container');
   muxer.finalize();

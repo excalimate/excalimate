@@ -134,12 +134,14 @@ export async function preflightSnapshot(snapshot: ExportSnapshot): Promise<Expor
       y: snapshot.height / getFrameHeight(snapshot.project.playback.cameraFrame),
     },
   );
-  return fallbackIssues.length === 0
+  const audioIssues = await getAudioExportIssues(snapshot);
+  const additionalIssues = [...fallbackIssues, ...audioIssues];
+  return additionalIssues.length === 0
     ? result
     : {
         ...result,
-        issues: [...result.issues, ...fallbackIssues],
-        supported: result.supported && !fallbackIssues.some((issue) => issue.severity === 'error'),
+        issues: [...result.issues, ...additionalIssues],
+        supported: result.supported && !additionalIssues.some((issue) => issue.severity === 'error'),
       };
 }
 
@@ -199,4 +201,56 @@ export async function prepareExportContext(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function getAudioExportIssues(
+  snapshot: ExportSnapshot,
+): Promise<Array<{ code: string; severity: 'warning' | 'error'; message: string }>> {
+  if (!snapshot.project.audio) return [];
+  if (snapshot.options.format !== 'mp4' && snapshot.options.format !== 'webm') {
+    return [
+      {
+        code: 'audio-unsupported-format',
+        severity: 'warning',
+        message: 'Attached audio is included only in MP4 and WebM exports.',
+      },
+    ];
+  }
+  if (typeof AudioEncoder === 'undefined' || typeof AudioData === 'undefined') {
+    return [
+      {
+        code: 'audio-encoder-unavailable',
+        severity: 'error',
+        message:
+          'This browser cannot encode the attached audio. Use a browser with WebCodecs audio support.',
+      },
+    ];
+  }
+
+  const codec = snapshot.options.format === 'mp4' ? 'mp4a.40.2' : 'opus';
+  try {
+    const support = await AudioEncoder.isConfigSupported({
+      codec,
+      sampleRate: 48_000,
+      numberOfChannels: 2,
+      bitrate: 128_000,
+    });
+    return support.supported
+      ? []
+      : [
+          {
+            code: 'audio-codec-unavailable',
+            severity: 'error',
+            message: `${snapshot.options.format === 'mp4' ? 'AAC' : 'Opus'} audio encoding is unavailable in this browser.`,
+          },
+        ];
+  } catch {
+    return [
+      {
+        code: 'audio-codec-unavailable',
+        severity: 'error',
+        message: 'The browser could not verify audio encoding support for this video format.',
+      },
+    ];
+  }
 }

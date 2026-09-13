@@ -4,6 +4,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { IconArrowBackUp } from '@tabler/icons-react';
 import { FileControls } from '../Toolbar/FileControls';
 import { ExportControls } from '../Toolbar/ExportControls';
+import { AudioControls } from '../Toolbar/AudioControls';
 import { PlaybackControls } from '../Toolbar/PlaybackControls';
 import { ThemeToggle } from '../Toolbar/ThemeToggle';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
@@ -67,6 +68,7 @@ export function SequenceWorkspace() {
           </Group>
           <Group gap="xs" wrap="wrap">
             <PlaybackControls />
+            <AudioControls />
             <Tooltip label="Undo sequence action">
               <ActionIcon
                 className="sequence-action-control"
