@@ -25,6 +25,7 @@ export function useExcalidrawChangeBridge(params: {
     onDragRef,
     onResizeRef,
     onRotateRef,
+    isDraggingRef,
   } = refs;
 
   const lastSelectionRef = useRef<string[]>([]);
@@ -183,6 +184,10 @@ export function useExcalidrawChangeBridge(params: {
         lastGroupSignatureRef.current = nonDeleted.map(el => `${el.id}:${((el as any).groupIds ?? []).join('|')}`).join(',');
       }
 
+      // Excalidraw emits onChange while hydrating and normalizing loaded elements.
+      // Only pointer gestures should be interpreted as animation transforms.
+      if (!isDraggingRef.current) return;
+
       // Detect user edits: compare current element positions with last animated positions.
       // When a group is selected, report drag/resize on the GROUP instead of individual
       // elements — so keyframes are created on the group target, not each child.
@@ -286,7 +291,6 @@ export function useExcalidrawChangeBridge(params: {
         }
       }
     },
-    [apiRef, initialRenderDoneRef, lastAnimatedRef, lastElementOrderRef, lastProcessedVersionRef, onDragRef, onResizeRef, onRotateRef, onSelectRef, programmaticVersionRef, sceneRef, setViewport],
+    [apiRef, initialRenderDoneRef, isDraggingRef, lastAnimatedRef, lastElementOrderRef, lastProcessedVersionRef, onDragRef, onResizeRef, onRotateRef, onSelectRef, programmaticVersionRef, sceneRef, setViewport],
   );
 }
-

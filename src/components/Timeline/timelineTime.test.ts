@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   frameDurationMs,
   parseTimelineTimeEntry,
+  snapKeyframeDragDelta,
   snapTimeToFrame,
   stepTimeByFrames,
 } from './timelineTime';
@@ -18,6 +19,13 @@ describe('timeline frame timing', () => {
     expect(snapTimeToFrame(5100, 30, 0, 5000)).toBe(5000);
     expect(stepTimeByFrames(0, -1, 24, 5000)).toBe(0);
     expect(stepTimeByFrames(4990, 1, 24, 5000)).toBe(5000);
+  });
+
+  it('snaps a group drag by its anchor while preserving relative offsets', () => {
+    const delta = snapKeyframeDragDelta(100, 20, 60, 5000);
+
+    expect(100 + delta).toBeCloseTo(116.6666667);
+    expect(275 + delta).toBeCloseTo(291.6666667);
   });
 });
 

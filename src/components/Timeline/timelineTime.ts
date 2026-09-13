@@ -32,6 +32,15 @@ export function stepTimeByFrames(
   return clamp((nextFrame * 1000) / usableFps(fps), 0, duration);
 }
 
+export function snapKeyframeDragDelta(
+  anchorTime: number,
+  rawDelta: number,
+  fps: number,
+  duration: number,
+): number {
+  return snapTimeToFrame(anchorTime + rawDelta, fps, 0, duration) - anchorTime;
+}
+
 export type TimelineTimeEntryResult =
   | { ok: true; time: number; clamped: boolean }
   | { ok: false; error: string };

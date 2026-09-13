@@ -8,7 +8,7 @@ import type {
 } from '../types/animation';
 import type { AnimationAction, SceneState, SceneTransition } from '@excalimate/project-schema';
 import { customizeActionsForMutation } from '@excalimate/animation-core';
-import { createKeyframe } from '../core/models/Keyframe';
+import { createKeyframe, sortKeyframes } from '../core/models/Keyframe';
 import {
   createTrack,
   addKeyframeToTrack,
@@ -22,6 +22,7 @@ import {
   updateTrackInTimeline,
   findTracksForTarget,
 } from '../core/models/Timeline';
+import { calculateKeyframeGroupMove } from '../core/models/KeyframeInteraction';
 
 interface AnimationState {
   // State
@@ -58,6 +59,7 @@ interface AnimationState {
     updates: Partial<Pick<Keyframe, 'time' | 'value' | 'easing'>>,
   ) => void;
   moveKeyframe: (trackId: string, keyframeId: string, newTime: number) => void;
+  moveKeyframes: (keyframeIds: string[], deltaTime: number) => number;
   selectKeyframes: (ids: string[]) => void;
   clearKeyframeSelection: () => void;
 
@@ -246,17 +248,54 @@ export const useAnimationStore = create<AnimationState>()((set, get) => ({
   moveKeyframe: (trackId: string, keyframeId: string, newTime: number): void => {
     const track = get().timeline.tracks.find((t) => t.id === trackId);
     if (!track) return;
-    const updatedTrack = updateKeyframeInTrack(track, keyframeId, {
-      time: newTime,
+    const keyframe = track.keyframes.find((candidate) => candidate.id === keyframeId);
+    if (!keyframe) return;
+    get().moveKeyframes([keyframeId], newTime - keyframe.time);
+  },
+
+  moveKeyframes: (keyframeIds: string[], deltaTime: number): number => {
+    let appliedDelta = 0;
+    set((state) => {
+      const movement = calculateKeyframeGroupMove(
+        state.timeline.tracks,
+        keyframeIds,
+        deltaTime,
+        state.timeline.duration,
+      );
+      appliedDelta = movement.delta;
+      if (movement.moves.length === 0) return state;
+
+      const movedTimes = new Map(
+        movement.moves.map((move) => [move.keyframeId, move.time]),
+      );
+      const affectedTrackIds = new Set(movement.moves.map((move) => move.trackId));
+      const tracks = state.timeline.tracks.map((track) => {
+        if (!affectedTrackIds.has(track.id)) return track;
+        return {
+          ...track,
+          keyframes: sortKeyframes(
+            track.keyframes.map((keyframe) => {
+              const time = movedTimes.get(keyframe.id);
+              return time === undefined ? keyframe : { ...keyframe, time };
+            }),
+          ),
+        };
+      });
+
+      let actions = state.actions;
+      for (const move of movement.moves) {
+        actions = customizeActionsForMutation(actions, move.trackId, move.keyframeId);
+      }
+
+      return {
+        timeline: { ...state.timeline, tracks },
+        actions,
+        sceneTransitions: syncCustomizedTransitions(state.sceneTransitions, actions),
+        timelineRevision: state.timelineRevision + 1,
+        documentRevision: state.documentRevision + 1,
+      };
     });
-    set((state) => ({
-      timeline: updateTrackInTimeline(state.timeline, trackId, {
-        keyframes: updatedTrack.keyframes,
-      }),
-      ...customizeForMutation(state, trackId, keyframeId),
-      timelineRevision: state.timelineRevision + 1,
-      documentRevision: state.documentRevision + 1,
-    }));
+    return appliedDelta;
   },
 
   selectKeyframes: (ids: string[]): void => {
