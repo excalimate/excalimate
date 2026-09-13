@@ -30,7 +30,7 @@ describe('TemplateGalleryModal', () => {
     fireEvent.change(screen.getByLabelText('Search templates'), {
       target: { value: '' },
     });
-    fireEvent.click(screen.getByRole('textbox', { name: 'Category' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Category' }));
     fireEvent.click(screen.getByRole('option', { name: 'Data' }));
     expect(screen.getByRole('option', { name: /Data Pipeline/ })).toBeInTheDocument();
   });

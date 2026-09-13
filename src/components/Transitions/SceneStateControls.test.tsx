@@ -154,7 +154,7 @@ describe('SceneStateControls', () => {
     await waitFor(() =>
       expect(useAnimationStore.getState().sceneTransitions[0]?.status).toBe('accepted'),
     );
-    expect(screen.getByRole('textbox', { name: 'Starting point' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Starting point' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Preview transition' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Close transition' }));
     await waitFor(() =>
