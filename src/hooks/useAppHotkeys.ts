@@ -19,12 +19,11 @@ import {
   findAdjacentTimelineTarget,
   getFrameShortcutNavigation,
   getRelevantTimelineTargets,
-  moveTimeByFrames,
   type TimelineFrameShortcut,
   type TimelineNavigationDirection,
 } from '../components/Timeline/timelineNavigation';
+import { stepTimeByFrames } from '../components/Timeline/timelineTime';
 
-const FRAME_DURATION = 1000 / 60;
 const TIMELINE_ZOOM_FACTOR = 1.25;
 
 function deleteSelectedKeyframes() {
@@ -58,13 +57,12 @@ function seekByFrames(direction: TimelineNavigationDirection, frameCount: number
   const { timeline } = useAnimationStore.getState();
   const currentTime = usePlaybackStore.getState().currentTime;
   computeFrameAtTime(
-    moveTimeByFrames({
+    stepTimeByFrames(
       currentTime,
-      duration: timeline.duration,
-      fps: timeline.fps,
-      frameCount,
-      direction,
-    }),
+      direction === 'previous' ? -frameCount : frameCount,
+      timeline.fps,
+      timeline.duration,
+    ),
   );
 }
 
@@ -113,6 +111,46 @@ function zoomTimeline(direction: 'in' | 'out') {
   ui.setTimelineViewport(viewport.zoom, viewport.scrollX);
 }
 
+function isEditableHotkeyTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+    target.isContentEditable ||
+    target.closest('[contenteditable="true"]') !== null
+  );
+}
+
+function handleTimelineCaptureHotkey(event: KeyboardEvent): boolean {
+  if (isEditableHotkeyTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) {
+    return false;
+  }
+
+  if (event.key === 'PageUp' || event.key === 'PageDown') {
+    const shortcut: TimelineFrameShortcut = event.shiftKey ? `shift+${event.key}` : event.key;
+    seekByFrameShortcut(shortcut);
+    return true;
+  }
+  if (event.shiftKey) return false;
+
+  if (event.key.toLowerCase() === 'j') {
+    seekToTimelineTarget('previous');
+    return true;
+  }
+  if (event.key.toLowerCase() === 'k') {
+    seekToTimelineTarget('next');
+    return true;
+  }
+  if (event.code === 'Equal') {
+    zoomTimeline('in');
+    return true;
+  }
+  if (event.code === 'Minus') {
+    zoomTimeline('out');
+    return true;
+  }
+  return false;
+}
+
 /**
  * Register all application keyboard shortcuts via Mantine useHotkeys.
  * Uses getState() for all actions to avoid subscribing to store state.
@@ -145,6 +183,12 @@ export function useAppHotkeys() {
         return;
       }
 
+      if (handleTimelineCaptureHotkey(e)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+
       // Escape — clear keyframe selection (Excalidraw handles element
       // deselection internally, but stopPropagation prevents our Mantine
       // handler from firing, so we catch it in capture phase here)
@@ -160,96 +204,123 @@ export function useAppHotkeys() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
-  useHotkeys([
-    // Playback
-    ['Space', () => {
-      const { workspace, canvasMode } = useUIStore.getState();
-      if (workspace === 'magic' && canvasMode === 'design') return;
-      getPlaybackController().togglePlayPause();
-    }],
-    ['Home', () => computeFrameAtTime(0)],
-    ['End', () => {
-      const dur = useAnimationStore.getState().timeline.duration;
-      computeFrameAtTime(dur);
-    }],
-    ['ArrowLeft', () => {
-      const time = usePlaybackStore.getState().currentTime;
-      computeFrameAtTime(Math.max(0, time - FRAME_DURATION));
-    }],
-    ['ArrowRight', () => {
-      const time = usePlaybackStore.getState().currentTime;
-      const duration = useAnimationStore.getState().timeline.duration;
-      computeFrameAtTime(Math.min(duration, time + FRAME_DURATION));
-    }],
-    ['shift+PageUp', () => seekByFrameShortcut('shift+PageUp'), { preventDefault: true }],
-    ['shift+PageDown', () => seekByFrameShortcut('shift+PageDown'), { preventDefault: true }],
-    ['PageUp', () => seekByFrameShortcut('PageUp'), { preventDefault: true }],
-    ['PageDown', () => seekByFrameShortcut('PageDown'), { preventDefault: true }],
-    ['Equal', () => zoomTimeline('in'), { preventDefault: true, usePhysicalKeys: true }],
-    ['Minus', () => zoomTimeline('out'), { preventDefault: true, usePhysicalKeys: true }],
-    ['J', () => seekToTimelineTarget('previous'), { preventDefault: true }],
-    ['K', () => seekToTimelineTarget('next'), { preventDefault: true }],
+  useHotkeys(
+    [
+      // Playback
+      [
+        'Space',
+        () => {
+          const { workspace, canvasMode } = useUIStore.getState();
+          if (workspace === 'magic' && canvasMode === 'design') return;
+          getPlaybackController().togglePlayPause();
+        },
+      ],
+      ['Home', () => computeFrameAtTime(0)],
+      [
+        'End',
+        () => {
+          const dur = useAnimationStore.getState().timeline.duration;
+          computeFrameAtTime(dur);
+        },
+      ],
+      [
+        'ArrowLeft',
+        () => {
+          const time = usePlaybackStore.getState().currentTime;
+          const { fps, duration } = useAnimationStore.getState().timeline;
+          computeFrameAtTime(stepTimeByFrames(time, -1, fps, duration));
+        },
+      ],
+      [
+        'ArrowRight',
+        () => {
+          const time = usePlaybackStore.getState().currentTime;
+          const { fps, duration } = useAnimationStore.getState().timeline;
+          computeFrameAtTime(stepTimeByFrames(time, 1, fps, duration));
+        },
+      ],
+      ['shift+PageUp', () => seekByFrameShortcut('shift+PageUp'), { preventDefault: true }],
+      ['shift+PageDown', () => seekByFrameShortcut('shift+PageDown'), { preventDefault: true }],
+      ['PageUp', () => seekByFrameShortcut('PageUp'), { preventDefault: true }],
+      ['PageDown', () => seekByFrameShortcut('PageDown'), { preventDefault: true }],
+      ['Equal', () => zoomTimeline('in'), { preventDefault: true, usePhysicalKeys: true }],
+      ['Minus', () => zoomTimeline('out'), { preventDefault: true, usePhysicalKeys: true }],
+      ['J', () => seekToTimelineTarget('previous'), { preventDefault: true }],
+      ['K', () => seekToTimelineTarget('next'), { preventDefault: true }],
 
-    // Undo/Redo in animate mode is handled by the capture-phase interceptor above.
-    // In edit mode, Excalidraw handles its own undo natively — no handler needed.
+      // Undo/Redo in animate mode is handled by the capture-phase interceptor above.
+      // In edit mode, Excalidraw handles its own undo natively — no handler needed.
 
-    // Delete selected keyframes
-    ['Delete', deleteSelectedKeyframes],
-    ['Backspace', deleteSelectedKeyframes],
+      // Delete selected keyframes
+      ['Delete', deleteSelectedKeyframes],
+      ['Backspace', deleteSelectedKeyframes],
 
-    // Group / Ungroup
-    ['mod+G', () => {
-      const selectedIds = useUIStore.getState().selectedElementIds;
-      if (selectedIds.length >= 2) {
-        useProjectStore.getState().groupElements(selectedIds);
-        trackGroupAction('group', selectedIds.length);
-      }
-    }],
-    ['mod+shift+G', () => {
-      const selectedIds = useUIStore.getState().selectedElementIds;
-      if (selectedIds.length === 1) {
-        const target = useProjectStore.getState().targets.find(
-          (t) => t.id === selectedIds[0] && t.type === 'group',
-        );
-        if (target) {
-          useProjectStore.getState().ungroupTarget(target.id);
-          useUIStore.getState().clearSelection();
-          trackGroupAction('ungroup');
-        }
-      }
-    }],
+      // Group / Ungroup
+      [
+        'mod+G',
+        () => {
+          const selectedIds = useUIStore.getState().selectedElementIds;
+          if (selectedIds.length >= 2) {
+            useProjectStore.getState().groupElements(selectedIds);
+            trackGroupAction('group', selectedIds.length);
+          }
+        },
+      ],
+      [
+        'mod+shift+G',
+        () => {
+          const selectedIds = useUIStore.getState().selectedElementIds;
+          if (selectedIds.length === 1) {
+            const target = useProjectStore
+              .getState()
+              .targets.find((t) => t.id === selectedIds[0] && t.type === 'group');
+            if (target) {
+              useProjectStore.getState().ungroupTarget(target.id);
+              useUIStore.getState().clearSelection();
+              trackGroupAction('ungroup');
+            }
+          }
+        },
+      ],
 
-    // Mode toggle remains compatible with Studio and maps to canvas mode in Magic.
-    ['mod+E', () => {
-      const state = useUIStore.getState();
-      if (state.workspace === 'magic') {
-        state.setCanvasMode(
-          state.canvasMode === 'design' ? 'preview' : 'design',
-        );
-      } else {
-        state.toggleMode();
-      }
-    }],
+      // Mode toggle remains compatible with Studio and maps to canvas mode in Magic.
+      [
+        'mod+E',
+        () => {
+          const state = useUIStore.getState();
+          if (state.workspace === 'magic') {
+            state.setCanvasMode(state.canvasMode === 'design' ? 'preview' : 'design');
+          } else {
+            state.toggleMode();
+          }
+        },
+      ],
 
-    // Progressive workspace navigation.
-    ['mod+1', () => switchWorkspace('magic')],
-    ['mod+2', () => switchWorkspace('sequence')],
-    ['mod+3', () => switchWorkspace('studio')],
-    ['alt+ArrowUp', () => requestFocusedSequenceMove('up')],
-    ['alt+ArrowDown', () => requestFocusedSequenceMove('down')],
-    ['alt+Home', () => requestFocusedSequenceMove('top')],
-    ['alt+End', () => requestFocusedSequenceMove('bottom')],
+      // Progressive workspace navigation.
+      ['mod+1', () => switchWorkspace('magic')],
+      ['mod+2', () => switchWorkspace('sequence')],
+      ['mod+3', () => switchWorkspace('studio')],
+      ['alt+ArrowUp', () => requestFocusedSequenceMove('up')],
+      ['alt+ArrowDown', () => requestFocusedSequenceMove('down')],
+      ['alt+Home', () => requestFocusedSequenceMove('top')],
+      ['alt+End', () => requestFocusedSequenceMove('bottom')],
 
-    // Close property panel / deselect
-    ['Escape', () => {
-      const { selectedElementIds } = useUIStore.getState();
-      const { selectedKeyframeIds } = useAnimationStore.getState();
-      if (selectedElementIds.length > 0 || selectedKeyframeIds.length > 0) {
-        useUIStore.getState().setSelectedElements([]);
-        useAnimationStore.getState().clearKeyframeSelection();
-      }
-    }],
-  ], ['INPUT', 'TEXTAREA', 'SELECT'], false);
+      // Close property panel / deselect
+      [
+        'Escape',
+        () => {
+          const { selectedElementIds } = useUIStore.getState();
+          const { selectedKeyframeIds } = useAnimationStore.getState();
+          if (selectedElementIds.length > 0 || selectedKeyframeIds.length > 0) {
+            useUIStore.getState().setSelectedElements([]);
+            useAnimationStore.getState().clearKeyframeSelection();
+          }
+        },
+      ],
+    ],
+    ['INPUT', 'TEXTAREA', 'SELECT'],
+    false,
+  );
 }
 
 function switchWorkspace(workspace: 'magic' | 'sequence' | 'studio') {

@@ -47,6 +47,34 @@ describe('shared project schema contracts', () => {
     );
   });
 
+  it('round-trips a bounded embedded audio attachment', () => {
+    const project = createSyntheticV2Project();
+    project.audio = {
+      fileName: 'voiceover.mp3',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      durationMs: 1_250,
+      dataUrl: 'data:audio/mpeg;base64,AQID',
+    };
+
+    expect(decodeProjectDocument(encodeProjectDocument(project)).audio).toEqual(project.audio);
+  });
+
+  it('rejects audio metadata that does not match embedded data', () => {
+    const project = createSyntheticV2Project();
+    project.audio = {
+      fileName: 'voiceover.mp3',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 4,
+      durationMs: 1_250,
+      dataUrl: 'data:audio/mpeg;base64,AQID',
+    };
+
+    expect(() => parseProjectDocument(project)).toThrow(
+      'sizeBytes does not match the embedded audio data',
+    );
+  });
+
   it('normalizes safe defaults for legacy checkpoint/share payloads', () => {
     const content = parseProjectContent({
       scene: SYNTHETIC_V1_PROJECT.scene,

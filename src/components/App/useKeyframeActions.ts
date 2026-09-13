@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { notifications } from '@mantine/notifications';
 import { computeFrameAtTime } from '../../core/engine/playbackSingleton';
 import { useAnimationStore } from '../../stores/animationStore';
@@ -9,6 +9,8 @@ import { usePlaybackStore } from '../../stores/playbackStore';
 import { PROPERTY_DEFAULTS } from '../../types/animation';
 import type { AnimatableProperty, Keyframe } from '../../types/animation';
 import { trackKeyframeAction, trackTrackAction } from '../../services/analytics/posthog';
+import { snapTimeToFrame } from '../Timeline/timelineTime';
+import { calculateKeyframeGroupMove } from '../../core/models/KeyframeInteraction';
 
 const LIVE_MODE_MSG_ID = 'live-mode-readonly';
 
@@ -26,12 +28,18 @@ function guardLiveMode(): boolean {
   return false;
 }
 
+function snapEditTime(time: number): number {
+  const { duration, fps } = useAnimationStore.getState().timeline;
+  return snapTimeToFrame(time, fps, 0, duration);
+}
+
 export function useKeyframeActions(): {
   handleScrub: (time: number) => void;
   handleSelectTrack: (id: string | null) => void;
   handleSelectKeyframes: (ids: string[]) => void;
   handleAddKeyframe: (trackId: string, time: number, value: number) => void;
-  handleMoveKeyframe: (trackId: string, kfId: string, newTime: number) => void;
+  handleMoveKeyframes: (keyframeIds: string[], deltaTime: number) => number;
+  handleEndKeyframeDrag: () => void;
   handleRemoveKeyframe: (trackId: string, kfId: string) => void;
   handleToggleTrackEnabled: (trackId: string) => void;
   handleRemoveTrack: (trackId: string) => void;
@@ -44,6 +52,17 @@ export function useKeyframeActions(): {
   handleResizeElement: (targetId: string, dScaleX: number, dScaleY: number) => void;
   handleRotateElement: (targetId: string, angleDelta: number) => void;
 } {
+  const keyframeDragBatchActiveRef = useRef(false);
+
+  useEffect(
+    () => () => {
+      if (keyframeDragBatchActiveRef.current) {
+        useUndoRedoStore.getState().endBatch();
+      }
+    },
+    [],
+  );
+
   const handleScrub = useCallback((time: number) => {
     computeFrameAtTime(time);
   }, []);
@@ -59,14 +78,36 @@ export function useKeyframeActions(): {
   const handleAddKeyframe = useCallback((trackId: string, time: number, value: number) => {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
-    useAnimationStore.getState().addKeyframe(trackId, time, value);
+    useAnimationStore.getState().addKeyframe(trackId, snapEditTime(time), value);
     trackKeyframeAction('add');
   }, []);
 
-  const handleMoveKeyframe = useCallback((trackId: string, kfId: string, newTime: number) => {
-    if (guardLiveMode()) return;
-    useAnimationStore.getState().moveKeyframe(trackId, kfId, newTime);
-    trackKeyframeAction('move');
+  const handleMoveKeyframes = useCallback((keyframeIds: string[], deltaTime: number): number => {
+    if (guardLiveMode()) return 0;
+    const animationStore = useAnimationStore.getState();
+    const movement = calculateKeyframeGroupMove(
+      animationStore.timeline.tracks,
+      keyframeIds,
+      deltaTime,
+      animationStore.timeline.duration,
+    );
+    if (movement.delta === 0) return 0;
+
+    if (!keyframeDragBatchActiveRef.current) {
+      const undoStore = useUndoRedoStore.getState();
+      undoStore.beginBatch();
+      undoStore.pushState();
+      keyframeDragBatchActiveRef.current = true;
+      trackKeyframeAction('move');
+    }
+
+    return animationStore.moveKeyframes(keyframeIds, movement.delta);
+  }, []);
+
+  const handleEndKeyframeDrag = useCallback(() => {
+    if (!keyframeDragBatchActiveRef.current) return;
+    useUndoRedoStore.getState().endBatch();
+    keyframeDragBatchActiveRef.current = false;
   }, []);
 
   const handleRemoveKeyframe = useCallback((trackId: string, kfId: string) => {
@@ -93,7 +134,11 @@ export function useKeyframeActions(): {
   const handleUpdateKeyframe = useCallback((...args: [string, string, Partial<Pick<Keyframe, 'time' | 'value' | 'easing'>>]) => {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
-    useAnimationStore.getState().updateKeyframe(...args);
+    const [trackId, keyframeId, updates] = args;
+    useAnimationStore.getState().updateKeyframe(trackId, keyframeId, {
+      ...updates,
+      ...(updates.time === undefined ? {} : { time: snapEditTime(updates.time) }),
+    });
   }, []);
 
   const handleSelectTarget = useCallback((targetId: string) => {
@@ -111,13 +156,13 @@ export function useKeyframeActions(): {
     const track = store.timeline.tracks.find((t) => t.id === trackId);
     if (!track) return;
 
-    const roundedTime = Math.round(time);
-    const existing = track.keyframes.find((kf) => Math.abs(kf.time - roundedTime) < 1);
+    const snappedTime = snapEditTime(time);
+    const existing = track.keyframes.find((kf) => Math.abs(kf.time - snappedTime) < 1);
 
     if (existing) {
       store.updateKeyframe(trackId, existing.id, { value });
     } else {
-      store.addKeyframe(trackId, roundedTime, value);
+      store.addKeyframe(trackId, snappedTime, value);
     }
 
     if (track.targetId === CAMERA_FRAME_TARGET_ID &&
@@ -127,11 +172,11 @@ export function useKeyframeActions(): {
         (t) => t.targetId === CAMERA_FRAME_TARGET_ID && t.property === otherProp,
       );
       if (otherTrack) {
-        const otherExisting = otherTrack.keyframes.find((kf) => Math.abs(kf.time - roundedTime) < 1);
+        const otherExisting = otherTrack.keyframes.find((kf) => Math.abs(kf.time - snappedTime) < 1);
         if (otherExisting) {
           useAnimationStore.getState().updateKeyframe(otherTrack.id, otherExisting.id, { value });
         } else {
-          useAnimationStore.getState().addKeyframe(otherTrack.id, roundedTime, value);
+          useAnimationStore.getState().addKeyframe(otherTrack.id, snappedTime, value);
         }
       }
     }
@@ -141,7 +186,7 @@ export function useKeyframeActions(): {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     const store = useAnimationStore.getState();
-    const time = Math.round(usePlaybackStore.getState().currentTime);
+    const time = snapEditTime(usePlaybackStore.getState().currentTime);
     const target = useProjectStore.getState().targets.find((t) => t.id === targetId);
     const targetType = target?.type ?? 'element';
 
@@ -174,7 +219,7 @@ export function useKeyframeActions(): {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     const store = useAnimationStore.getState();
-    const time = Math.round(usePlaybackStore.getState().currentTime);
+    const time = snapEditTime(usePlaybackStore.getState().currentTime);
 
     if (targetId === CAMERA_FRAME_TARGET_ID && (property === 'scaleX' || property === 'scaleY')) {
       for (const prop of ['scaleX', 'scaleY'] as const) {
@@ -207,7 +252,7 @@ export function useKeyframeActions(): {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     const store = useAnimationStore.getState();
-    const time = Math.round(usePlaybackStore.getState().currentTime);
+    const time = snapEditTime(usePlaybackStore.getState().currentTime);
     const target = useProjectStore.getState().targets.find((t) => t.id === targetId);
     const targetType = target?.type ?? 'element';
 
@@ -246,7 +291,7 @@ export function useKeyframeActions(): {
     if (guardLiveMode()) return;
     useUndoRedoStore.getState().pushState();
     const store = useAnimationStore.getState();
-    const time = Math.round(usePlaybackStore.getState().currentTime);
+    const time = snapEditTime(usePlaybackStore.getState().currentTime);
     const target = useProjectStore.getState().targets.find((t) => t.id === targetId);
     const targetType = target?.type ?? 'element';
 
@@ -277,7 +322,8 @@ export function useKeyframeActions(): {
     handleSelectTrack,
     handleSelectKeyframes,
     handleAddKeyframe,
-    handleMoveKeyframe,
+    handleMoveKeyframes,
+    handleEndKeyframeDrag,
     handleRemoveKeyframe,
     handleToggleTrackEnabled,
     handleRemoveTrack,

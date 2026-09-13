@@ -21,6 +21,7 @@ import { ErrorBoundary } from '../common/ErrorBoundary';
 import { WelcomeOverlay } from '../Onboarding/WelcomeOverlay';
 import { FileControls } from '../Toolbar/FileControls';
 import { ExportControls } from '../Toolbar/ExportControls';
+import { AudioControls } from '../Toolbar/AudioControls';
 import { PlaybackControls } from '../Toolbar/PlaybackControls';
 import { ThemeToggle } from '../Toolbar/ThemeToggle';
 import { useShareOperations } from '../Toolbar/useShareOperations';
@@ -154,6 +155,7 @@ export function MagicWorkspace() {
                 Play
               </Button>
             )}
+            <AudioControls />
             <Tooltip label="Undo animation action">
               <ActionIcon
                 aria-label="Undo animation action"

@@ -203,6 +203,41 @@ describe('animationStore', () => {
     expect(keyframes[1].id).toBe(kfId);
   });
 
+  it('should move selected keyframes atomically with a shared constrained delta', () => {
+    useAnimationStore.setState({
+      timeline: {
+        id: 'timeline',
+        name: 'Timeline',
+        duration: 1000,
+        fps: 60,
+        tracks: [
+          {
+            id: 'track',
+            targetId: 'el-1',
+            targetType: 'element',
+            property: 'opacity',
+            enabled: true,
+            keyframes: [
+              { id: 'a', time: 100, value: 0, easing: 'linear' },
+              { id: 'b', time: 200, value: 1, easing: 'linear' },
+              { id: 'fixed', time: 350, value: 0, easing: 'linear' },
+            ],
+          },
+        ],
+      },
+    });
+
+    const appliedDelta = useAnimationStore.getState().moveKeyframes(['a', 'b'], 150);
+    const keyframes = useAnimationStore.getState().timeline.tracks[0].keyframes;
+
+    expect(appliedDelta).toBe(149);
+    expect(keyframes.map(({ id, time }) => [id, time])).toEqual([
+      ['a', 249],
+      ['b', 349],
+      ['fixed', 350],
+    ]);
+  });
+
   it('should select and clear keyframe selection', () => {
     useAnimationStore.getState().selectKeyframes(['kf-1', 'kf-2']);
     expect(useAnimationStore.getState().selectedKeyframeIds).toEqual(['kf-1', 'kf-2']);
@@ -263,6 +298,7 @@ describe('playbackStore', () => {
       state: 'stopped',
       speed: 1,
       loopMode: 'none',
+      audioMuted: false,
       frameState: new Map(),
     });
   });
@@ -273,6 +309,7 @@ describe('playbackStore', () => {
     expect(state.state).toBe('stopped');
     expect(state.speed).toBe(1);
     expect(state.loopMode).toBe('none');
+    expect(state.audioMuted).toBe(false);
     expect(state.frameState.size).toBe(0);
   });
 
@@ -290,6 +327,11 @@ describe('playbackStore', () => {
     const state = usePlaybackStore.getState();
     expect(state.speed).toBe(0.5);
     expect(state.loopMode).toBe('loop');
+  });
+
+  it('should mute attached audio independently of animation playback', () => {
+    usePlaybackStore.getState().setAudioMuted(true);
+    expect(usePlaybackStore.getState().audioMuted).toBe(true);
   });
 
   it('should set frame state', () => {

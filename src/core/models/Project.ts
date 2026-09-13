@@ -78,6 +78,7 @@ export function createProjectFromContent(
     scene: content.scene,
     timeline: content.timeline,
     playback: content.playback,
+    audio: content.audio,
     authoring: content.authoring,
     preferredWorkspace:
       content.preferredWorkspace ??
@@ -119,6 +120,7 @@ export function toProjectDocument(
       clipEnd: project.clipEnd ?? project.playback.clipEnd,
       cameraFrame: project.cameraFrame ?? project.playback.cameraFrame,
     },
+    audio: project.audio,
     authoring: project.authoring,
     preferredWorkspace: project.preferredWorkspace,
   };

@@ -65,13 +65,14 @@ export function distance(
 
 /** Format milliseconds to human-readable time string (e.g. "1:23.456") */
 export function formatTime(ms: number): string {
-  const negative = ms < 0;
-  const absMs = Math.abs(ms);
+  const roundedMs = Math.round(ms);
+  const negative = roundedMs < 0;
+  const absMs = Math.abs(roundedMs);
 
   const totalSeconds = Math.floor(absMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  const millis = Math.round(absMs % 1000);
+  const millis = absMs % 1000;
 
   const secondsStr = seconds.toString().padStart(minutes > 0 ? 2 : 1, '0');
   const millisStr = millis.toString().padStart(3, '0');

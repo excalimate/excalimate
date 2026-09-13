@@ -12,6 +12,7 @@ interface PlaybackStoreState {
   state: PlaybackStatus;
   speed: PlaybackSpeed;
   loopMode: LoopMode;
+  audioMuted: boolean;
   frameState: FrameState;
 
   // Actions
@@ -19,6 +20,7 @@ interface PlaybackStoreState {
   setPlaybackState: (state: PlaybackStatus) => void;
   setSpeed: (speed: PlaybackSpeed) => void;
   setLoopMode: (mode: LoopMode) => void;
+  setAudioMuted: (muted: boolean) => void;
   setFrameState: (frameState: FrameState) => void;
 }
 
@@ -27,6 +29,7 @@ export const usePlaybackStore = create<PlaybackStoreState>()((set) => ({
   state: 'stopped',
   speed: 1,
   loopMode: 'none',
+  audioMuted: false,
   frameState: new Map(),
 
   setCurrentTime: (time: number): void => {
@@ -43,6 +46,10 @@ export const usePlaybackStore = create<PlaybackStoreState>()((set) => ({
 
   setLoopMode: (mode: LoopMode): void => {
     set({ loopMode: mode });
+  },
+
+  setAudioMuted: (muted: boolean): void => {
+    set({ audioMuted: muted });
   },
 
   setFrameState: (frameState: FrameState): void => {

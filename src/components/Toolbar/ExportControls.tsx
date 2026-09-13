@@ -18,6 +18,7 @@ import { notifications } from '@mantine/notifications';
 import {
   IconMovie, IconVideo, IconPhoto, IconSvg, IconDownload, IconCheck, IconX,
   IconAlertTriangle, IconCamera, IconFileCode, IconPackage, IconPlayerStop,
+  IconMusic,
 } from '@tabler/icons-react';
 import {
   createExportJob,
@@ -323,6 +324,7 @@ export function ExportControls() {
 
   const clipStart = useAnimationStore((s) => s.clipStart);
   const clipEnd = useAnimationStore((s) => s.clipEnd);
+  const audioAttachment = useProjectStore((s) => s.project?.audio);
   const clipDuration = ((clipEnd - clipStart) / 1000).toFixed(1);
 
   const handleOpen = () => {
@@ -471,6 +473,7 @@ export function ExportControls() {
     quality,
     showDialog,
     svgProfile,
+    audioAttachment,
   ]);
 
   return (
@@ -497,6 +500,14 @@ export function ExportControls() {
               <Text size="xs" c="dimmed">
                 Clip: {(clipStart / 1000).toFixed(1)}s – {(clipEnd / 1000).toFixed(1)}s ({clipDuration}s)
               </Text>
+              {audioAttachment && (
+                <Group gap={6}>
+                  <IconMusic size={14} />
+                  <Text size="xs" c="dimmed">
+                    {audioAttachment.fileName} will be included in MP4 and WebM exports.
+                  </Text>
+                </Group>
+              )}
 
               {exporting && activeTab === 'video' ? (
                 <Stack gap="xs">

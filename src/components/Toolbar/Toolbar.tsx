@@ -13,6 +13,7 @@ import { FileControls } from './FileControls';
 import { ModeSwitcher } from './ModeSwitcher';
 import { ThemeToggle } from './ThemeToggle';
 import { ExportControls } from './ExportControls';
+import { AudioControls } from './AudioControls';
 import { InfoLinks } from './InfoLinks';
 import { useUIStore } from '../../stores/uiStore';
 import { useMcpLive, getMcpUrl } from '../../hooks/useMcpLive';
@@ -144,6 +145,7 @@ export function Toolbar({ legacyShell = false }: { legacyShell?: boolean }) {
         </Tooltip>
         </span>
         <div className="w-px h-5 bg-border mx-1" />
+        <AudioControls />
         <ExportControls />
         <div className="w-px h-5 bg-border mx-1" />
         <ThemeToggle />

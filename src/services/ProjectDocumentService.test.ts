@@ -51,6 +51,24 @@ describe('ProjectDocumentService', () => {
     expect(captured?.playback).toEqual(document.playback);
   });
 
+  it('round-trips an embedded audio attachment through application stores', () => {
+    const document = createSyntheticV2Project();
+    document.audio = {
+      fileName: 'narration.mp3',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      durationMs: 1_500,
+      dataUrl: 'data:audio/mpeg;base64,AQID',
+    };
+
+    loadProjectDocumentIntoStores(document, {
+      activateAnimationMode: false,
+    });
+
+    expect(useProjectStore.getState().project?.audio).toEqual(document.audio);
+    expect(captureProjectDocument()?.audio).toEqual(document.audio);
+  });
+
   it('round-trips the persisted Sequence action list and canonical timeline', () => {
     const document = createSyntheticV2Project();
     loadProjectDocumentIntoStores(document, {

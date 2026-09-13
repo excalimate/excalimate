@@ -91,7 +91,8 @@ function StudioShell({ legacyShell }: { legacyShell: boolean }) {
     handleSelectTrack,
     handleSelectKeyframes,
     handleAddKeyframe,
-    handleMoveKeyframe,
+    handleMoveKeyframes,
+    handleEndKeyframeDrag,
     handleRemoveKeyframe,
     handleToggleTrackEnabled,
     handleRemoveTrack,
@@ -255,6 +256,7 @@ function StudioShell({ legacyShell }: { legacyShell: boolean }) {
             <TimelinePanelWrapper
               tracks={timeline.tracks}
               duration={timeline.duration}
+              fps={timeline.fps}
               selectedTrackId={selectedTrackId}
               rawSelectedKeyframeIds={selectedKeyframeIds}
               clipStart={clipStart}
@@ -262,11 +264,13 @@ function StudioShell({ legacyShell }: { legacyShell: boolean }) {
               onSelectTrack={handleSelectTrack}
               onSelectKeyframes={handleSelectKeyframes}
               onAddKeyframe={handleAddKeyframe}
-              onMoveKeyframe={handleMoveKeyframe}
+              onMoveKeyframes={handleMoveKeyframes}
+              onEndKeyframeDrag={handleEndKeyframeDrag}
               onDeleteKeyframe={handleRemoveKeyframe}
               onScrub={handleScrub}
               onToggleTrackEnabled={handleToggleTrackEnabled}
               onRemoveTrack={handleRemoveTrack}
+              onSelectElements={handleSelectElements}
               onClipRangeChange={(start, end) =>
                 useAnimationStore.getState().setClipRange(start, end)
               }
