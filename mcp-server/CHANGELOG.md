@@ -27,6 +27,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - N/A
 
+## [0.5.1] - 2026-09-13
+
+### Added
+
+- N/A
+
+### Changed
+
+- Rebuilt the MCP server against the 0.5.1 shared project schema and animation core packages.
+- Updated the shared dependency graph and validated all MCP tools against the latest runtime packages.
+
+### Fixed
+
+- N/A
+
+### Security
+
+- Updated transitive tooling dependencies to patched releases and removed vulnerable unused export dependencies from the shared installation.
+
+### Deprecated
+
+- N/A
+
 ## [0.5.0] - 2026-07-13
 
 ### Added

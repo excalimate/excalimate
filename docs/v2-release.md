@@ -1,6 +1,6 @@
 # Excalimate V2 release
 
-Excalimate V2 is the stable `0.5.0` application and package release. It uses
+Excalimate V2 is the stable `0.5.1` application and package release. It uses
 project schema `2.0.0`, PlayerPackage `1.0.0`, and player runtime `1.0.0`.
 Protocol versions change only when their
 wire contracts become incompatible; the optional PlayerPackage preview and

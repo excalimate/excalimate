@@ -23,6 +23,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - N/A
 
+## [0.5.1] - 2026-09-13
+
+### Added
+
+- Imported audio attachments with project persistence, synchronized playback, editor controls, and AAC MP4 / Opus WebM export muxing.
+- Scrollable, playhead-aware timeline navigation with anchored zoom and After Effects-style frame, zoom, and keyframe shortcuts.
+
+### Changed
+
+- Timeline edits now snap to project frames and support precise time entry, explicit multi-keyframe selection, grouped dragging, and single-action undo.
+- Timeline object names select their canvas objects while disclosure controls independently expand animated properties.
+- Updated the Mantine, Cloudflare, Astro, Vitest, and supporting dependency stacks.
+
+### Fixed
+
+- Prevented project hydration from creating phantom 10% scale keyframes.
+- Preserved interpolated transforms when starting canvas drag, resize, or rotation gestures.
+- Ensured canvas-focused timeline shortcuts run before Excalidraw tool shortcuts.
+
+### Security
+
+- Removed vulnerable dotLottie Sharp and Valibot dependency chains and updated brace-expansion and tar to patched releases.
+
 ## [0.5.0] - 2026-07-13
 
 ### Added
