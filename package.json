@@ -34,7 +34,6 @@
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
-    "@dotlottie/dotlottie-js": "^1.6.3",
     "@excalidraw/excalidraw": "^0.18.0",
     "@excalimate/animation-core": "*",
     "@excalimate/export-runtime": "*",
@@ -51,6 +50,7 @@
     "@posthog/react": "^1.8.2",
     "@tabler/icons-react": "^3.40.0",
     "browser-fs-access": "^0.38.0",
+    "fflate": "^0.8.3",
     "gif.js": "^0.2.0",
     "mp4-muxer": "^5.2.2",
     "nanoid": "^5.1.6",
