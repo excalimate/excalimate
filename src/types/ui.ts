@@ -15,6 +15,7 @@ export interface TimelineViewport {
   scrollX: number;
   scrollY: number;
   zoom: number; // pixels per millisecond
+  width: number;
   snapEnabled: boolean;
   snapInterval: number; // ms
 }

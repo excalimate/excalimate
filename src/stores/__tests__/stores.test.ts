@@ -321,6 +321,7 @@ describe('uiStore', () => {
         scrollX: 0,
         scrollY: 0,
         zoom: 0.1,
+        width: 0,
         snapEnabled: true,
         snapInterval: 100,
       },

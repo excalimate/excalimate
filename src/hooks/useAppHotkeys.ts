@@ -9,8 +9,23 @@ import { getPlaybackController, computeFrameAtTime } from '../core/engine/playba
 import { trackGroupAction } from '../services/analytics/posthog';
 import { trackCreatorEvent } from '../services/analytics/posthog';
 import { requestFocusedSequenceMove } from '../components/Sequence/sequenceHotkeys';
+import { MAX_ZOOM, MIN_ZOOM } from '../components/Timeline/timelineModel';
+import {
+  clampTimelineZoom,
+  getPlayheadZoomAnchorX,
+  getTimelineViewportAtTime,
+} from '../components/Timeline/timelineMath';
+import {
+  findAdjacentTimelineTarget,
+  getFrameShortcutNavigation,
+  getRelevantTimelineTargets,
+  moveTimeByFrames,
+  type TimelineFrameShortcut,
+  type TimelineNavigationDirection,
+} from '../components/Timeline/timelineNavigation';
 
 const FRAME_DURATION = 1000 / 60;
+const TIMELINE_ZOOM_FACTOR = 1.25;
 
 function deleteSelectedKeyframes() {
   const { selectedKeyframeIds, timeline } = useAnimationStore.getState();
@@ -37,6 +52,65 @@ function deleteSelectedKeyframes() {
   }
 
   useAnimationStore.getState().clearKeyframeSelection();
+}
+
+function seekByFrames(direction: TimelineNavigationDirection, frameCount: number) {
+  const { timeline } = useAnimationStore.getState();
+  const currentTime = usePlaybackStore.getState().currentTime;
+  computeFrameAtTime(
+    moveTimeByFrames({
+      currentTime,
+      duration: timeline.duration,
+      fps: timeline.fps,
+      frameCount,
+      direction,
+    }),
+  );
+}
+
+function seekByFrameShortcut(shortcut: TimelineFrameShortcut) {
+  const navigation = getFrameShortcutNavigation(shortcut);
+  seekByFrames(navigation.direction, navigation.frameCount);
+}
+
+function seekToTimelineTarget(direction: TimelineNavigationDirection) {
+  const { timeline, clipStart, clipEnd } = useAnimationStore.getState();
+  const currentTime = usePlaybackStore.getState().currentTime;
+  const targets = getRelevantTimelineTargets({
+    tracks: timeline.tracks,
+    selectedTargetIds: useUIStore.getState().selectedElementIds,
+    clipStart,
+    clipEnd,
+    duration: timeline.duration,
+  });
+  computeFrameAtTime(findAdjacentTimelineTarget(targets, currentTime, direction));
+}
+
+function zoomTimeline(direction: 'in' | 'out') {
+  const ui = useUIStore.getState();
+  const { zoom, scrollX, width } = ui.timelineViewport;
+  const nextZoom = clampTimelineZoom(
+    zoom * (direction === 'in' ? TIMELINE_ZOOM_FACTOR : 1 / TIMELINE_ZOOM_FACTOR),
+    MIN_ZOOM,
+    MAX_ZOOM,
+  );
+  if (nextZoom === zoom) return;
+  if (width <= 0) {
+    ui.setTimelineZoom(nextZoom);
+    return;
+  }
+
+  const currentTime = usePlaybackStore.getState().currentTime;
+  const duration = useAnimationStore.getState().timeline.duration;
+  const anchorX = getPlayheadZoomAnchorX(currentTime, zoom, scrollX, width);
+  const viewport = getTimelineViewportAtTime({
+    duration,
+    newZoom: nextZoom,
+    viewportWidth: width,
+    anchorTime: currentTime,
+    anchorX,
+  });
+  ui.setTimelineViewport(viewport.zoom, viewport.scrollX);
 }
 
 /**
@@ -107,6 +181,14 @@ export function useAppHotkeys() {
       const duration = useAnimationStore.getState().timeline.duration;
       computeFrameAtTime(Math.min(duration, time + FRAME_DURATION));
     }],
+    ['shift+PageUp', () => seekByFrameShortcut('shift+PageUp'), { preventDefault: true }],
+    ['shift+PageDown', () => seekByFrameShortcut('shift+PageDown'), { preventDefault: true }],
+    ['PageUp', () => seekByFrameShortcut('PageUp'), { preventDefault: true }],
+    ['PageDown', () => seekByFrameShortcut('PageDown'), { preventDefault: true }],
+    ['Equal', () => zoomTimeline('in'), { preventDefault: true, usePhysicalKeys: true }],
+    ['Minus', () => zoomTimeline('out'), { preventDefault: true, usePhysicalKeys: true }],
+    ['J', () => seekToTimelineTarget('previous'), { preventDefault: true }],
+    ['K', () => seekToTimelineTarget('next'), { preventDefault: true }],
 
     // Undo/Redo in animate mode is handled by the capture-phase interceptor above.
     // In edit mode, Excalidraw handles its own undo natively — no handler needed.
@@ -167,7 +249,7 @@ export function useAppHotkeys() {
         useAnimationStore.getState().clearKeyframeSelection();
       }
     }],
-  ]);
+  ], ['INPUT', 'TEXTAREA', 'SELECT'], false);
 }
 
 function switchWorkspace(workspace: 'magic' | 'sequence' | 'studio') {

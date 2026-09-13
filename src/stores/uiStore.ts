@@ -51,6 +51,8 @@ interface UIState {
   clearSelection: () => void;
   setPanelSize: (panel: keyof PanelSizes, size: number) => void;
   setTimelineZoom: (zoom: number) => void;
+  setTimelineViewport: (zoom: number, scrollX: number) => void;
+  setTimelineViewportWidth: (width: number) => void;
   setTimelineScroll: (scrollX: number, scrollY: number) => void;
   toggleSnap: () => void;
   setSnapInterval: (interval: number) => void;
@@ -85,6 +87,7 @@ export const useUIStore = create<UIState>()((set, get) => ({
     scrollX: 0,
     scrollY: 0,
     zoom: 0.1,
+    width: 0,
     snapEnabled: true,
     snapInterval: 100,
   },
@@ -181,6 +184,27 @@ export const useUIStore = create<UIState>()((set, get) => ({
     set((state) => ({
       timelineViewport: { ...state.timelineViewport, zoom },
     }));
+  },
+
+  setTimelineViewport: (zoom: number, scrollX: number): void => {
+    set((state) => {
+      if (state.timelineViewport.zoom === zoom && state.timelineViewport.scrollX === scrollX) {
+        return state;
+      }
+      return {
+        timelineViewport: { ...state.timelineViewport, zoom, scrollX },
+      };
+    });
+  },
+
+  setTimelineViewportWidth: (width: number): void => {
+    const nextWidth = Math.max(0, width);
+    set((state) => {
+      if (state.timelineViewport.width === nextWidth) return state;
+      return {
+        timelineViewport: { ...state.timelineViewport, width: nextWidth },
+      };
+    });
   },
 
   setTimelineScroll: (scrollX: number, scrollY: number): void => {
