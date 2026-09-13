@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-const releaseVersion = '0.5.0';
+const releaseVersion = '0.5.1';
 const packagePaths = [
   'package.json',
   'packages/project-schema/package.json',
