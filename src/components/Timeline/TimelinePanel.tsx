@@ -19,6 +19,7 @@ import {
   type VisualTrack,
 } from './timelineModel';
 import { useTimelineInteractions, type TimelineRowData } from './useTimelineInteractions';
+import { resolveKeyframeSelection } from '../../core/models/KeyframeInteraction';
 
 export interface TimelinePanelProps {
   tracks: AnimationTrack[];
@@ -26,13 +27,15 @@ export interface TimelinePanelProps {
   currentTime: number;
   selectedTrackId: string | null;
   selectedKeyframeIds: string[];
+  highlightedKeyframeIds: string[];
   selectedElementIds: string[];
   clipStart: number;
   clipEnd: number;
   onSelectTrack: (trackId: string | null) => void;
   onSelectKeyframes: (ids: string[]) => void;
   onAddKeyframe: (trackId: string, time: number, value: number) => void;
-  onMoveKeyframe: (trackId: string, keyframeId: string, newTime: number) => void;
+  onMoveKeyframes: (keyframeIds: string[], deltaTime: number) => number;
+  onEndKeyframeDrag: () => void;
   onDeleteKeyframe: (trackId: string, keyframeId: string) => void;
   onScrub: (time: number) => void;
   onToggleTrackEnabled: (trackId: string) => void;
@@ -80,13 +83,15 @@ export function TimelinePanel({
   currentTime,
   selectedTrackId,
   selectedKeyframeIds,
+  highlightedKeyframeIds,
   selectedElementIds,
   clipStart,
   clipEnd,
   onSelectTrack,
   onSelectKeyframes,
   onAddKeyframe,
-  onMoveKeyframe,
+  onMoveKeyframes,
+  onEndKeyframeDrag,
   onDeleteKeyframe: _onDeleteKeyframe,
   onScrub,
   onToggleTrackEnabled,
@@ -111,6 +116,10 @@ export function TimelinePanel({
   const playheadX = timeToPixel(currentTime, zoom) - scrollX;
   const totalWidth = timeToPixel(duration, zoom);
   const selectedKfSet = useMemo(() => new Set(selectedKeyframeIds), [selectedKeyframeIds]);
+  const highlightedKfSet = useMemo(
+    () => new Set(highlightedKeyframeIds),
+    [highlightedKeyframeIds],
+  );
   const targetGroups = useMemo(
     () => buildTargetGroups(tracks, targetLabels, targetOrder, targetParents),
     [tracks, targetLabels, targetOrder, targetParents],
@@ -183,10 +192,30 @@ export function TimelinePanel({
       onSelectKeyframes,
       selectedKeyframeIds,
       onAddKeyframe,
-      onMoveKeyframe,
+      onMoveKeyframes,
+      onEndKeyframeDrag,
       onScrub,
       onClipRangeChange,
     });
+
+  const beginKeyframeDrag = (
+    keyframeId: string,
+    startX: number,
+    toggleSelection: boolean,
+  ) => {
+    const wasSelected = selectedKfSet.has(keyframeId);
+    const dragSelection = wasSelected
+      ? selectedKeyframeIds
+      : resolveKeyframeSelection(selectedKeyframeIds, keyframeId, toggleSelection);
+
+    if (!wasSelected) onSelectKeyframes(dragSelection);
+
+    handleKeyframeDragStart(keyframeId, startX, dragSelection, () => {
+      onSelectKeyframes(
+        resolveKeyframeSelection(selectedKeyframeIds, keyframeId, toggleSelection),
+      );
+    });
+  };
 
   const clipStartX = timeToPixel(clipStart, zoom) - scrollX;
   const clipEndX = timeToPixel(clipEnd, zoom) - scrollX;
@@ -422,7 +451,7 @@ export function TimelinePanel({
                     ) : null;
                   })}
                   {collapsed &&
-                    allKfs.map(({ kf, trackId }) => {
+                    allKfs.map(({ kf }) => {
                       const x = timeToPixel(kf.time, zoom) - scrollX;
                       return (
                         <KeyframeDiamond
@@ -430,11 +459,8 @@ export function TimelinePanel({
                           keyframe={kf}
                           x={x}
                           isSelected={selectedKfSet.has(kf.id)}
-                          onSelect={(id, addToSelection) => {
-                            if (addToSelection) onSelectKeyframes([...selectedKeyframeIds, id]);
-                            else onSelectKeyframes([id]);
-                          }}
-                          onDragStart={(id, startX) => handleKeyframeDragStart(id, startX, trackId, kf.time)}
+                          isHighlighted={highlightedKfSet.has(kf.id)}
+                          onDragStart={beginKeyframeDrag}
                         />
                       );
                     })}
@@ -472,7 +498,7 @@ export function TimelinePanel({
                     />
                   ) : null;
                 })}
-                {allKfs.map(({ kf, trackId }) => {
+                {allKfs.map(({ kf }) => {
                   const x = timeToPixel(kf.time, zoom) - scrollX;
                   return (
                     <KeyframeDiamond
@@ -480,11 +506,8 @@ export function TimelinePanel({
                       keyframe={kf}
                       x={x}
                       isSelected={selectedKfSet.has(kf.id)}
-                      onSelect={(id, addToSelection) => {
-                        if (addToSelection) onSelectKeyframes([...selectedKeyframeIds, id]);
-                        else onSelectKeyframes([id]);
-                      }}
-                      onDragStart={(id, startX) => handleKeyframeDragStart(id, startX, trackId, kf.time)}
+                      isHighlighted={highlightedKfSet.has(kf.id)}
+                      onDragStart={beginKeyframeDrag}
                     />
                   );
                 })}
