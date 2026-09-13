@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type MouseEven
 import type { AnimationTrack } from '../../types/animation';
 import { MAX_ZOOM, MIN_ZOOM, TRACK_HEIGHT } from './timelineModel';
 import { pixelToTime, timeToPixel } from './timelineMath';
+import { calculateKeyframeGroupMove } from '../../core/models/KeyframeInteraction';
 
 export type TimelineRowData =
   | { type: 'target-header'; group: { targetId: string; allTracks: AnimationTrack[] }; collapsed: boolean }
@@ -25,7 +26,8 @@ export interface UseTimelineInteractionsParams {
   onSelectKeyframes: (ids: string[]) => void;
   selectedKeyframeIds: string[];
   onAddKeyframe: (trackId: string, time: number, value: number) => void;
-  onMoveKeyframe: (trackId: string, keyframeId: string, newTime: number) => void;
+  onMoveKeyframes: (keyframeIds: string[], deltaTime: number) => number;
+  onEndKeyframeDrag: () => void;
   onScrub: (time: number) => void;
   onClipRangeChange: (start: number, end: number) => void;
 }
@@ -48,7 +50,8 @@ export function useTimelineInteractions({
   onSelectKeyframes,
   selectedKeyframeIds,
   onAddKeyframe,
-  onMoveKeyframe,
+  onMoveKeyframes,
+  onEndKeyframeDrag,
   onScrub,
   onClipRangeChange,
 }: UseTimelineInteractionsParams) {
@@ -57,9 +60,7 @@ export function useTimelineInteractions({
   const [rulerWidth, setRulerWidth] = useState(800);
   const [dragState, setDragState] = useState<{
     keyframeId: string;
-    trackId: string;
     startClientX: number;
-    startTime: number;
   } | null>(null);
   const [marqueeState, setMarqueeState] = useState<{
     startX: number;
@@ -175,26 +176,45 @@ export function useTimelineInteractions({
   );
 
   const handleKeyframeDragStart = useCallback(
-    (keyframeId: string, startClientX: number, trackId: string, startTime: number) => {
-      setDragState({ keyframeId, trackId, startClientX, startTime });
+    (
+      keyframeId: string,
+      startClientX: number,
+      keyframeIds: string[],
+      handleClick: () => void,
+    ) => {
+      setDragState({ keyframeId, startClientX });
+      let appliedDelta = 0;
+      let moved = false;
 
       const handleMouseMove = (e: globalThis.MouseEvent) => {
         const deltaPx = e.clientX - startClientX;
-        const deltaTime = pixelToTime(deltaPx, zoom);
-        const newTime = Math.max(0, Math.round(startTime + deltaTime));
-        onMoveKeyframe(trackId, keyframeId, newTime);
+        if (Math.abs(deltaPx) < 3) return;
+
+        const requestedDelta = Math.round(pixelToTime(deltaPx, zoom));
+        const movement = calculateKeyframeGroupMove(
+          tracks,
+          keyframeIds,
+          requestedDelta,
+          duration,
+        );
+        moved = true;
+        const incrementalDelta = movement.delta - appliedDelta;
+        if (incrementalDelta === 0) return;
+        appliedDelta += onMoveKeyframes(keyframeIds, incrementalDelta);
       };
 
       const handleMouseUp = () => {
         setDragState(null);
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        if (!moved) handleClick();
+        onEndKeyframeDrag();
       };
 
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
-    [onMoveKeyframe, zoom],
+    [duration, onEndKeyframeDrag, onMoveKeyframes, tracks, zoom],
   );
 
   const handleMarqueeStart = useCallback(
@@ -206,7 +226,7 @@ export function useTimelineInteractions({
       const rect = container.getBoundingClientRect();
       const startX = e.clientX - rect.left;
       const startY = e.clientY - rect.top + container.scrollTop;
-      const additive = e.shiftKey;
+      const additive = e.shiftKey || e.ctrlKey || e.metaKey;
 
       let currentX = startX;
       let currentY = startY;
@@ -224,7 +244,10 @@ export function useTimelineInteractions({
         document.removeEventListener('mouseup', handleMouseUp);
         setMarqueeState(null);
 
-        if (Math.abs(currentX - startX) < 3 && Math.abs(currentY - startY) < 3) return;
+        if (Math.abs(currentX - startX) < 3 && Math.abs(currentY - startY) < 3) {
+          onSelectKeyframes([]);
+          return;
+        }
 
         const minX = Math.min(startX, currentX);
         const maxX = Math.max(startX, currentX);
