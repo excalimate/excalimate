@@ -1176,7 +1176,7 @@ const ActionRow = memo(function ActionRow({
         </ActionIcon>
       </Group>
 
-      <Collapse in={expanded}>
+      <Collapse expanded={expanded}>
         {action && !isCustomized ? (
           <ExactTimingEditor
             action={action}

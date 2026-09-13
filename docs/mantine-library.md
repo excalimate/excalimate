@@ -1,5 +1,8 @@
 # Mantine UI Library - Complete Documentation
 
+The main application uses Mantine 9.4.2. The independently packaged landing page
+remains on Mantine 8.3.17 until its own coordinated major-version migration.
+
 This file contains comprehensive documentation for the Mantine UI library including:
 - Complete component documentation with all usage examples
 - Full demo code for every example shown in the documentation
@@ -6827,7 +6830,7 @@ function Demo() {
         <Button onClick={toggle}>Toggle content</Button>
       </Group>
 
-      <Collapse in={opened}>
+      <Collapse expanded={opened}>
         <Text>{/* ... content */}</Text>
       </Collapse>
     </Box>
@@ -6859,7 +6862,7 @@ function Demo() {
         <Button onClick={toggle}>Toggle with linear transition</Button>
       </Group>
 
-      <Collapse in={opened} transitionDuration={1000} transitionTimingFunction="linear">
+      <Collapse expanded={opened} transitionDuration={1000} transitionTimingFunction="linear">
         <Text>{/* ...content */}</Text>
       </Collapse>
     </Box>

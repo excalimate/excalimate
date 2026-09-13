@@ -74,7 +74,7 @@ function FeedbackBoardContent() {
   const [error, setError] = useState<string>();
   const [votingNumber, setVotingNumber] = useState<number>();
   const [refreshVersion, setRefreshVersion] = useState(0);
-  const [submitOpened, submitControls] = useDisclosure(false);
+  const [submitOpened, { open: openSubmit, close: closeSubmit }] = useDisclosure(false);
   const voteChallengeRef = useRef<TurnstileActionHandle>(null);
   const freshRequestRef = useRef(isFeedbackListStale());
 
@@ -116,12 +116,12 @@ function FeedbackBoardContent() {
     const refreshRestoredPage = (event: PageTransitionEvent) => {
       if (!event.persisted && !isFeedbackListStale()) return;
       freshRequestRef.current = true;
-      submitControls.close();
+      closeSubmit();
       setRefreshVersion((version) => version + 1);
     };
     window.addEventListener('pageshow', refreshRestoredPage);
     return () => window.removeEventListener('pageshow', refreshRestoredPage);
-  }, [submitControls.close]);
+  }, [closeSubmit]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -139,10 +139,10 @@ function FeedbackBoardContent() {
 
   const openSubmittedFeedback = useCallback(
     (url: string) => {
-      submitControls.close();
+      closeSubmit();
       window.location.assign(url);
     },
-    [submitControls.close],
+    [closeSubmit],
   );
 
   const vote = async (item: FeedbackSummary) => {
@@ -202,7 +202,7 @@ function FeedbackBoardContent() {
           <Button
             size="md"
             leftSection={<IconMessagePlus size={19} />}
-            onClick={submitControls.open}
+            onClick={openSubmit}
             disabled={!data?.turnstileSiteKey}
           >
             Submit feedback
@@ -322,7 +322,7 @@ function FeedbackBoardContent() {
       </Stack>
       <SubmitFeedbackModal
         opened={submitOpened}
-        onClose={submitControls.close}
+        onClose={closeSubmit}
         onSubmitted={openSubmittedFeedback}
         siteKey={data?.turnstileSiteKey ?? ''}
       />
