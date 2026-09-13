@@ -1,12 +1,21 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type MouseEvent, type RefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type RefObject } from 'react';
 import type { AnimationTrack } from '../../types/animation';
 import { MAX_ZOOM, MIN_ZOOM, TRACK_HEIGHT } from './timelineModel';
-import { pixelToTime, timeToPixel } from './timelineMath';
+import {
+  clampTimelineZoom,
+  getZoomedTimelineViewport,
+  pixelToTime,
+  timeToPixel,
+} from './timelineMath';
 import { snapKeyframeDragDelta, snapTimeToFrame } from './timelineTime';
 import { calculateKeyframeGroupMove } from '../../core/models/KeyframeInteraction';
 
 export type TimelineRowData =
-  | { type: 'target-header'; group: { targetId: string; allTracks: AnimationTrack[] }; collapsed: boolean }
+  | {
+      type: 'target-header';
+      group: { targetId: string; allTracks: AnimationTrack[] };
+      collapsed: boolean;
+    }
   | { type: 'property'; trackIds: string[] };
 
 export interface UseTimelineInteractionsParams {
@@ -17,11 +26,11 @@ export interface UseTimelineInteractionsParams {
   tracks: AnimationTrack[];
   duration: number;
   fps: number;
-  currentTime: number;
   zoom: number;
-  setZoom: Dispatch<SetStateAction<number>>;
   scrollX: number;
-  setScrollX: Dispatch<SetStateAction<number>>;
+  onViewportChange: (zoom: number, scrollX: number) => void;
+  onScrollXChange: (scrollX: number) => void;
+  onViewportWidthChange: (width: number) => void;
   clipStart: number;
   clipEnd: number;
   selectedElementIds: string[];
@@ -42,11 +51,11 @@ export function useTimelineInteractions({
   tracks,
   duration,
   fps,
-  currentTime: _currentTime,
   zoom,
-  setZoom,
   scrollX,
-  setScrollX,
+  onViewportChange,
+  onScrollXChange,
+  onViewportWidthChange,
   clipStart,
   clipEnd,
   selectedElementIds,
@@ -58,7 +67,6 @@ export function useTimelineInteractions({
   onScrub,
   onClipRangeChange,
 }: UseTimelineInteractionsParams) {
-  void _currentTime;
   const isSyncingScroll = useRef(false);
   const [rulerWidth, setRulerWidth] = useState(800);
   const [dragState, setDragState] = useState<{
@@ -73,19 +81,25 @@ export function useTimelineInteractions({
     additive: boolean;
   } | null>(null);
 
-  const syncScroll = useCallback((source: 'left' | 'right') => {
-    if (isSyncingScroll.current) return;
-    isSyncingScroll.current = true;
-    const left = trackListRef.current;
-    const right = keyframeScrollRef.current;
-    if (left && right) {
-      if (source === 'left') right.scrollTop = left.scrollTop;
-      else left.scrollTop = right.scrollTop;
-    }
-    requestAnimationFrame(() => {
-      isSyncingScroll.current = false;
-    });
-  }, [trackListRef, keyframeScrollRef]);
+  const syncScroll = useCallback(
+    (source: 'left' | 'right') => {
+      const left = trackListRef.current;
+      const right = keyframeScrollRef.current;
+      if (source === 'right' && right) {
+        onScrollXChange(right.scrollLeft);
+      }
+      if (isSyncingScroll.current) return;
+      isSyncingScroll.current = true;
+      if (left && right) {
+        if (source === 'left') right.scrollTop = left.scrollTop;
+        else left.scrollTop = right.scrollTop;
+      }
+      requestAnimationFrame(() => {
+        isSyncingScroll.current = false;
+      });
+    },
+    [keyframeScrollRef, onScrollXChange, trackListRef],
+  );
 
   useEffect(() => {
     const el = keyframeAreaRef.current;
@@ -93,11 +107,19 @@ export function useTimelineInteractions({
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setRulerWidth(entry.contentRect.width);
+        onViewportWidthChange(entry.contentRect.width);
       }
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [keyframeAreaRef]);
+  }, [keyframeAreaRef, onViewportWidthChange]);
+
+  useEffect(() => {
+    const el = keyframeScrollRef.current;
+    if (el && Math.abs(el.scrollLeft - scrollX) > 0.5) {
+      el.scrollLeft = scrollX;
+    }
+  }, [keyframeScrollRef, scrollX]);
 
   useEffect(() => {
     const el = keyframeScrollRef.current;
@@ -106,9 +128,19 @@ export function useTimelineInteractions({
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
         const factor = e.deltaY > 0 ? 0.9 : 1.1;
-        setZoom((z) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z * factor)));
+        const nextZoom = clampTimelineZoom(zoom * factor, MIN_ZOOM, MAX_ZOOM);
+        const rect = el.getBoundingClientRect();
+        const viewport = getZoomedTimelineViewport({
+          duration,
+          oldZoom: zoom,
+          newZoom: nextZoom,
+          scrollX,
+          viewportWidth: el.clientWidth,
+          anchorX: e.clientX - rect.left,
+        });
+        onViewportChange(viewport.zoom, viewport.scrollX);
       } else if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        setScrollX((s) => Math.max(0, s + e.deltaX + (e.shiftKey ? e.deltaY : 0)));
+        el.scrollLeft += e.deltaX + (e.shiftKey ? e.deltaY : 0);
       } else {
         const left = trackListRef.current;
         if (el && left) {
@@ -120,17 +152,17 @@ export function useTimelineInteractions({
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
-  }, [keyframeScrollRef, trackListRef, setScrollX, setZoom]);
+  }, [duration, keyframeScrollRef, onViewportChange, scrollX, trackListRef, zoom]);
 
   const handleKeyframeAreaClick = useCallback(
     (e: MouseEvent, trackId: string) => {
       if (!keyframeAreaRef.current) return;
       const rect = keyframeAreaRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left + scrollX;
+      const x = e.clientX - rect.left + (keyframeScrollRef.current?.scrollLeft ?? scrollX);
       const time = snapTimeToFrame(pixelToTime(x, zoom), fps, 0, duration);
       onAddKeyframe(trackId, time, 0);
     },
-    [duration, fps, keyframeAreaRef, onAddKeyframe, scrollX, zoom],
+    [duration, fps, keyframeAreaRef, keyframeScrollRef, onAddKeyframe, scrollX, zoom],
   );
 
   const handleScrubberMouseDown = useCallback(
@@ -150,7 +182,7 @@ export function useTimelineInteractions({
       const SNAP_PX = 8;
 
       const updateTime = (clientX: number) => {
-        const x = clientX - rect.left + scrollX;
+        const x = clientX - rect.left + (keyframeScrollRef.current?.scrollLeft ?? scrollX);
         let time = Math.max(0, Math.min(duration, pixelToTime(x, zoom)));
         let snappedToExistingTime = false;
 
@@ -180,16 +212,11 @@ export function useTimelineInteractions({
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
-    [duration, fps, keyframeAreaRef, onScrub, scrollX, tracks, zoom],
+    [duration, fps, keyframeAreaRef, keyframeScrollRef, onScrub, scrollX, tracks, zoom],
   );
 
   const handleKeyframeDragStart = useCallback(
-    (
-      keyframeId: string,
-      startClientX: number,
-      keyframeIds: string[],
-      handleClick: () => void,
-    ) => {
+    (keyframeId: string, startClientX: number, keyframeIds: string[], handleClick: () => void) => {
       setDragState({ keyframeId, startClientX });
       const draggedKeyframe = tracks
         .flatMap((track) => track.keyframes)
@@ -203,19 +230,9 @@ export function useTimelineInteractions({
 
         const rawDelta = pixelToTime(deltaPx, zoom);
         const requestedDelta = draggedKeyframe
-          ? snapKeyframeDragDelta(
-              draggedKeyframe.time,
-              rawDelta,
-              fps,
-              duration,
-            )
+          ? snapKeyframeDragDelta(draggedKeyframe.time, rawDelta, fps, duration)
           : rawDelta;
-        const movement = calculateKeyframeGroupMove(
-          tracks,
-          keyframeIds,
-          requestedDelta,
-          duration,
-        );
+        const movement = calculateKeyframeGroupMove(tracks, keyframeIds, requestedDelta, duration);
         moved = true;
         const incrementalDelta = movement.delta - appliedDelta;
         if (incrementalDelta === 0) return;
@@ -243,7 +260,7 @@ export function useTimelineInteractions({
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      const startX = e.clientX - rect.left;
+      const startX = e.clientX - rect.left + container.scrollLeft;
       const startY = e.clientY - rect.top + container.scrollTop;
       const additive = e.shiftKey || e.ctrlKey || e.metaKey;
 
@@ -253,7 +270,7 @@ export function useTimelineInteractions({
       setMarqueeState({ startX, startY, currentX, currentY, additive });
 
       const handleMouseMove = (me: globalThis.MouseEvent) => {
-        currentX = me.clientX - rect.left;
+        currentX = me.clientX - rect.left + container.scrollLeft;
         currentY = me.clientY - rect.top + container.scrollTop;
         setMarqueeState((prev) => (prev ? { ...prev, currentX, currentY } : prev));
       };
@@ -283,12 +300,16 @@ export function useTimelineInteractions({
 
           const rowTracks =
             row.type === 'target-header'
-              ? (row.collapsed ? row.group.allTracks : [])
-              : row.trackIds.map((trackId) => trackById.get(trackId)).filter((track): track is AnimationTrack => Boolean(track));
+              ? row.collapsed
+                ? row.group.allTracks
+                : []
+              : row.trackIds
+                  .map((trackId) => trackById.get(trackId))
+                  .filter((track): track is AnimationTrack => Boolean(track));
 
           rowTracks.forEach((track) => {
             track.keyframes.forEach((keyframe) => {
-              const keyframeX = timeToPixel(keyframe.time, zoom) - scrollX;
+              const keyframeX = timeToPixel(keyframe.time, zoom);
               if (keyframeX >= minX && keyframeX <= maxX) {
                 selected.add(keyframe.id);
               }
@@ -307,7 +328,7 @@ export function useTimelineInteractions({
       document.addEventListener('mouseup', handleMouseUp);
       e.preventDefault();
     },
-    [keyframeScrollRef, onSelectKeyframes, rows, scrollX, selectedKeyframeIds, tracks, zoom],
+    [keyframeScrollRef, onSelectKeyframes, rows, selectedKeyframeIds, tracks, zoom],
   );
 
   useEffect(() => {

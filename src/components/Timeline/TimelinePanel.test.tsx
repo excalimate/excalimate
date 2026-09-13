@@ -44,6 +44,11 @@ function renderTimeline(
     targetLabels: new Map([['title', 'Title']]),
     targetOrder: new Map([['title', 0]]),
     targetParents: new Map([['title', undefined]]),
+    zoom: 0.1,
+    scrollX: 0,
+    onViewportChange: vi.fn(),
+    onScrollXChange: vi.fn(),
+    onViewportWidthChange: vi.fn(),
     ...overrides,
   };
 
