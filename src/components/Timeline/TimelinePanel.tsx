@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type MouseEvent } from 'react';
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Tooltip, UnstyledButton } from '@mantine/core';
 import { IconKeyframeFilled, IconX, IconVolume, IconVolumeOff, IconChevronRight, IconChevronDown } from '@tabler/icons-react';
 import type { AnimationTrack, Keyframe } from '../../types/animation';
 import { KeyframeDiamond } from './KeyframeDiamond';
@@ -37,6 +37,7 @@ export interface TimelinePanelProps {
   onScrub: (time: number) => void;
   onToggleTrackEnabled: (trackId: string) => void;
   onRemoveTrack: (trackId: string) => void;
+  onSelectElements: (ids: string[]) => void;
   onClipRangeChange: (start: number, end: number) => void;
   targetLabels: Map<string, string>;
   targetOrder: Map<string, number>;
@@ -91,6 +92,7 @@ export function TimelinePanel({
   onScrub,
   onToggleTrackEnabled,
   onRemoveTrack,
+  onSelectElements,
   onClipRangeChange,
   targetLabels,
   targetOrder,
@@ -142,6 +144,18 @@ export function TimelinePanel({
       else next.add(targetId);
       return next;
     });
+  };
+
+  const selectTarget = (targetId: string, event: MouseEvent) => {
+    if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      onSelectElements(
+        selectedElementIds.includes(targetId)
+          ? selectedElementIds.filter((id) => id !== targetId)
+          : [...selectedElementIds, targetId],
+      );
+      return;
+    }
+    onSelectElements([targetId]);
   };
 
   const rows: RowData[] = useMemo(() => {
@@ -229,14 +243,30 @@ export function TimelinePanel({
               return (
                 <div
                   key={`hdr-${group.targetId}`}
-                  className={`flex items-center h-7 pr-1 gap-1 cursor-pointer border-b border-border text-xs select-none
+                  className={`flex items-center h-7 pr-1 gap-1 border-b border-border text-xs select-none
                     ${isAnySelected || isTargetSelected ? 'bg-accent-muted text-accent' : 'hover:bg-surface text-text'}
                     ${allTracks.some((t) => !t.enabled) ? 'opacity-40' : ''}`}
                   style={{ paddingLeft: `${4 + indent * 16}px` }}
-                  onClick={() => toggleCollapse(group.targetId)}
                 >
-                  <span className="shrink-0 text-[10px] w-3 text-center text-text-muted">{collapsed ? <IconChevronRight size={12} /> : <IconChevronDown size={12} />}</span>
-                  <span className="truncate flex-1 font-medium">{group.label}</span>
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    size="xs"
+                    aria-label={`${collapsed ? 'Expand' : 'Collapse'} animated properties for ${group.label}`}
+                    aria-expanded={!collapsed}
+                    onClick={() => toggleCollapse(group.targetId)}
+                  >
+                    {collapsed ? <IconChevronRight size={12} /> : <IconChevronDown size={12} />}
+                  </ActionIcon>
+                  <UnstyledButton
+                    type="button"
+                    className="truncate flex-1 self-stretch text-left font-medium cursor-pointer"
+                    aria-label={`Select ${group.label}`}
+                    aria-pressed={selectedElementIds.includes(group.targetId)}
+                    onClick={(event) => selectTarget(group.targetId, event)}
+                  >
+                    <span className="block truncate">{group.label}</span>
+                  </UnstyledButton>
                   <ActionIcon
                     variant="subtle"
                     color="indigo"

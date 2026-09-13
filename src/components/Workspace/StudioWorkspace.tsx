@@ -267,6 +267,7 @@ function StudioShell({ legacyShell }: { legacyShell: boolean }) {
               onScrub={handleScrub}
               onToggleTrackEnabled={handleToggleTrackEnabled}
               onRemoveTrack={handleRemoveTrack}
+              onSelectElements={handleSelectElements}
               onClipRangeChange={(start, end) =>
                 useAnimationStore.getState().setClipRange(start, end)
               }
