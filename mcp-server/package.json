@@ -42,7 +42,7 @@
   "dependencies": {
     "@excalimate/animation-core": "^0.5.1",
     "@excalimate/project-schema": "^0.5.1",
-    "@modelcontextprotocol/sdk": "^1.25.0",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
