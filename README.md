@@ -43,6 +43,8 @@ https://github.com/user-attachments/assets/77e87c62-0ff4-4a56-aee6-50553b94798c
 
 ## Quick Start
 
+[![Launch on PicoRunner](https://picorunner.com/badges/launch.svg)](https://picorunner.com/launch/?repository=https%3A%2F%2Fgithub.com%2Fexcalimate%2Fexcalimate)
+
 **Try it now** — no cloning required:
 
 ```bash
