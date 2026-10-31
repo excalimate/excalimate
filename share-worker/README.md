@@ -55,12 +55,12 @@ billing alerts for R2, Workers, and Durable Objects.
 
 ## Initial deployment
 
-From `share-worker`:
+Use Node.js 24, the version used by CI. From `share-worker`:
 
 ```bash
 npm ci
 npx wrangler login
-npx wrangler r2 bucket create excalimate-shares-v2
+npx wrangler r2 bucket create excalimate-shares-v2 --config ./wrangler.jsonc
 npm run lifecycle:apply
 npm run deploy
 ```
@@ -75,8 +75,8 @@ deploying:
 
 ```bash
 npm run lifecycle:apply
-npx wrangler r2 bucket lifecycle list excalimate-shares-v2
-npx wrangler r2 bucket lifecycle list excalimate-shares
+npx wrangler r2 bucket lifecycle list excalimate-shares-v2 --config ./wrangler.jsonc
+npx wrangler r2 bucket lifecycle list excalimate-shares --config ./wrangler.jsonc
 npm run deploy
 ```
 

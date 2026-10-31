@@ -1,4 +1,4 @@
-import { bench, describe } from 'vitest';
+import { describe, test } from 'vitest';
 import type { AnimationAction } from '@excalimate/project-schema';
 import {
   buildSequenceRows,
@@ -42,19 +42,29 @@ const targets = actions.map((action, index) => ({
 }));
 
 describe('Sequence interaction model', () => {
-  bench('derive 1,000 action rows', () => {
-    buildSequenceRows(actions, [], targets);
+  test('derive 1,000 action rows', async ({ bench }) => {
+    const buildRows = buildSequenceRows;
+    await bench('derive 1,000 action rows', () => {
+      buildRows(actions, [], targets);
+    }).run();
   });
 
-  bench('move an action in a 1,000-row list', () => {
-    moveActionIdToIndex(
-      actions.map((action) => action.id),
-      'action-750',
-      250,
-    );
+  test('move an action in a 1,000-row list', async ({ bench }) => {
+    const moveAction = moveActionIdToIndex;
+    await bench('move an action in a 1,000-row list', () => {
+      moveAction(
+        actions.map((action) => action.id),
+        'action-750',
+        250,
+      );
+    }).run();
   });
 
-  bench('calculate a virtual window', () => {
-    getVirtualActionWindow(1_000, 25_000, 800);
+  test('calculate a virtual window', async ({ bench }) => {
+    const getWindow = getVirtualActionWindow;
+    // Keep the near-zero-cost calculation from dominating CI sampling time.
+    await bench('calculate a virtual window', () => {
+      getWindow(1_000, 25_000, 800);
+    }).run({ time: 25, warmupTime: 10 });
   });
 });

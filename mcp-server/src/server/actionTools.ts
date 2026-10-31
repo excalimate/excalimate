@@ -450,5 +450,5 @@ function enumSchema<const T extends readonly [string, ...string[]]>(
 }
 
 function recordUnknownSchema() {
-  return z.record(z.unknown());
+  return z.record(z.string(), z.unknown());
 }

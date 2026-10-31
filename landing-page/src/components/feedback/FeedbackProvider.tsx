@@ -2,12 +2,19 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import './feedback.css';
 
-import { Button, createTheme, MantineProvider, type CSSVariablesResolver } from '@mantine/core';
+import {
+  Button,
+  createTheme,
+  MantineProvider,
+  v8CssVariablesResolver,
+  type CSSVariablesResolver,
+} from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import type { ReactNode } from 'react';
 
 const theme = createTheme({
   fontFamily: "'InterVariable', 'Inter', system-ui, sans-serif",
+  fontWeights: { medium: '500' },
   headings: {
     fontFamily: "'BricolageGrotesqueVariable', system-ui, sans-serif",
   },
@@ -37,14 +44,17 @@ const theme = createTheme({
   },
 });
 
-const cssVariablesResolver: CSSVariablesResolver = () => ({
-  variables: {
-    '--mantine-color-dimmed': 'var(--tx3)',
-    '--mantine-color-placeholder': 'var(--tx3)',
-  },
-  light: {},
-  dark: {},
-});
+const cssVariablesResolver: CSSVariablesResolver = (currentTheme) => {
+  const v8Variables = v8CssVariablesResolver(currentTheme);
+  return {
+    ...v8Variables,
+    variables: {
+      ...v8Variables.variables,
+      '--mantine-color-dimmed': 'var(--tx3)',
+      '--mantine-color-placeholder': 'var(--tx3)',
+    },
+  };
+};
 
 interface Props {
   children: ReactNode;
@@ -53,7 +63,7 @@ interface Props {
 export function FeedbackProvider({ children }: Props) {
   return (
     <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver}>
-      <Notifications position="bottom-right" />
+      <Notifications position="bottom-right" pauseResetOnHover="notification" />
       {children}
     </MantineProvider>
   );

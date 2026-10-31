@@ -131,7 +131,7 @@ jobs:
         run: npm run check
       - name: Wrangler dry run
         working-directory: share-worker
-        run: npx wrangler deploy --dry-run --outdir dist-dry-run
+        run: npx wrangler deploy --dry-run --config ./wrangler.jsonc --outdir dist-dry-run
 
   # ── MCP Server ─────────────────────────────────────────────────
   mcp-check:

@@ -1,7 +1,8 @@
 # Mantine UI Library - Complete Documentation
 
-The main application uses Mantine 9.4.2. The independently packaged landing page
-remains on Mantine 8.3.17 until its own coordinated major-version migration.
+The main application and independently packaged landing page use Mantine 9.7.4.
+The landing page preserves its Mantine 8 light-variant colors and notification
+hover behavior during the major-version migration.
 
 This file contains comprehensive documentation for the Mantine UI library including:
 - Complete component documentation with all usage examples

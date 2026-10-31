@@ -1,7 +1,6 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
-import type { OutputChunk } from 'rollup'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath, URL } from 'node:url'
@@ -9,7 +8,13 @@ import { fileURLToPath, URL } from 'node:url'
 import { cloudflare } from "@cloudflare/vite-plugin";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), playerIsolationPlugin(), cloudflare()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    playerIsolationPlugin(),
+    mermaidKatexGuard(),
+    ...(!process.env.VITEST ? [cloudflare()] : []),
+  ],
   resolve: {
     alias: {
       '@': '/src',
@@ -28,6 +33,7 @@ export default defineConfig({
     },
   },
   build: {
+    target: ['chrome107', 'edge107', 'firefox104', 'safari16'],
     manifest: true,
     rollupOptions: {
       input: {
@@ -82,7 +88,7 @@ function playerIsolationPlugin(): Plugin {
     generateBundle(_options, bundle) {
       const chunks = new Map(
         Object.values(bundle)
-          .filter((value): value is OutputChunk => value.type === 'chunk')
+          .filter((value) => value.type === 'chunk')
           .map((chunk) => [chunk.fileName, chunk]),
       )
       const playerEntry = [...chunks.values()].find(
@@ -121,6 +127,28 @@ function playerIsolationPlugin(): Plugin {
               chain: [...item.chain, dependency.fileName],
             })
           }
+        }
+      }
+    },
+  }
+}
+
+function mermaidKatexGuard(): Plugin {
+  // Mermaid's standalone bundles embed KaTeX and bypass the patched npm override.
+  const embeddedKatex = /\/node_modules\/mermaid\/dist\/(?:mermaid(?:\.esm(?:\.min)?\.mjs|(?:\.min)?\.js)|chunks\/[^/]+\/katex-[^/]+\.mjs)$/
+
+  return {
+    name: 'excalimate-mermaid-katex-guard',
+    generateBundle(_options, bundle) {
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type !== 'chunk') continue
+        const unsafeModule = Object.keys(chunk.modules).find((id) =>
+          embeddedKatex.test(normalizePath(id)),
+        )
+        if (unsafeModule) {
+          this.error(
+            `Mermaid's bundled KaTeX bypasses the patched dependency: ${unsafeModule}`,
+          )
         }
       }
     },

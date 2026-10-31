@@ -280,6 +280,25 @@ test('HTTP defaults to loopback and enforces Host, Origin, and browser context',
   }
 });
 
+test('HTTP MCP transport works when Web Crypto is not globally available', async () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  assert.equal(Reflect.deleteProperty(globalThis, 'crypto'), true);
+  let handle: HTTPServerHandle | undefined;
+  try {
+    handle = await startTestServer();
+    const session = await initialize(handle);
+    assert.ok(session.sessionId);
+    assert.equal(typeof globalThis.crypto.randomUUID, 'function');
+  } finally {
+    await handle?.close();
+    if (previous) {
+      Object.defineProperty(globalThis, 'crypto', previous);
+    } else {
+      Reflect.deleteProperty(globalThis, 'crypto');
+    }
+  }
+});
+
 test('auth, body, session, and SSE limits return sanitized protocol errors', async () => {
   const token = 'test-auth-token-12345';
   const handle = await startTestServer({
@@ -486,6 +505,40 @@ test('revisioned deltas detect same-count keyframe edits and legacy arrays remai
     assert.equal(lastDelta.timeline.upsertedTracks[0].keyframes[0].value, 0.75);
     assert.equal(lastDelta.baseRevision + 1, lastDelta.revision);
     assert.equal(lastDelta.sequence, lastDelta.revision);
+  } finally {
+    await connection.close();
+  }
+});
+
+test('scene tools preserve nested element records and reject malformed records', async () => {
+  const connection = await createInMemoryClient(new MemoryCheckpointStore());
+  try {
+    const customData = { label: 'kept', flags: [true, false], nested: { count: 2 } };
+    const element = {
+      id: 'box',
+      type: 'rectangle',
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+      customData,
+    };
+
+    for (const name of ['create_scene', 'create_animated_scene'] as const) {
+      const result = await connection.client.callTool({
+        name,
+        arguments: { elements: [element] },
+      });
+      assert.notEqual(result.isError, true);
+      assert.deepEqual(connection.server.stateContext.getState().scene.elements[0].customData, customData);
+    }
+
+    const invalid = await connection.client.callTool({
+      name: 'create_animated_scene',
+      arguments: { elements: [42] },
+    });
+    assert.equal(invalid.isError, true);
+    assert.deepEqual(connection.server.stateContext.getState().scene.elements[0].customData, customData);
   } finally {
     await connection.close();
   }
