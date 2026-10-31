@@ -13,7 +13,7 @@ export function registerSceneTools(
   ctx: StateContext,
   normalizeElements: (elements: any[]) => any[],
 ): void {
-  const elementSchema = z.record(z.unknown());
+  const elementSchema = z.record(z.string(), z.unknown());
   const elementsSchema = z.array(elementSchema).max(ctx.limits.maxElements);
   const updateSchema = z.object({
     id: boundedString(ctx.limits),

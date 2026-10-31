@@ -60,7 +60,7 @@ export function registerCompositeTools(
     duration: boundedTime(ctx.limits).min(50).optional(),
   }).strict();
   const sequencesSchema = z.array(sequenceSchema).max(ctx.limits.maxBatchItems);
-  const elementsSchema = z.array(z.record(z.unknown())).max(ctx.limits.maxElements);
+  const elementsSchema = z.array(z.record(z.string(), z.unknown())).max(ctx.limits.maxElements);
 
   ctx.mutatingTool(
     'create_animated_scene',
@@ -98,7 +98,6 @@ export function registerCompositeTools(
     },
     async ({ elements, keyframes, sequences, duration, clipStart, clipEnd, cameraFrame }) => {
       const stats = { elements: 0, keyframes: 0, sequences: 0 };
-      let elementsLegacy = false;
       let keyframesLegacy = false;
       let sequencesLegacy = false;
 
@@ -109,7 +108,7 @@ export function registerCompositeTools(
         'elements',
         ctx.limits,
       );
-      elementsLegacy = parsedElements.legacy;
+      const elementsLegacy = parsedElements.legacy;
 
       const state = ctx.getState();
       state.scene.elements = normalizeElements(parsedElements.value);

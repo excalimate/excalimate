@@ -55,6 +55,8 @@ printed preview pairing URL into **File → Preferences** in
 
 ### Local development
 
+Use Node.js 24, the version used by CI.
+
 ```bash
 npm install
 npm run dev

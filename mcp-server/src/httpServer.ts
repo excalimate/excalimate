@@ -282,6 +282,14 @@ export async function startHTTPServer(
   inputOptions: HTTPServerOptions = {},
 ): Promise<HTTPServerHandle> {
   const options = resolveHTTPServerOptions(inputOptions);
+  // The MCP HTTP transport expects global Web Crypto, which Node 18 may not expose.
+  if (typeof globalThis.crypto === 'undefined') {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: crypto.webcrypto,
+      configurable: true,
+      writable: true,
+    });
+  }
   if (!options.loopback) {
     console.warn(
       `[excalimate] SECURITY WARNING: HTTP mode is exposed on ${options.host}. ` +

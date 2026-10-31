@@ -3,6 +3,7 @@ import {
   AnimationActionSchema,
   PROJECT_VERSION,
   ProjectValidationError,
+  parseMcpStateDelta,
   parseProjectDocument,
 } from './index.js';
 
@@ -75,6 +76,57 @@ function snapshot(id: string, present: boolean) {
 describe('scene-state project schema', () => {
   it('keeps scene-state metadata optional for legacy V2 projects', () => {
     expect(parseProjectDocument(baseProject()).authoring).toBeUndefined();
+  });
+
+  it('preserves arbitrary scene records in projects and MCP deltas', () => {
+    const appState = {
+      theme: 'dark',
+      nested: { selectedIds: ['node'], enabled: true },
+      nullable: null,
+    };
+    const files = {
+      'shared-image': {
+        mimeType: 'image/png',
+        dataURL: 'data:image/png;base64,AA==',
+        metadata: { source: 'import' },
+      },
+    };
+    const source = baseProject();
+    const scene = {
+      ...source.scene,
+      appState,
+      files,
+      elements: [
+        { id: 'image', type: 'image', fileId: 'shared-image', customData: { label: 'kept' } },
+      ],
+    };
+
+    expect(parseProjectDocument({ ...source, scene }).scene).toEqual(scene);
+    expect(parseMcpStateDelta({
+      revision: 2,
+      sequence: 2,
+      baseRevision: 1,
+      scene: { upsert: scene.elements, removed: [], appState, files },
+    }).scene).toEqual({ upsert: scene.elements, removed: [], appState, files });
+  });
+
+  it('defaults omitted scene records and rejects non-object records', () => {
+    const source = baseProject();
+    expect(parseProjectDocument({
+      ...source,
+      scene: { elements: [] },
+    }).scene).toEqual({ elements: [], appState: {}, files: {} });
+
+    expect(() => parseProjectDocument({
+      ...source,
+      scene: { ...source.scene, appState: [] },
+    })).toThrow(ProjectValidationError);
+    expect(() => parseMcpStateDelta({
+      revision: 1,
+      sequence: 1,
+      baseRevision: 0,
+      scene: { upsert: [], removed: [], files: [] },
+    })).toThrow(ProjectValidationError);
   });
 
   it('preserves sparse tombstones and shared file references', () => {

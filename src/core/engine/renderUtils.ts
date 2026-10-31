@@ -248,8 +248,6 @@ export function applyAnimationToElements(
       const points = c.points as number[][];
 
       if (points.length >= 2) {
-        let modified = false;
-
         // If start is bound to a shape that moved, shift the start point
         if (startBinding?.elementId) {
           const boundState = elStates.get(startBinding.elementId);
@@ -261,10 +259,7 @@ export function applyAnimationToElements(
             if (Math.abs(relTx) > 0.1 || Math.abs(relTy) > 0.1) {
               // Shift start point and adjust all subsequent points to compensate
               // (move arrow origin to follow bound shape)
-              if (!modified) {
-                points[0] = [...points[0]];
-                modified = true;
-              }
+              points[0] = [...points[0]];
               c.x += relTx;
               c.y += relTy;
               // Adjust all points except first to compensate for origin shift

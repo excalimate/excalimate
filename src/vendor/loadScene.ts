@@ -193,7 +193,7 @@ const importFromBackend = async (
     }
   } catch (error: any) {
     console.error('Failed to import from backend:', error);
-    throw new Error(`Failed to load scene from Excalidraw: ${error.message}`);
+    throw new Error(`Failed to load scene from Excalidraw: ${error.message}`, { cause: error });
   }
 };
 

@@ -471,8 +471,8 @@ export const ProjectSceneElementSchema = z
 export const ProjectSceneSchema = z
   .object({
     elements: z.array(ProjectSceneElementSchema).max(PROJECT_LIMITS.maxSceneElements),
-    appState: z.record(z.unknown()).default({}),
-    files: z.record(z.unknown()).default({}),
+    appState: z.record(z.string(), z.unknown()).default({}),
+    files: z.record(z.string(), z.unknown()).default({}),
   })
   .strict()
   .superRefine((scene, context) => {
@@ -573,8 +573,8 @@ export const McpStateDeltaSchema = z
       .object({
         upsert: z.array(ProjectSceneElementSchema).max(PROJECT_LIMITS.maxSceneElements),
         removed: z.array(identifierSchema).max(PROJECT_LIMITS.maxSceneElements),
-        appState: z.record(z.unknown()).optional(),
-        files: z.record(z.unknown()).optional(),
+        appState: z.record(z.string(), z.unknown()).optional(),
+        files: z.record(z.string(), z.unknown()).optional(),
       })
       .strict()
       .optional(),
@@ -1171,7 +1171,7 @@ function parseJson(json: string, label: string): unknown {
 }
 
 function parseWithSchema<T>(
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  schema: z.ZodType<T, unknown>,
   input: unknown,
   message: string,
 ): T {
