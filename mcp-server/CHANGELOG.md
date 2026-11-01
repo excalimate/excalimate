@@ -27,6 +27,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - N/A
 
+## [0.5.2] - 2026-11-01
+
+### Added
+
+- N/A
+
+### Changed
+
+- Rebuilt the MCP server against the 0.5.2 shared runtime packages and updated dependencies.
+
+### Fixed
+
+- N/A
+
+### Security
+
+- Upgraded dependencies to address security advisories.
+
+### Deprecated
+
+- N/A
+
 ## [0.5.1] - 2026-09-13
 
 ### Added

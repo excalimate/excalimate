@@ -631,11 +631,11 @@ test('MCP publication depends only on browser-neutral shared runtimes', async ()
   };
   assert.equal(
     packageJson.dependencies['@excalimate/project-schema'],
-    '^0.5.1',
+    '^0.5.2',
   );
   assert.equal(
     packageJson.dependencies['@excalimate/animation-core'],
-    '^0.5.1',
+    '^0.5.2',
   );
   assert.equal(packageJson.dependencies['@excalimate/player-runtime'], undefined);
   assert.equal(packageJson.dependencies['@excalimate/export-runtime'], undefined);

@@ -23,6 +23,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - N/A
 
+## [0.5.2] - 2026-11-01
+
+### Added
+
+- N/A
+
+### Changed
+
+- Updated the application and runtime dependencies.
+
+### Fixed
+
+- Preserved embedded Excalidraw fonts in raster exports and the hosted player.
+
+### Security
+
+- Upgraded dependencies to address security advisories.
+
 ## [0.5.1] - 2026-09-13
 
 ### Added

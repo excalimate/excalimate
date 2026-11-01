@@ -1,6 +1,6 @@
 {
   "name": "@excalimate/mcp-server",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "license": "MIT",
   "description": "Excalimate MCP server for creating Excalidraw designs and animating them with keyframes",
   "keywords": [
@@ -40,8 +40,8 @@
     "provenance": true
   },
   "dependencies": {
-    "@excalimate/animation-core": "^0.5.1",
-    "@excalimate/project-schema": "^0.5.1",
+    "@excalimate/animation-core": "^0.5.2",
+    "@excalimate/project-schema": "^0.5.2",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.2",
