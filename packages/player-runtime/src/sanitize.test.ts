@@ -2,6 +2,30 @@ import { describe, expect, it } from 'vitest';
 import { sanitizeSvg, SvgSanitizationError } from './sanitize.js';
 
 describe('strict SVG sanitization', () => {
+  it('preserves embedded WOFF2 font faces and removes unsafe stylesheet rules', () => {
+    const result = sanitizeSvg(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <defs>
+          <style class="style-fonts">
+            @font-face { font-family: Excalifont; src: url(data:font/woff2;base64,d09GMgABAA==); }
+            @font-face { font-family: Comic Shanns; src: url(data:font/woff2;base64,d09GMgABAA==); }
+          </style>
+          <style>@import url(https://attacker.example/fonts.css);</style>
+          <style>@font-face{font-family:Remote;src:url(https://attacker.example/font.woff2)}</style>
+        </defs>
+        <text font-family="Excalifont">Hello</text>
+      </svg>
+    `);
+
+    expect(result.svg).toContain(
+      '@font-face{font-family:Excalifont;src:url(data:font/woff2;base64,d09GMgABAA==)}',
+    );
+    expect(result.svg).toContain(
+      '@font-face{font-family:Comic Shanns;src:url(data:font/woff2;base64,d09GMgABAA==)}',
+    );
+    expect(result.svg).not.toMatch(/@import|attacker\.example|Remote/);
+  });
+
   it('removes active content, external references, and unsafe styles', () => {
     const result = sanitizeSvg(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" onload="steal()">
