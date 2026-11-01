@@ -7,6 +7,7 @@ const ALLOWED_ELEMENTS = new Set([
   'svg',
   'g',
   'defs',
+  'style',
   'path',
   'rect',
   'circle',
@@ -192,6 +193,10 @@ function collectAllowedElements(root: Element): Element[] {
       element.remove();
       continue;
     }
+    if (element.localName === 'style' && element.children.length > 0) {
+      element.remove();
+      continue;
+    }
     elements.push(element);
     const children = Array.from(element.children);
     for (let index = children.length - 1; index >= 0; index -= 1) {
@@ -291,6 +296,11 @@ function sanitizeAttributes(
       else element.setAttribute(name, safeValue);
     }
   }
+  if (element.localName === 'style') {
+    const style = sanitizeFontFaceStyle(element.textContent ?? '');
+    if (style) element.textContent = style;
+    else element.remove();
+  }
 }
 
 function sanitizeHref(
@@ -341,6 +351,85 @@ function sanitizeStyle(style: string, rewrittenIds: ReadonlyMap<string, string>)
     declarations.push(`${property}:${value}`);
   }
   return declarations.join(';');
+}
+
+function sanitizeFontFaceStyle(style: string): string {
+  const rules = [...style.matchAll(/@font-face\s*\{([^{}]*)\}/gi)];
+  if (rules.length === 0 || style.replace(/@font-face\s*\{[^{}]*\}/gi, '').trim()) return '';
+
+  return rules
+    .map((rule) => sanitizeFontFaceRule(rule[1] ?? ''))
+    .filter((rule): rule is string => rule !== null)
+    .join('');
+}
+
+function sanitizeFontFaceRule(rule: string): string | null {
+  const declarations = new Map<string, string>();
+  const parts = splitFontFaceDeclarations(rule);
+  if (!parts) return null;
+  for (const declaration of parts) {
+    if (!declaration.trim()) continue;
+    const separator = declaration.indexOf(':');
+    if (separator <= 0) return null;
+    const property = declaration.slice(0, separator).trim().toLowerCase();
+    const value = declaration.slice(separator + 1).trim();
+    if (
+      !['font-family', 'font-style', 'font-weight', 'src'].includes(property) ||
+      declarations.has(property) ||
+      hasUnsafeText(value)
+    ) {
+      return null;
+    }
+    declarations.set(property, value);
+  }
+
+  const fontFamily = declarations.get('font-family');
+  const src = declarations.get('src');
+  if (
+    !fontFamily ||
+    !/^(?:[A-Za-z_][A-Za-z0-9_-]*(?:\s+[A-Za-z_][A-Za-z0-9_-]*)*|"[A-Za-z0-9 _-]+"|'[A-Za-z0-9 _-]+')$/.test(
+      fontFamily,
+    ) ||
+    !src ||
+    !/^url\(\s*(?:(["'])?data:font\/woff2;base64,([A-Za-z0-9+/]+={0,2})\1)\s*\)(?:\s+format\(\s*(?:"woff2"|'woff2')\s*\))?$/i.test(
+      src,
+    )
+  ) {
+    return null;
+  }
+
+  const fontStyle = declarations.get('font-style');
+  const fontWeight = declarations.get('font-weight');
+  if (fontStyle && !/^(?:normal|italic|oblique)$/.test(fontStyle)) return null;
+  if (fontWeight && !/^(?:normal|bold|[1-9]00)$/.test(fontWeight)) return null;
+
+  return `@font-face{font-family:${fontFamily};src:${src}${fontStyle ? `;font-style:${fontStyle}` : ''}${fontWeight ? `;font-weight:${fontWeight}` : ''}}`;
+}
+
+function splitFontFaceDeclarations(rule: string): string[] | null {
+  const declarations: string[] = [];
+  let start = 0;
+  let parenthesisDepth = 0;
+  let quote: string | null = null;
+  for (let index = 0; index < rule.length; index += 1) {
+    const character = rule[index];
+    if (quote) {
+      if (character === quote) quote = null;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === '(') {
+      parenthesisDepth += 1;
+    } else if (character === ')') {
+      parenthesisDepth -= 1;
+      if (parenthesisDepth < 0) return null;
+    } else if (character === ';' && parenthesisDepth === 0) {
+      declarations.push(rule.slice(start, index));
+      start = index + 1;
+    }
+  }
+  if (quote || parenthesisDepth !== 0) return null;
+  declarations.push(rule.slice(start));
+  return declarations;
 }
 
 function sanitizeLocalUrl(value: string, rewrittenIds: ReadonlyMap<string, string>): string | null {
