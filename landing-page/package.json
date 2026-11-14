@@ -21,7 +21,7 @@
     "@mantine/hooks": "9.7.4",
     "@mantine/notifications": "9.7.4",
     "@tabler/icons-react": "3.50.0",
-    "astro": "^7.4.4",
+    "astro": "^7.4.12",
     "jose": "^6.2.14",
     "react": "19.3.1",
     "react-dom": "19.3.1",
