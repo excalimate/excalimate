@@ -5,6 +5,10 @@
     <img src="public/excalimate_logo.svg" width="280" alt="Excalimate">
   </picture>
 
+<!-- yarkr:badges:start -->
+[![Indexed on Yarkr](https://api.yarkr.com/functions/v1/api/api/v1/badges/repos/excalimate/excalimate/version.svg)](https://yarkr.com/arks/excalimate/excalimate)
+<!-- yarkr:badges:end -->
+
 _Turn hand-drawn Excalidraw diagrams into keyframe animations_
 
 [![npm version](https://img.shields.io/npm/v/@excalimate/mcp-server?style=flat-square)](https://www.npmjs.com/package/@excalimate/mcp-server)
@@ -62,6 +66,40 @@ npm install
 npm run dev
 # → http://localhost:5173
 ```
+
+<!-- yarkr:install:start -->
+## Install with Yarkr
+
+This repo is indexed on [Yarkr](https://yarkr.com/arks/excalimate/excalimate) as the ark [excalimate/excalimate](https://yarkr.com/arks/excalimate/excalimate), so its skills install into Claude Code, Codex, Cursor and other agent harnesses with one command.
+
+### CLI
+
+Install the whole ark, which Yarkr keeps equal to this repo:
+
+```bash
+npx yarkr-cli sync excalimate/excalimate
+```
+
+Or add individual skills:
+
+```bash
+npx yarkr-cli add skill:excalimate/excalimate/animated-presentations
+npx yarkr-cli add skill:excalimate/excalimate/animation-patterns
+npx yarkr-cli add skill:excalimate/excalimate/architecture-diagrams
+```
+
+No Node.js? `curl -fsSL https://yarkr.com/install.sh | sh` (macOS, Linux) or `irm https://yarkr.com/install.ps1 | iex` (Windows PowerShell) installs `yarkr` as a standalone binary; then type `yarkr` in place of `npx yarkr-cli`.
+
+### MCP
+
+Connect your agent to the ark over MCP:
+
+```bash
+npx yarkr-cli mcp add excalimate/excalimate
+```
+
+Or point any MCP client at `https://api.yarkr.com/functions/v1/api/mcp/o/excalimate/excalimate`.
+<!-- yarkr:install:end -->
 
 ## AI Integration (MCP Server)
 
